@@ -1,0 +1,23 @@
+{
+  "name": "gaspol-dev",
+  "description": "Battle-tested Claude Code skills born from building a real AI-powered SaaS platform. Anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ali Sadikin",
+    "url": "https://github.com/alisadikinma"
+  },
+  "homepage": "https://github.com/alisadikinma/gaspol-dev",
+  "repository": "https://github.com/alisadikinma/gaspol-dev",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "execution-fidelity",
+    "anti-placeholder",
+    "plan-verification",
+    "design-intelligence",
+    "code-review",
+    "tdd",
+    "debugging",
+    "claude-code"
+  ]
+}

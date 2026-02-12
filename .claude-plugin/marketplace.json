@@ -1,0 +1,16 @@
+{
+  "name": "gaspol-dev",
+  "description": "Battle-tested Claude Code skills with anti-placeholder enforcement and design intelligence",
+  "owner": {
+    "name": "Ali Sadikin",
+    "url": "https://github.com/alisadikinma"
+  },
+  "plugins": [
+    {
+      "name": "gaspol-dev",
+      "description": "18 skills + 4 agents for execution fidelity, anti-placeholder enforcement, and design intelligence",
+      "version": "1.0.0",
+      "source": "./"
+    }
+  ]
+}
