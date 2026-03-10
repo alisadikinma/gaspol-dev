@@ -43,6 +43,22 @@ Claude Code plugin providing 16 development skills + 4 agents for execution fide
 | `agents/plan-verifier.md` | Compare plan vs actual code changes |
 | `agents/spec-reviewer.md` | Verify implementation matches specification |
 
+## Interactive Confirmation Rule (MANDATORY)
+
+**ALL clarifying questions, confirmations, and option selections MUST use the `AskUserQuestion` tool.**
+
+This shows an interactive popup modal with selectable options — NOT plain text questions buried in chat output. The user expects to see a modal they can click on, not a wall of text.
+
+When to use AskUserQuestion:
+
+- Brainstorming clarifying questions (Phase 1 questions, design approval)
+- Checkpoint approvals after each phase ("Proceed to next phase?")
+- Decision gates (placeholder vs real integration, merge vs PR vs keep vs discard)
+- Design confirmations ("Does this look right?")
+- Any yes/no or multiple-choice question during skill execution
+
+Format: Always provide 3-5 selectable options. Include "Something else" or a custom-input option as the last choice.
+
 ## The Rule
 
 **Invoke relevant skills BEFORE any response or action.**

@@ -133,7 +133,7 @@ Before implementing ANY component that displays, processes, or transforms data:
 
 If the plan says "integrate with X" but you are about to write `const data = [...]`:
 
-**STOP.** Present the user with three options:
+**STOP.** Use the **AskUserQuestion** tool to present the user with three options (interactive popup modal):
 
 - **(a) Implement real integration now** — the correct default
 - **(b) Skip this step entirely** — user decides it's not needed yet
@@ -224,7 +224,9 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 
 ### Step 4: Wait for User Approval
 
-- Do NOT proceed until the user explicitly approves
+- Use the **AskUserQuestion** tool (MANDATORY) to get approval — this shows an interactive popup modal
+- Provide options like: "Approved — proceed to Phase [X+1]", "Changes needed (I'll explain)", "Skip this phase", "Stop execution"
+- Do NOT proceed until the user explicitly approves via the popup
 - If the user requests changes, implement them before moving on
 - If the user skips a phase, acknowledge and note the skip
 

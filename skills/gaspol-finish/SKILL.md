@@ -101,7 +101,7 @@ Common base branches:
 
 ## Present Options
 
-After the verification chain passes, present exactly these 4 options:
+After the verification chain passes, use the **AskUserQuestion** tool (MANDATORY) to present exactly these 4 options as an interactive popup modal:
 
 ### Option 1: Merge Locally
 

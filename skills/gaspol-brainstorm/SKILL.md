@@ -31,9 +31,12 @@ Saves 10-50k tokens per brainstorm session.
 ## Phase 1: Understanding the Idea
 
 - Check project state (branch, recent commits)
-- Ask questions ONE at a time (multiple choice preferred, max 4 options)
-- Only one question per message
+- Ask questions ONE at a time using the **AskUserQuestion** tool (MANDATORY)
+- EVERY clarifying question MUST use `AskUserQuestion` with selectable options — this shows an interactive popup modal for the user to pick from
+- Format: provide a clear question text + 3-5 option strings (include "Something else" as last option for custom input)
+- Only one question per message — wait for user's selection before asking the next
 - Understand: what problem, who benefits, what exists already (from CLAUDE.md)
+- NEVER ask questions as plain text output — always use the AskUserQuestion tool so the user gets the interactive selection UI
 
 ## Phase 2: Exploring Approaches
 
@@ -67,7 +70,7 @@ Before finalizing:
 ## Phase 5: Presenting the Design
 
 - Present in 200-300 word sections
-- After each section ask: "Does this look right? Any changes?"
+- After each section, use **AskUserQuestion** tool to confirm: provide options like "Looks good, continue", "Needs changes (I'll explain)", "Skip this section", "Start over"
 - Cover: architecture, components, data flow, error handling
 - Include Data Integration Map:
 
@@ -86,8 +89,8 @@ Before finalizing:
 
 ## Key Principles
 
-- One question at a time
-- Multiple choice preferred (max 4 options)
+- One question at a time — ALWAYS via **AskUserQuestion** tool (popup modal, not plain text)
+- Multiple choice with selectable options (3-5 options, always include "Something else")
 - YAGNI ruthlessly
 - CLAUDE.md-first (saves tokens)
 - Data-driven aesthetics for UI (use design search)
