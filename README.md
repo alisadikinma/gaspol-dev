@@ -62,7 +62,7 @@ Register the marketplace:
 
 Install the plugin:
 ```
-/plugin install gaspol-dev@gaspol-dev
+/plugin install gaspol-dev
 ```
 
 ### Manual Installation
