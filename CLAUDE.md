@@ -2,7 +2,7 @@
 
 ## Plugin Overview
 
-Claude Code plugin providing 16 development skills + 4 agents for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, and design intelligence. Born from building a real AI-powered SaaS platform.
+Claude Code plugin providing **18 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 with model rubric switching, step-level closure gates, industry research grounding, and KB lifecycle management.
 
 ## Architecture
 
@@ -12,17 +12,22 @@ Claude Code plugin providing 16 development skills + 4 agents for execution fide
 | `.claude-plugin/marketplace.json` | Marketplace listing |
 | `hooks/hooks.json` | SessionStart hook definition |
 | `hooks/session-start.sh` | Session start script — announces available skills |
-| `skills/gaspol-brainstorm/SKILL.md` | Collaborative brainstorming with CLAUDE.md-first approach |
-| `skills/gaspol-design/SKILL.md` | Frontend design intelligence — anti-AI-slop aesthetics |
-| `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps |
-| `skills/gaspol-execute/SKILL.md` | Plan execution with anti-placeholder enforcement + checkpoints |
+| `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
+| `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
+| `skills/gaspol-design/SKILL.md` | Frontend design intelligence — power peer ui-ux-pro-max v2.0 |
+| `skills/gaspol-design/data/` | Forked 15 CSV files (85+ styles, 162+ reasoning rules, 99+ UX guidelines, 74+ fonts, etc.) |
+| `skills/gaspol-design/scripts/` | Search engine + design audit Python scripts |
+| `skills/gaspol-design/rules/` | Anti-AI-slop hard rules + gaspol-specific reasoning |
+| `skills/gaspol-design/templates/` | Multi-framework component templates |
+| `skills/gaspol-design/integration/ui-ux-pro-max-bridge.py` | Optional v2.0 delegation bridge |
+| `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + hybrid file |
+| `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking |
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
-| `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint report template |
-| `skills/gaspol-execute/implementer-prompt.md` | Subagent dispatch template |
-| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel execution with two-stage review |
+| `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint with Auto-Review section |
+| `skills/gaspol-execute/implementer-prompt.md` | Subagent dispatch template with model rubric |
+| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) |
 | `skills/gaspol-parallel/spec-reviewer-prompt.md` | Spec compliance reviewer template |
 | `skills/gaspol-parallel/code-quality-reviewer-prompt.md` | Code quality reviewer template |
-| `skills/gaspol-dispatch/SKILL.md` | Parallel agent dispatch for independent problem domains |
 | `skills/gaspol-tdd/SKILL.md` | RED-GREEN-REFACTOR cycle enforcement |
 | `skills/gaspol-tdd/testing-anti-patterns.md` | Testing anti-pattern reference |
 | `skills/gaspol-debug/SKILL.md` | Systematic root cause debugging — no guessing |
@@ -31,17 +36,20 @@ Claude Code plugin providing 16 development skills + 4 agents for execution fide
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
-| `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder scan, integration) |
+| `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
-| `skills/gaspol-finish/SKILL.md` | Branch completion with verification chain + merge/PR/cleanup |
+| `skills/gaspol-finish/SKILL.md` | Branch completion with BLOCKING plan-verifier + merge/PR/cleanup |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
-| `skills/gaspol-worktree/SKILL.md` | Git worktree management with safety verification |
-| `skills/gaspol-kickstart/SKILL.md` | Session startup skill routing |
 | `skills/gaspol-write-skill/SKILL.md` | Skill creation with TDD (RED-GREEN-REFACTOR for skills) |
-| `agents/code-reviewer.md` | Code review between commits |
-| `agents/code-simplifier.md` | Simplify and refine code for clarity |
-| `agents/plan-verifier.md` | Compare plan vs actual code changes |
-| `agents/spec-reviewer.md` | Verify implementation matches specification |
+| `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
+| `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
+| `skills/gaspol-learn/SKILL.md` | **NEW** — Quality-gated post-ship pattern capture to KB |
+| `skills/gaspol-kb-audit/SKILL.md` | **NEW** — Periodic KB health check (stale, dup, conflict, orphan) |
+| `skills/gaspol-auto/SKILL.md` | **NEW** — Autonomous execution with hard-stop guardrails |
+| `agents/code-reviewer.md` | Code review between commits (model: sonnet) |
+| `agents/code-simplifier.md` | Simplify and refine code for clarity (model: haiku) |
+| `agents/plan-verifier.md` | Step-level evidence-based plan audit (model: opus, BLOCKING) |
+| `agents/spec-reviewer.md` | Verify implementation matches specification (model: opus) |
 
 ## Interactive Confirmation Rule (MANDATORY)
 
@@ -52,9 +60,13 @@ This shows an interactive popup modal with selectable options — NOT plain text
 When to use AskUserQuestion:
 
 - Brainstorming clarifying questions (Phase 1 questions, design approval)
+- Phase 0.5 KB precedent surfacing ([Apply] / [Override with reason] / [Skip])
+- Phase 1.5 novelty assessment (when research depth needs user decision)
 - Checkpoint approvals after each phase ("Proceed to next phase?")
 - Decision gates (placeholder vs real integration, merge vs PR vs keep vs discard)
 - Design confirmations ("Does this look right?")
+- Plan-verifier BLOCKING resolution (per-finding options)
+- KB audit per-finding resolution
 - Any yes/no or multiple-choice question during skill execution
 
 Format: Always provide 3-5 selectable options. Include "Something else" or a custom-input option as the last choice.
@@ -72,11 +84,12 @@ When a user message arrives, match it against this table and invoke the skill BE
 | User Intent | Skill to Invoke |
 |-------------|-----------------|
 | Create feature, add component, build something new | `gaspol-brainstorm` |
-| Design UI, pick colors, layout, styling | `gaspol-design` |
+| Design UI, pick colors, layout, styling | `gaspol-design` (also auto-triggered by brainstorm Phase 2.5/3) |
 | Plan implementation, break down a task | `gaspol-plan` |
-| Execute an existing plan from `docs/plans/` | `gaspol-execute` |
-| Execute plan with independent parallel tasks | `gaspol-parallel` |
-| 2+ independent tasks, parallel work needed | `gaspol-dispatch` |
+| Execute an existing plan from `docs/plans/` | `gaspol-execute` (per-phase checkpoints) |
+| Execute plan with full autonomy + hard-stop guardrails | `gaspol-auto` |
+| Execute plan with parallel phases (in-session) | `gaspol-parallel` (mode: plan-phases) |
+| 2+ independent problem domains (ad-hoc) | `gaspol-parallel` (mode: independent-domains) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
@@ -84,49 +97,75 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
-| Need feature isolation, git worktree | `gaspol-worktree` |
 | Create or edit a skill | `gaspol-write-skill` |
+| Research external library/API/pattern | `gaspol-research` |
+| Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
+| Capture patterns after shipping | `gaspol-learn` (auto-triggered by finish) |
+| Audit KB health (stale, duplicates, conflicts) | `gaspol-kb-audit` (quarterly) |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
 | User Says | Actually Means |
 |-----------|---------------|
-| "Add a button" | invoke `gaspol-brainstorm` + `gaspol-design` + `gaspol-tdd` |
+| "Add a button" | invoke `gaspol-brainstorm` → (Phase 2.5 UI gate) → `gaspol-design` → `gaspol-plan` → `gaspol-tdd` |
 | "Fix this bug" | invoke `gaspol-debug` |
 | "Plan this feature" | invoke `gaspol-brainstorm` or `gaspol-plan` |
 | "Review this code" | invoke `gaspol-review` |
-| "I'm done with this branch" | invoke `gaspol-finish` |
+| "I'm done with this branch" | invoke `gaspol-finish` (which triggers plan-verifier + sync-docs + learn) |
 | "Write a new skill" | invoke `gaspol-write-skill` |
+| "Research X vs Y" | invoke `gaspol-research` (cache-aware) |
+| "Audit the knowledge base" | invoke `gaspol-kb-audit` |
 
 ### Priority Order
 
 When multiple skills apply:
 
 1. **Process skills first** (brainstorm, debug, plan) — determine WHAT to do
-2. **Implementation skills second** (tdd, execute) — determine HOW to do it
-3. **Utility skills third** (worktree, dispatch, finish) — support the workflow
+2. **Implementation skills second** (tdd, execute, auto) — determine HOW to do it
+3. **Verification skills third** (verify, review, plan-verifier agent) — confirm correctness
+4. **Learning skills fourth** (learn, adr, kb-audit) — capture and maintain KB
 
 ### Skill Types
 
 **Rigid skills** — follow exactly, step-by-step, no adaptation:
-`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`
+`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions)
 
 **Flexible skills** — apply principles to the specific situation:
-`gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`
+`gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
+
+**Meta-skills** — apply to plugin ecosystem:
+`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`
 
 ## Key Concepts
 
 ### Workflow Chains (skills chain automatically)
 
 ```text
-brainstorm -> plan -> execute -> verify -> sync-docs -> review -> finish
+brainstorm (Phase 0.5 KB + 1.5 novelty + 2.5 design gate + 3 design)
+    ↓
+plan (hybrid file, TDD step 1 mandatory, design deliverable column)
+    ↓
+execute (TDD hard gate + tiered auto-review + plan-verifier BLOCKING)
+    OR
+auto (autonomous with hard-stop guardrails)
+    ↓
+verify (4 layers incl. Layer 4 design compliance)
+    ↓
+sync-docs (CLAUDE.md update)
+    ↓
+review (code quality)
+    ↓
+finish (plan-verifier BLOCKING + merge/PR/cleanup)
+    ↓
+learn (quality-gated pattern capture → KB)
 ```
 
-- `gaspol-brainstorm` auto-triggers `gaspol-design` for UI work (Phase 3 detection: new pages, components, visual redesigns, layouts, dashboards, animations, themes)
-- `gaspol-brainstorm` leads to `gaspol-plan` after design approval (saves spec to `docs/plans/YYYY-MM-DD-<topic>-design.md`)
-- `gaspol-plan` produces implementation plan with mandatory Data Integration Map
-- `gaspol-execute` runs per-phase checkpoints, then auto-invokes: verify -> sync-docs -> review
-- `gaspol-finish` runs verification chain: verify -> plan-verifier -> sync-docs -> then presents 4 options (merge, PR, keep, discard)
+Parallel branches:
+- `gaspol-parallel mode:plan-phases` — replaces execute for independent-phase plans
+- `gaspol-parallel mode:independent-domains` — for unrelated multi-domain problems
+- `gaspol-research` — invoked from brainstorm Phase 1.5 (NEW novelty) or standalone
+- `gaspol-adr` — invoked from brainstorm Phase 2 (approach picked) or plan fork point
+- `gaspol-kb-audit` — periodic (quarterly) or size-triggered, independent
 
 ### CLAUDE.md-First Approach
 
@@ -140,6 +179,26 @@ Before exploring ANY codebase in a target project, ALWAYS read that project's CL
 - Conventions (naming, file organization, patterns)
 
 This saves 10-50k tokens per brainstorm session by avoiding redundant codebase exploration.
+
+### Cross-Project Knowledge Base (NEW in v1.2)
+
+Persistent cross-project memory at `~/.claude/gaspol-knowledge/` (synced via GitHub private repo `alisadikinma/gaspol-knowledge`):
+
+```
+~/.claude/gaspol-knowledge/
+├── INDEX.md                  ← tagged index (grepped by brainstorm Phase 0.5)
+├── ui-patterns/              ← populated by gaspol-learn (component patterns)
+├── architecture/             ← populated by gaspol-learn (system-level patterns)
+├── design-decisions/         ← populated by gaspol-adr (ADRs, MADR format)
+├── research/                 ← populated by gaspol-research (with TTL + freshness)
+└── reusable-snippets/        ← populated by gaspol-learn (hooks, helpers)
+```
+
+Entry status lifecycle: `proposed` → `accepted` → `superseded` OR `deprecated`.
+
+Default query filter: `status=accepted`. Freshness tiers for research: 🟢 FRESH <90d / 🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
+
+Compounding effect: every shipped feature → `gaspol-learn` captures patterns → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs.
 
 ### Anti-Placeholder Enforcement
 
@@ -173,9 +232,24 @@ LAW 3: NO COMPLETION CLAIM WITHOUT EVIDENCE
 | Mock function returning static data | PLACEHOLDER | `() => mockData` |
 | Commented-out API call | PLACEHOLDER | `// TODO: fetch` |
 
-### Per-Phase Checkpoints
+### Model Switching Rubric (NEW in v1.2)
 
-After completing EACH phase (never batched), present structured checkpoint report:
+Orchestrator (main session) always Opus 4.7. Subagent dispatch chooses model by task type — see [docs/rubric-model-switching.md](docs/rubric-model-switching.md).
+
+Quick reference:
+- **Opus 4.7**: architecture planning, spec review, complex debug, research synthesis, autonomous orchestration
+- **Sonnet 4.6**: feature implementation, code review, test writing, research gathering, ADR capture, learn capture, design reasoning
+- **Haiku 4.5**: docs sync, simple refactor, rename/format, simple fact lookup
+
+Applied via:
+- Agent frontmatter `model:` field (4 agents: code-reviewer=sonnet, code-simplifier=haiku, plan-verifier=opus, spec-reviewer=opus)
+- Agent tool dispatch with `model` param per call
+
+Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
+
+### Per-Phase Checkpoints (Tiered Auto-Review in v1.2)
+
+After completing EACH phase (never batched), present structured checkpoint report with Auto-Review section:
 
 ```text
 ## Phase [X] Complete: [Phase Name]
@@ -194,25 +268,106 @@ After completing EACH phase (never batched), present structured checkpoint repor
 ### Deviations from Plan:
 - None / [description + justification]
 
+### Auto-Review (Tiered):
+Classifier result: REVIEW / SKIP
+Triggered because: [files>3 OR LoC>100 OR new-feature]
+Or skipped because: [docs-only, config-only, rename-only]
+Findings: [if REVIEW — bullets]
+
 ### Next Phase: [X+1] — [description]
 -> Waiting for approval before proceeding.
 ```
 
-Rules: One phase one checkpoint. Wait for user approval before next phase. Report all deviations. Classify all data sources as Real or Placeholder.
+Rules: One phase one checkpoint. Wait for user approval before next phase. Report all deviations. Classify all data sources as Real or Placeholder. Auto-review fires tiered by complexity classifier.
 
-### Brainstorming Flow (gaspol-brainstorm)
+### Research Grounding (NEW in v1.2)
+
+`gaspol-brainstorm` Phase 1.5 classifies task novelty:
+
+- **PRECEDENT** — KB hit + project pattern → use precedent, skip research
+- **SEMI-NEW** — KB hit OR project pattern (not both) → light 2-3 WebSearch queries inline
+- **NEW** — no KB no project → invoke `gaspol-research` (deep, cached with TTL)
+
+Research quality gates mandatory:
+- ≥4 sources per topic
+- Recency <18 months preferred
+- Signal filter (stars, downloads, activity)
+- Anti-pattern check ("X vs Y", "problems with X")
+- Constraint fit (project-specific, not generic)
+- Citation mandatory per claim
+
+Anti-hallucination: WebFetch actual pages, orchestrator spot-check cache for quote accuracy.
+
+### Step-Level Closure Gate (NEW in v1.2)
+
+`plan-verifier` agent upgraded to step-level evidence-based audit (`agents/plan-verifier.md`):
+
+- Parses plan into granular items (every bullet, not phase header)
+- Verdict per item: FOUND (with code quote) / PARTIAL / MISSING / DIVERGED
+- BLOCKING verdict if MISSING > 0 OR unapproved PARTIAL > 0 OR placeholders > 0
+- Anti-hallucination spot-check: orchestrator samples 3 random FOUND items, verifies quotes
+
+Invoked BLOCKING from:
+- `gaspol-execute` Step 7 (after completion gate) — cannot claim done until CLEAN
+- `gaspol-finish` Step 2 (pre-chain) — cannot present merge/PR options until CLEAN
+
+### Design Intelligence Power Peer (NEW in v1.2)
+
+`gaspol-design` is now self-sufficient with forked data from ui-ux-pro-max v2.0 (MIT, see NOTICE.md):
+
+- 85+ UI styles, 74+ font pairings, 162+ reasoning rules, 99+ UX guidelines, color palettes, chart types, icons
+- 3 Python scripts (search, design_system, design_audit) + optional v2.0 bridge
+- Multi-framework templates (React, Vue, Next, Laravel, SwiftUI, Flutter, HTML+Tailwind, shadcn/ui, Astro, Svelte)
+
+Gaspol-specific layers BEYOND v2.0:
+1. Project context integration (reads CLAUDE.md tokens)
+2. KB cross-project learning (queries `ui-patterns/`)
+3. Anti-AI-slop hard enforcement (`rules/anti-ai-slop.md`)
+4. Planning integration (per-UI-phase Design Deliverable column)
+5. Execute fidelity check (`scripts/design_audit.py` scans codebase vs spec)
+6. Verify Layer 4 compliance (design system sub-check)
+7. Learn integration (UI patterns auto-captured)
+
+Anti-AI-slop enforcement rules:
+
+**NEVER use**: Inter/Roboto/Arial as primary, purple gradients on white, predictable symmetric layouts, cookie-cutter card grids, emojis as icons
+
+**ALWAYS choose**: Distinctive display fonts, sharp accent contrast, asymmetric/grid-breaking layouts, intentional motion (150-300ms), layered backgrounds
+
+Output format: Aesthetic Direction → Color Palette (hex codes) → Typography (font pairings) → Component Examples (code in detected stack) → Layout Blueprint (ASCII) → Component States → Motion Plan → Accessibility → Anti-AI-Slop Self-Check
+
+### KB Self-Maintenance (NEW in v1.2)
+
+`gaspol-kb-audit` skill keeps KB from becoming sampah:
+
+6 check types:
+1. Stale (status=accepted, last_validated >180d)
+2. Duplicates (title >80% overlap + tag overlap ≥80%)
+3. Conflicts (same tag+domain, different verdicts)
+4. Orphans (source_project no longer exists locally)
+5. Broken refs (supersedes/superseded_by pointing to nonexistent)
+6. Unpromoted proposed (>90d without validation)
+
+Per-finding resolution via AskUserQuestion: `[Promote]` / `[Supersede]` / `[Archive]` / `[Merge]` / `[Keep — bump last_validated]`
+
+Health thresholds: 🟢 Green <10% stale | 🟡 Yellow 10-25% stale → audit recommended | 🔴 Red >25% stale → mandatory audit blocks new captures
+
+### Brainstorming Flow (gaspol-brainstorm) — UPDATED in v1.2
 
 When user wants to create, add, or modify anything:
 
-1. **Phase 0**: Read project's CLAUDE.md first (MANDATORY before any codebase exploration)
-2. **Phase 1**: Ask clarifying questions ONE at a time (multiple choice, max 4 options). Only one question per message. Understand the problem before proposing solutions
-3. **Phase 2**: Propose 2-3 approaches with trade-offs. Lead with recommendation. YAGNI ruthlessly
-4. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — run design search, apply bold aesthetic choices (NOT generic AI output), constrain with project design system
-5. **Phase 4**: Implementation feasibility check — can this be built with REAL data from existing backend?
-6. **Phase 5**: Present design in 200-300 word sections, ask "Does this look right?" after each. Include Data Integration Map
-7. **Phase 6**: Write spec to `docs/plans/`, offer to proceed to `gaspol-plan`
+1. **Phase 0**: Read project's CLAUDE.md (MANDATORY before any codebase exploration)
+2. **Phase 0.5**: KB cross-project query (MANDATORY — git pull, grep INDEX.md, surface precedent)
+3. **Phase 1**: Ask clarifying questions ONE at a time via AskUserQuestion
+4. **Phase 1.5**: Novelty assessment (PRECEDENT / SEMI-NEW / NEW → decide research depth)
+5. **Phase 2**: Propose 2-3 approaches with trade-offs + MANDATORY source citations (from research cache or live research)
+6. **Phase 2.5**: Design gate (explicit AskUserQuestion if UI detection ambiguous)
+7. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — invokes `gaspol-design` power peer
+8. **Phase 4**: Implementation feasibility check (REAL data paths, existing backend)
+9. **Phase 5**: Present design in 200-300 word sections, AskUserQuestion confirm per section, include Data Integration Map
+10. **Phase 6**: Write to `docs/plans/YYYY-MM-DD-<topic>.md` (HYBRID file — no -design suffix), offer to proceed to `gaspol-plan`
 
-### TDD Enforcement (gaspol-tdd)
+### TDD Enforcement (gaspol-tdd) — Hard-Gated by execute in v1.2
 
 Iron Law: `NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST`
 
@@ -225,6 +380,8 @@ RED-GREEN-REFACTOR cycle:
 5. **REFACTOR**: Improve code quality. No new behavior. Run ALL tests after every change
 6. Repeat
 
+**Hard gate in `gaspol-execute` Step 2**: phase description MUST contain step 1 format `"Write failing test for [behavior]. Expected error: [error]."` — execute refuses to run phase without it.
+
 If code was written before test: DELETE IT. Start over. No exceptions.
 
 ### Systematic Debugging (gaspol-debug)
@@ -233,12 +390,12 @@ Iron Law: `NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST`
 
 4 Phases:
 
-1. **Root Cause Investigation**: Read FULL error message + stack trace. Reproduce consistently. Check recent changes (`git log --oneline -20`). Isolate the layer. Trace data flow. Use backward tracing (symptom -> immediate cause -> upstream -> root cause)
-2. **Pattern Analysis**: Find working examples FIRST. Read working version COMPLETELY. Compare systematically. Check dependencies and docs
-3. **Hypothesis and Testing**: One hypothesis, one change, one test. If 3 attempts fail -> STOP, question the architecture
-4. **Implementation**: Create failing regression test. Implement single fix. Verify fix. Check for regressions
+1. **Root Cause Investigation**: Read FULL error + stack trace. Reproduce consistently. `git log --oneline -20`. Isolate layer. Backward tracing (symptom → immediate → upstream → root)
+2. **Pattern Analysis**: Find working examples FIRST. Read working version COMPLETELY. Compare systematically
+3. **Hypothesis and Testing**: One hypothesis, one change, one test. 3 attempts fail → STOP, question architecture
+4. **Implementation**: Create failing regression test. Implement single fix. Verify. Check regressions
 
-### 4-Layer Verification (gaspol-verify)
+### 4-Layer Verification (gaspol-verify) — Layer 4 Extended in v1.2
 
 Iron Law: `NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE`
 
@@ -252,23 +409,13 @@ Iron Law: `NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE`
 
 **Layer 1: Technical** — `npm run build` (exit 0), `npx tsc --noEmit` (exit 0), `npm test` (0 failures), `npm run lint`
 
-**Layer 2: Plan Fidelity** — compare implementation to plan phase by phase (DONE/PARTIAL/SKIPPED/DIVERGED)
+**Layer 2: Plan Fidelity** — use upgraded `plan-verifier` agent (step-level, evidence-based, BLOCKING if MISSING>0)
 
 **Layer 3: Placeholder Scan** — search changed files for TODO/FIXME/HACK/placeholder/mock/dummy patterns, check for hardcoded data, missing imports, dead code, console.log
 
-**Layer 4: Integration** — verify data flows from source through hook/context to rendered output, check error/loading/empty states
+**Layer 4: Integration + Design Compliance** — verify data flows end-to-end; design system compliance (tokens used, responsive breakpoints, semantic HTML, ARIA labels, contrast ratios) via `scripts/design_audit.py`
 
-### Design Intelligence (gaspol-design)
-
-Anti-AI-Slop Rules:
-
-**NEVER use**: Inter/Roboto/Arial as primary, purple gradients on white, predictable symmetric layouts, cookie-cutter card grids, emojis as icons
-
-**ALWAYS choose**: Distinctive display fonts, sharp accent contrast, asymmetric/grid-breaking layouts, intentional motion, layered backgrounds
-
-Output format: Aesthetic Direction -> Color Palette (hex codes) -> Typography (font pairings) -> Component Examples (code) -> Layout Blueprint (ASCII) -> Motion Plan (timing table)
-
-### Plan Structure (gaspol-plan)
+### Plan Structure (gaspol-plan) — UPDATED in v1.2
 
 Every plan MUST include:
 
@@ -280,53 +427,51 @@ Every plan MUST include:
 ```
 
 - **Per-phase verification criteria** (no phase ships without checks)
-- **TDD-first steps** (write test, see fail, implement, see pass, commit)
+- **TDD-first step 1** (MANDATORY): `"Write failing test for [behavior]. Expected error: [error]."`
+- **Design Deliverable column** (for UI phases): tokens, layout, states, motion, a11y
 - Bite-sized tasks (2-5 minutes each, one action per step)
 - Plan header with gaspol-execute instruction
 
-Plans saved to: `docs/plans/YYYY-MM-DD-<feature-name>.md`
+Plans saved to: `docs/plans/YYYY-MM-DD-<feature-name>.md` (hybrid — brainstorm + plan same file; split only if >500 lines)
 
-### Parallel Execution (gaspol-parallel)
+### Parallel Execution (gaspol-parallel) — Mode Field in v1.2
 
 Fresh subagent per task + two-stage review:
 
-1. **Implementer** dispatched with full task text (NEVER reference a file), anti-placeholder rules, self-review checklist
-2. **Spec Review** — reads ACTUAL CODE (not implementer's report), compares to requirements line by line
-3. **Code Quality Review** — uses code-reviewer template, reviews commits between base SHA and HEAD
-4. If spec fails after 3 attempts -> stop and escalate to user
+**Mode `plan-phases`:** execute independent phases from plan
+1. Implementer dispatched with full task text (NEVER reference a file), anti-placeholder rules, self-review
+2. Spec Review — reads ACTUAL CODE, compares to requirements line by line
+3. Code Quality Review — uses code-reviewer template, reviews commits between base SHA and HEAD
+4. If spec fails after 3 attempts → stop and escalate
 
-### Agent Dispatch (gaspol-dispatch)
+**Mode `independent-domains`:** solve 2+ unrelated problems concurrently
+- Conflict check BLOCKING (same files/tables/dependencies → do NOT parallelize)
+- Concurrent dispatch (single message, multiple Agent tool calls)
+- Integration phase: read summaries, test together, resolve conflicts
 
-One agent per independent problem domain. Use when:
-
-- 3+ failures with different root causes
-- Multiple independent subsystems need changes
-- No shared state between tasks
-- Embarrassingly parallel work
-
-Do NOT use when: related failures (fixing one fixes others), shared state, sequential dependencies, single root cause.
-
-Conflict check before dispatching: Do they modify the same files? Same database tables? Does one produce output the other needs? If yes to any -> do NOT parallelize.
+Final review: plan-verifier (mode:plan-phases) or full verify (mode:independent-domains).
 
 ### Receiving Review Feedback (gaspol-receive-review)
 
-Response pattern: READ -> UNDERSTAND -> VERIFY -> EVALUATE -> RESPOND -> IMPLEMENT
+Response pattern: READ → UNDERSTAND → VERIFY → EVALUATE → RESPOND → IMPLEMENT
 
-**Forbidden responses**: "You're absolutely right!", "Great point!", "Great catch!", "Thanks for pointing that out!" — these are performative agreement, not technical assessment
+**Forbidden responses**: "You're absolutely right!", "Great point!", "Great catch!", "Thanks for pointing that out!" — performative agreement, not technical assessment
 
 **Instead**: "Fixed. [description]." / "Good catch. [root cause]. Fixed in [location]." / "I checked this — the current code is correct because [reason]."
 
 When feedback is unclear: STOP. Do not guess. Ask for clarification with specific interpretation options.
 
-### Finishing Work (gaspol-finish)
+### Finishing Work (gaspol-finish) — Plan-Verifier Blocking in v1.2
 
 Pre-finish verification chain (MANDATORY):
 
 1. Run `gaspol-verify` (all 4 layers)
-2. Run plan verifier (compare plan vs actual)
-3. Run `gaspol-sync-docs` (update CLAUDE.md)
+2. Run `plan-verifier` agent **BLOCKING** (step-level, evidence-based, spot-check 3 random FOUND items)
+3. If plan-verifier = BLOCKING → return to execute, fix issues, re-run
+4. Run `gaspol-sync-docs` (update CLAUDE.md)
+5. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
 
-Then present exactly 4 options:
+Then present exactly 4 options via AskUserQuestion:
 
 - **Merge locally** — `git merge --no-ff`, verify tests, delete branch
 - **Push and create PR** — `git push -u`, `gh pr create`
@@ -341,14 +486,27 @@ Then present exactly 4 options:
 - **Mode 2: Quality Audit** — score CLAUDE.md against 6 criteria (100 points), grade A-F
 - **Mode 3: Session Learning Capture** — reflect on missing context, propose one-liner additions
 
-### Git Worktree (gaspol-worktree)
+### Autonomous Mode (gaspol-auto) — NEW in v1.2
 
-Safety verification before creating any worktree:
+For familiar codebase + verified plan. Pre-flight gate, hard-stop guardrails, consolidated post-run report.
 
-1. Directory is gitignored (`git check-ignore -q .worktrees`)
-2. Branch does not already exist
-3. No existing worktree at target path
-4. Clean working directory (warn if dirty)
+Pre-flight checks:
+1. Plan review + user approval (AskUserQuestion)
+2. Clean git state
+3. Baseline tests pass
+4. Plan TDD gate (every phase has step 1 TDD)
+
+Execution: phase-by-phase without per-phase checkpoint. Hard-stop conditions:
+- Test failure
+- Placeholder trigger
+- Destructive operation
+- Ambiguity in plan
+- Iron Law violation
+- 3+ consecutive errors
+
+NEVER autonomous: merge-to-main, force-push, PR creation, external messaging, plan modifications.
+
+Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated report.
 
 ### Writing Skills (gaspol-write-skill)
 
@@ -375,6 +533,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | "This is just a one-line fix" | One-line fixes break things too. Follow the process. |
 | "I already read the skill before" | Skills are invoked, not memorized. Invoke it. |
 | "The skill will slow me down" | The skill prevents going fast in the wrong direction. |
+| "No need to query KB — I know this" | KB has project patterns you forgot. Query it. |
+| "Training data is fresh enough" | Cutoff Jan 2026. Industry moves fast. Use gaspol-research. |
+| "Plan-verifier is optional" | BLOCKING in v1.2. Cannot claim done without CLEAN verdict. |
 
 ## Debugging (Plugin Development)
 
@@ -385,24 +546,32 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | Agent says "looks fine" without running commands | `gaspol-verify` not invoked — Iron Law: no claims without fresh evidence |
 | Placeholders slipping through | `gaspol-execute` anti-placeholder rules not enforced — check Data Source Classification |
 | Agent jumps to code without asking questions | `gaspol-brainstorm` not invoked — Phase 1 requires questions ONE at a time |
-| Agent writes code before tests | `gaspol-tdd` not invoked — Iron Law: no production code without failing test first |
+| Agent writes code before tests | `gaspol-tdd` not invoked OR execute hard gate bypassed — check phase step 1 format |
 | Agent guesses at bug fixes | `gaspol-debug` not invoked — Iron Law: no fixes without root cause investigation |
-| Agent claims "done" without evidence | `gaspol-verify` not invoked — 4-layer verification required |
+| Agent claims "done" without evidence | `gaspol-verify` not invoked OR plan-verifier not BLOCKING — 4-layer verification required |
 | Agent batch-completes phases | Checkpoint rules violated — one phase, one checkpoint, one approval |
 | Agent uses performative agreement | `gaspol-receive-review` not invoked — forbidden responses list |
 | Agent creates duplicate hooks/contexts | CLAUDE.md-first rule not followed — check existing architecture before creating new |
 | Session-start hook not firing | Check `hooks/hooks.json` matcher pattern and `session-start.sh` permissions |
 | Skills not listed in session | Check that `CLAUDE.md` exists and is loaded by Claude Code |
+| KB not surfacing precedent | `gaspol-knowledge/` not cloned OR Phase 0.5 skipped — verify `~/.claude/gaspol-knowledge/` exists |
+| Research claims without citations | `gaspol-research` quality gates not enforced — every claim needs URL |
+| Cache stale but used as-is | Freshness tier not checked — research entries need age filter |
+| Generic "Inter font" recommendation | `gaspol-design` anti-AI-slop rules bypassed — check `rules/anti-ai-slop.md` |
+| Design not integrated in plan | Phase 2.5 gate skipped — UI detection may need explicit AskUserQuestion |
+| KB growing with junk | `gaspol-learn` quality gate not enforced — require min 200 words, tags, no duplicates |
+| Old ADRs surfacing as precedent | `gaspol-kb-audit` overdue — run quarterly |
 
 ## Conventions for Contributors
 
 ### Adding a New Skill
 
-1. Create `skills/gaspol-<name>/SKILL.md` with YAML frontmatter
+1. Create `skills/gaspol-<name>/SKILL.md` with YAML frontmatter including `description` starting "Use when..."
 2. Follow RED-GREEN-REFACTOR process from `gaspol-write-skill`
 3. Update this CLAUDE.md with skill entry in Architecture and Skill Routing tables
 4. Update `hooks/session-start.sh` to announce the new skill
-5. Add supporting reference files in the skill directory if needed
+5. Update `.claude-plugin/marketplace.json` skill count if listed
+6. Add supporting reference files in the skill directory if needed
 
 ### Editing a Skill
 
@@ -420,5 +589,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.1.0
-**Last Updated:** March 2026
+**Version:** 1.2.0
+**Last Updated:** April 2026

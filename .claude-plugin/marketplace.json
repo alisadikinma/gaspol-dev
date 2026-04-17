@@ -9,8 +9,8 @@
   "plugins": [
     {
       "name": "gaspol-dev",
-      "description": "13 skills + 4 agents for execution fidelity, anti-placeholder enforcement, and design intelligence",
-      "version": "1.0.0",
+      "description": "18 skills + 4 agents with anti-placeholder enforcement, step-level closure gate, cross-project knowledge base, auto-rubric model switching, industry research grounding, KB self-maintenance, and power-peer design intelligence",
+      "version": "1.2.0",
       "source": {
         "source": "url",
         "url": "https://github.com/alisadikinma/gaspol-dev.git"
