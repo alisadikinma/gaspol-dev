@@ -205,29 +205,77 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 - Raise any concerns about gaps or contradictions
 - Create TodoWrite with 1:1 phase mapping
 
-### Step 2: Execute Phase
+### Step 2: Execute Phase (TDD Hard Gate)
 
+**TDD Hard Gate (BLOCKING):** Before implementing anything, validate that the phase description contains a failing-test step as step 1. Required format:
+
+```
+1. Write failing test for [specific behavior]. Expected error: [error class/message].
+```
+
+If phase description does NOT have this as step 1:
+- STOP execution
+- Emit error: `"Phase [X] missing TDD gate. Plan template violation."`
+- Use AskUserQuestion to present:
+  - `[Update plan to add TDD step]` (default)
+  - `[Skip TDD for this phase — acknowledge technical debt]` (creates ADR via gaspol-adr)
+  - `[Abort execution]`
+- Do NOT proceed without resolution
+
+If phase description HAS the TDD step, proceed:
 - Mark the current phase as `in_progress` in TodoWrite
-- Implement all requirements for this phase
+- Execute step 1 FIRST (write failing test, run it, verify expected failure)
+- Only then implement production code to pass the test
+- Follow RED-GREEN-REFACTOR per `gaspol-tdd`
 - For every data-displaying component, trace the data source
 - For every integration point, implement the real connection
 - If blocked on a real integration, STOP and ask — do not substitute
 - Follow CLAUDE.md design system, naming conventions, and patterns
 
-### Step 3: Phase Checkpoint Report
+### Step 3: Phase Checkpoint Report (with Tiered Auto-Review)
 
-- Present the structured checkpoint report (see template)
+Before generating the checkpoint, run the **complexity classifier**:
+
+```
+Classify this phase:
+- Count files changed in this phase: git diff --stat <phase-start-sha>..HEAD -- <phase-files>
+- Count LoC changed: sum of additions + deletions from git diff --stat
+- Detect phase kind from description keywords:
+  - docs-only: all changed files match *.md OR README* OR CLAUDE.md
+  - config-only: all changed files match *.json OR *.yaml OR *.yml OR *.toml OR .env*
+  - rename-only: diff is purely whitespace OR imports reorder OR variable rename
+  - new-feature: description contains "implement", "create", "add feature", "new component", "introduce", "build"
+  - refactor: description contains "refactor", "restructure", "reorganize"
+
+Result:
+- REVIEW if: files_changed > 3 OR LoC > 100 OR kind == new-feature
+- SKIP if: docs-only OR config-only OR rename-only (regardless of size)
+```
+
+If result = `REVIEW`:
+- Dispatch `code-reviewer` agent (Sonnet per rubric) for the phase's changes only
+- Include review summary in checkpoint (3-5 bullets, criticality counts)
+- Review findings influence checkpoint options
+
+If result = `SKIP`:
+- Note in checkpoint: "Auto-review skipped — [reason]"
+- Proceed to Step 4
+
+Then:
+- Present the structured checkpoint report (see `checkpoint-template.md`)
 - List all components and their data sources with real/placeholder classification
 - List all files created or modified
 - Report any deviations from the plan with justification
+- Include Auto-Review section with classifier result and findings
 - Mark the phase as `completed` in TodoWrite
 
 ### Step 4: Wait for User Approval
 
 - Use the **AskUserQuestion** tool (MANDATORY) to get approval — this shows an interactive popup modal
-- Provide options like: "Approved — proceed to Phase [X+1]", "Changes needed (I'll explain)", "Skip this phase", "Stop execution"
+- Provide options: `[Approved — proceed to next phase]`, `[Address review feedback first]` (only if auto-review surfaced findings), `[Changes needed (I'll explain)]`, `[Skip this phase]`, `[Stop execution]`
 - Do NOT proceed until the user explicitly approves via the popup
 - If the user requests changes, implement them before moving on
+- If auto-review findings exist and user proceeds without addressing, log as technical debt (candidate for gaspol-adr capture)
 - If the user skips a phase, acknowledge and note the skip
 
 ### Step 5: Repeat
@@ -241,13 +289,22 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 - Scan for unused functions, orphaned imports, console.log statements
 - Report findings — do NOT claim complete if issues exist
 
-### Step 7: Auto-Invoke Verification Chain
+### Step 7: Auto-Invoke Verification Chain (Plan-Verifier BLOCKING)
 
 After all phases pass the completion gate:
 
-1. **gaspol-verify** — Run type checking, linting, build verification
-2. **gaspol-sync-docs** — Update CLAUDE.md with new routes, hooks, tables, etc.
-3. **gaspol-review** — Code quality review for consistency and best practices
+1. **plan-verifier** agent (BLOCKING) — Step-level evidence-based audit. See `agents/plan-verifier.md`.
+   - Parse plan into granular items
+   - Verdict per item: FOUND (with code quote) / PARTIAL / MISSING / DIVERGED
+   - Orchestrator spot-checks 3 random FOUND items for quote accuracy
+   - If verdict = `BLOCKING` (MISSING > 0 OR unapproved PARTIAL > 0 OR placeholders > 0):
+     - STOP. Do NOT claim implementation complete.
+     - Present issues via AskUserQuestion per finding
+     - Fix or defer with ADR, then re-run plan-verifier
+   - If verdict = `CLEAN`, proceed to remaining chain.
+2. **gaspol-verify** — Run type checking, linting, build verification
+3. **gaspol-sync-docs** — Update CLAUDE.md with new routes, hooks, tables, etc.
+4. **gaspol-review** — Code quality review for consistency and best practices
 
 ---
 

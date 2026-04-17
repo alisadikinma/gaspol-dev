@@ -81,11 +81,13 @@ Before finalizing:
 |-----------|-----------|-----------|-------|
 ```
 
-## Phase 6: Documentation
+## Phase 6: Documentation (Hybrid File)
 
-- Write to `docs/plans/YYYY-MM-DD-<topic>-design.md`
+- Write to `docs/plans/YYYY-MM-DD-<topic>.md` (NO `-design` suffix — hybrid file)
+- Structure: start with `## Design` section (from this brainstorm)
+- `gaspol-plan` will APPEND `## Implementation Plan` section to the same file later
 - Ask: "Ready to set up for implementation?"
-- If yes --> use gaspol-plan to create implementation plan
+- If yes --> use gaspol-plan to create implementation plan (appends to this file)
 
 ## Key Principles
 

@@ -44,6 +44,25 @@ OR
 OR
 - [Issue description] — Impact: [what this affects] — Proposed fix: [suggestion]
 
+### Auto-Review (Tiered)
+
+Complexity classifier result: `REVIEW` / `SKIP`
+
+Triggered because (or skipped because):
+- Files changed: [N] (threshold: >3 → review)
+- LoC changed: [M] (threshold: >100 → review)
+- Phase kind: [new-feature / refactor / docs-only / config-only / rename]
+
+**If REVIEW:**
+- [code-reviewer findings summary — 3-5 bullets]
+- Critical: [count]
+- Important: [count]
+- Minor: [count]
+
+**If SKIP:**
+- Skipped because: [docs-only | config-only | <3 files | <100 LoC | rename-only]
+- No review needed for trivial change.
+
 ### Next Phase: [X+1] — [Phase Name]
 [One sentence describing what the next phase will do.]
 
