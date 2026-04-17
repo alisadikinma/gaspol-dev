@@ -1,161 +1,348 @@
 ---
 name: gaspol-design
-description: "Use for frontend design tasks - creating distinctive, production-grade interfaces. Combines data-driven design search, bold aesthetic philosophy, and project design system awareness. Auto-triggered by gaspol-brainstorm for UI work, or invoke standalone for pure design tasks."
+description: "Use for frontend design tasks across planning, brainstorm, execute, verify, and learn phases. Power peer to ui-ux-pro-max v2.0 with own forked data (67+ styles, 161+ palettes, 57+ fonts, 25+ charts, 99+ UX guidelines, 161+ reasoning rules), project-context integration, KB cross-project pattern learning, anti-AI-slop enforcement, and multi-framework code generation."
 ---
 
-## Overview
+# gaspol-design (Power Peer)
 
-Create distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Combines three sources of design intelligence:
+## Iron Law
 
-1. **Data-driven search** -- BM25 search across style, color, typography, UX, landing, product domains
-2. **Bold aesthetic philosophy** -- anti-AI-slop rules, distinctive choices
-3. **Project design system** -- reads CLAUDE.md for project-specific tokens and constraints
+```
+NO UI OUTPUT WITHOUT PROJECT CONTEXT + KB QUERY + ANTI-AI-SLOP CHECK
+```
+
+Generic UI = AI slop. Real UI respects: project's existing design system (CLAUDE.md), past project patterns (KB), and explicit anti-slop rules. Every design output passes all three filters.
+
+---
+
+## Core Principle
+
+Design intelligence should be self-sufficient (fork stable data) + project-aware (read CLAUDE.md tokens) + cross-project-learning (query KB) + enforceable (hard anti-slop rules). Each piece makes the output progressively better than generic AI output.
 
 ## When to Use
 
-- **Standalone:** pure design tasks ("design a dashboard", "pick colors for this feature")
-- **Auto-triggered:** by gaspol-brainstorm Phase 3 when UI work detected
+- **Brainstorm Phase 3 (auto-trigger)** — UI work detected via expanded keyword set or file extension
+- **Brainstorm Phase 2.5 gate** — AskUserQuestion when UI detection ambiguous
+- **Plan (new integration)** — per UI phase, produce design deliverable (tokens, layout, states, motion, a11y)
+- **Execute (new integration)** — per UI phase, audit actual code vs design spec via `scripts/design_audit.py`
+- **Verify Layer 4 (new integration)** — design system compliance sub-check
+- **Learn (new integration)** — UI patterns auto-captured to `gaspol-knowledge/ui-patterns/` after gaspol-finish
+- **Standalone** — user invokes `/gaspol-design` for pure design tasks
 
-## Design Thinking Process
+## When NOT to Use
 
-1. **Purpose** -- What problem? Who's the audience?
-2. **Aesthetic Direction** -- Choose BOLD direction (minimalism, maximalism, retro-futuristic, brutalist, etc.)
-3. **Constraints** -- Framework, performance, accessibility, project design system
-4. **Differentiation** -- What makes this UNFORGETTABLE?
+- Pure backend/API work without UI surface
+- Database schema design (not UI)
+- Business logic without presentation layer
+- Single-line CSS tweaks (over-engineered for trivial change)
 
-## Design Search Integration
+---
 
-Run searches across relevant domains:
+## Capabilities (Power Peer to ui-ux-pro-max v2.0)
 
-- `style` -- 140+ style categories (Minimalism, Glassmorphism, etc.)
-- `color` -- Product-type specific palettes
-- `typography` -- Font pairings with mood keywords
-- `landing` -- Landing page patterns & conversion optimization
-- `product` -- SaaS/e-commerce specific recommendations
-- `ux` -- Usability & accessibility guidelines
-- `chart` -- Data visualization best practices
-- `icons` -- Icon library recommendations
+### Data (forked from ui-ux-pro-max v2.0, MIT — see NOTICE.md)
 
-Usage: `python design/search.py "<query>" --domain <domain>`
+| Asset | Count | Location |
+|---|---|---|
+| UI Styles | 85+ | `data/styles.csv` |
+| Color Palettes | via `data/colors.csv` | `data/colors.csv` |
+| Font Pairings | 74+ | `data/typography.csv` |
+| Chart Types | via `data/charts.csv` | `data/charts.csv` |
+| UX Guidelines | 99+ | `data/ux-guidelines.csv` |
+| Reasoning Rules | 162+ | `data/ui-reasoning.csv` |
+| Product Patterns | via `data/products.csv` | `data/products.csv` |
+| Landing Patterns | via `data/landing.csv` | `data/landing.csv` |
+| Google Fonts | via `data/google-fonts.csv` | `data/google-fonts.csv` |
+| Icons | via `data/icons.csv` | `data/icons.csv` |
+| App Interface | via `data/app-interface.csv` | `data/app-interface.csv` |
+| Stack-specific | via `data/stacks/` | `data/stacks/` |
 
-## Anti-AI-Slop Rules (CRITICAL)
+### Scripts
 
-### NEVER use:
+| Script | Purpose |
+|---|---|
+| `scripts/search.py` | Core domain search (forked from v2.0) |
+| `scripts/design_system.py` | Full design system generation (forked from v2.0) |
+| `scripts/core.py` | Shared utilities (forked from v2.0) |
+| `scripts/design_audit.py` | **NEW** — scan codebase for design compliance drift |
 
-- Generic fonts: Inter, Roboto, Arial, system-ui as primary
-- Purple gradients on white backgrounds
-- Predictable symmetric layouts
-- Cookie-cutter card grids
-- Default shadows without intentional depth hierarchy
-- Emojis as icons (use lucide-react or similar)
+### Rules
 
-### ALWAYS choose:
+| Rule File | Scope |
+|---|---|
+| `rules/anti-ai-slop.md` | Hard enforcement rules (banned defaults, required alternatives) |
+| `rules/reasoning-gaspol.md` | Gaspol-specific rules (project context, KB integration, chain integration) |
 
-- Distinctive display fonts + refined body fonts
-- Color palettes with sharp accent contrast
-- Asymmetric or grid-breaking layouts when appropriate
-- Intentional motion (CSS-only for HTML, Framer Motion for React)
-- Layered backgrounds (gradients, noise, patterns)
+### Integration Bridge
 
-## Project Design System Awareness
+| File | Function |
+|---|---|
+| `integration/ui-ux-pro-max-bridge.py` | Optional delegation to ui-ux-pro-max v2.0 if installed (graceful fallback to own engine) |
 
-Read CLAUDE.md for:
+### Templates
 
-- Color tokens (primary, accent, surface, text colors)
-- Typography scale (headings, body, labels)
-- Component patterns (card, button, input, badge styles)
-- Animation library (Framer Motion vs CSS vs GSAP)
-- Icon library preference
-- Layout constraints (desktop-first, responsive breakpoints)
-- Dark/light mode support
+Multi-framework templates for code generation:
+- `templates/base/` — base templates
+- `templates/platforms/` — per-IDE platform configs + per-framework component templates
 
-Constrain ALL designs to documented tokens. If CLAUDE.md has no design system, propose one.
+---
 
-## Output Format
+## Process Flow
 
-For each design task, provide:
+### Step 1: Context Load (MANDATORY)
 
-### 1. Aesthetic Direction
+Per `rules/reasoning-gaspol.md` Rule G14 — never propose without context:
 
-The chosen style + reasoning for why it fits the project and task.
+1. **Read target project CLAUDE.md** — extract design tokens, typography, color palette, layout conventions
+2. **Detect stack** — from `package.json` or CLAUDE.md stack section
+3. **Query KB** — `cd ~/.claude/gaspol-knowledge/ && git pull --quiet && grep -i "<domain>" INDEX.md`
+4. **Check for precedent** — filter by status=accepted, surface to user via AskUserQuestion
 
-### 2. Color Palette
+### Step 2: Design Reasoning
 
-Specific hex codes with usage mapping:
+Based on context + user request:
 
-```
-| Token     | Hex     | Usage                    |
-|-----------|---------|--------------------------|
-| bg-base   | #XXXXXX | App background           |
-| surface   | #XXXXXX | Card/panel backgrounds   |
-| accent    | #XXXXXX | Primary actions, highlights |
-| text-pri  | #XXXXXX | Primary text             |
-| text-sec  | #XXXXXX | Secondary text           |
-```
+1. **Purpose** — What problem? Who's the audience?
+2. **Aesthetic Direction** — Choose BOLD from `data/styles.csv` (avoid defaults per `rules/anti-ai-slop.md`)
+3. **Constraints** — Framework (from stack), performance (from CLAUDE.md), accessibility (always), project design system (respect existing tokens)
+4. **Differentiation** — What makes this UNFORGETTABLE within project constraints?
 
-### 3. Typography
-
-Font pairing with sizes/weights:
-
-```
-Display:  <font-name> — headings, hero text
-Body:     <font-name> — paragraphs, UI labels
-Mono:     <font-name> — code, technical data
-```
-
-### 4. Component Examples
-
-Code snippets using Tailwind/CSS matching the project's stack:
-
-```tsx
-// Card example
-<div className="...">
-
-// Button example
-<button className="...">
-
-// Input example
-<input className="..." />
-```
-
-### 5. Layout Blueprint
-
-Wire description or ASCII layout showing spatial relationships:
+### Step 3: Invocation Strategy
 
 ```
-+--sidebar--+------main-content------+--panel--+
-|            |                        |         |
-|  nav       |  header                | details |
-|  items     |  content area          | actions |
-|            |                        |         |
-+------------+------------------------+---------+
+Check: is ui-ux-pro-max v2.0 installed? (via integration/ui-ux-pro-max-bridge.py)
+
+IF YES and task is "full design system generation":
+  - Delegate to v2.0: `python3 bridge.py --design-system "<request>"`
+  - Take v2.0 output, apply gaspol layers on top:
+    - Constrain to CLAUDE.md tokens
+    - Apply anti-AI-slop filter
+    - Reconcile with KB precedent
+  - Return unified recommendation
+
+IF NO or task is domain-specific:
+  - Use own engine:
+    - `python3 scripts/search.py "<query>" --domain <domain>` for targeted
+    - `python3 scripts/design_system.py "<request>"` for full system
+  - Apply same gaspol layers
+
+EITHER WAY:
+  - Self-check against rules/anti-ai-slop.md before output
 ```
 
-### 6. Motion Plan
+### Step 4: Output Format
 
-Key animations with timing:
+Deliver structured design output:
 
+```markdown
+### Design for [Task/Component Name]
+
+#### Aesthetic Direction
+[Chosen style + reasoning — references data/styles.csv]
+
+#### Color Palette
+| Token | Hex | Usage |
+|---|---|---|
+| bg-base | #0B0E14 | App background |
+| accent | #10B981 | Primary actions |
+| ... | ... | ... |
+
+(Either from CLAUDE.md existing tokens OR proposed new set with justification.)
+
+#### Typography
+| Role | Font | Source |
+|---|---|---|
+| Display | <font-name> | data/typography.csv |
+| Body | <font-name> | data/typography.csv |
+
+#### Layout Blueprint
+[ASCII wireframe or Figma-equivalent spec]
+
+#### Component States
+- Default
+- Hover
+- Active
+- Focus (keyboard)
+- Loading
+- Error
+- Empty
+- Disabled
+
+#### Motion Plan
+| Element | Animation | Duration | Easing |
+|---|---|---|---|
+| ... | ... | ... | ... |
+
+#### Accessibility
+- Semantic HTML tags used
+- ARIA labels specified
+- Keyboard navigation paths
+- Focus management
+- Color contrast ratios (WCAG AA minimum)
+
+#### Code Template
+[From templates/platforms/<detected-stack>/ — actual code, not pseudo-code]
+
+#### Anti-AI-Slop Self-Check
+- [x] No Inter/Roboto/Arial as primary
+- [x] No purple gradient on white
+- [x] Asymmetric or data-driven layout
+- [x] Intentional motion (150-300ms)
+- [x] Layered backgrounds
+- [x] Icons from single library
+- [x] Specific microcopy
+- [x] CTA hierarchy clear
 ```
-| Element       | Animation        | Duration | Easing          |
-|---------------|------------------|----------|-----------------|
-| Page enter    | fade + slide up  | 300ms    | ease-out        |
-| Card hover    | scale + shadow   | 200ms    | ease-in-out     |
-| Modal open    | backdrop + scale | 250ms    | spring(0.5)     |
+
+### Step 5: Chain Integration Outputs
+
+Depending on caller skill, format output differently:
+
+#### For gaspol-brainstorm Phase 3
+
+Full design proposal in 200-300 word sections. After each section, AskUserQuestion confirm.
+
+#### For gaspol-plan
+
+Per-UI-phase Design Deliverable (condensed spec for plan table):
+
+```markdown
+Phase X Design Deliverable:
+  Component: LoginForm
+  Stack: React + TypeScript + Tailwind + shadcn/ui
+  Tokens: #0B0E14 bg / #10B981 accent / Instrument Serif display / System UI body
+  Layout: vertical stack, max-w-md, centered
+  States: default | loading (spinner on button) | error (inline message below field) | success
+  Motion: button press 150ms ease-out, error shake 200ms
+  A11y: form role, aria-invalid on error, keyboard submit on Enter
+  Template: templates/platforms/react-tsx/form-template.tsx
 ```
 
-## Variation Rule
+#### For gaspol-execute (fidelity check)
 
-No two designs should look the same. Avoid convergence on common choices. Each design should explore a different aesthetic space.
+Run `scripts/design_audit.py <project-path>`. Report findings to checkpoint:
 
-When designing multiple features for the same project:
+```markdown
+Design Audit (Phase X):
+  Hardcoded colors: 3 violations (src/LoginForm.tsx:12, 18, 24 — should use #10B981 token)
+  Hardcoded fonts: 0
+  Missing states: error state not implemented
+  A11y gaps: aria-invalid missing on error, focus not trapped in modal
+  Verdict: 🟡 PARTIAL COMPLIANCE (72/100)
+```
 
-- Maintain design system consistency (tokens, spacing, typography)
-- Vary layout patterns (avoid repeating the same grid everywhere)
-- Use different interaction patterns where appropriate
-- Each feature should have a distinct spatial personality within the system
+Findings integrate with tiered auto-review.
 
-## Integration
+#### For gaspol-verify Layer 4
 
-- **Called by:** gaspol-brainstorm Phase 3 (auto-trigger for UI)
-- **Standalone:** user invokes `/gaspol-design` directly
-- **Feeds into:** gaspol-plan (design spec becomes plan input)
+Full design compliance sub-check across all UI files in changeset:
+
+```markdown
+Layer 4 — Design Compliance Sub-Check:
+  [x] All UI components use design tokens (no hardcoded colors)
+  [ ] Responsive breakpoints present in all layouts (2 files missing)
+  [x] Semantic HTML used
+  [x] ARIA labels on interactive elements
+  [ ] Contrast ratios WCAG AA (1 violation: text #737373 on #0B0E14 fails for body size <14px)
+
+Verdict: FAIL (2 issues blocking)
+```
+
+#### For gaspol-learn
+
+After gaspol-finish CLEAN, invoke gaspol-learn. Candidate UI patterns:
+
+```markdown
+Candidate UI pattern from shipped feature:
+  Type: ui-pattern
+  Title: [auto-extracted from feature name]
+  Location: <file:line-range>
+  Tokens used: [list]
+  Stack: [detected]
+  Tags: [auto + user-edit]
+  Source project: [current]
+
+  Capture? [Yes / Yes with edits / No / Already captured]
+```
+
+---
+
+## Anti-AI-Slop Enforcement
+
+MUST run `rules/anti-ai-slop.md` Self-Check Before Output checklist before returning. Any violation → revise.
+
+Enforcement integrates with:
+- `gaspol-plan` design deliverable (checklist visible in plan)
+- `gaspol-execute` fidelity check (audit script detects violations)
+- `gaspol-verify` Layer 4 (compliance sub-check fails on violation)
+
+---
+
+## KB Cross-Project Learning
+
+Before proposing any pattern, query `~/.claude/gaspol-knowledge/ui-patterns/`:
+
+```bash
+grep -i "<domain>|<stack>" INDEX.md
+```
+
+If precedent found (status=accepted):
+1. Surface to user with age + source project
+2. Options: [Apply] [Override with reason] [Skip — fresh]
+3. If override → capture divergence ADR via gaspol-adr
+
+After ship via gaspol-finish:
+- gaspol-learn captures pattern (user confirms)
+- Pattern saved to `ui-patterns/<slug>.md` with tags + source
+
+---
+
+## Red Flags
+
+| Red Flag | Fix |
+|---|---|
+| Output without reading CLAUDE.md | Reject — mandatory context load |
+| Generic Inter/Roboto recommendation | Reject — anti-AI-slop violation |
+| Purple gradient on white | Reject — banned pattern |
+| Ignoring KB precedent | Surface precedent, user decides |
+| No anti-slop self-check | Reject — required before output |
+| Code snippet in wrong stack | Reject — match project stack |
+| Missing states (loading/error/empty) | Add to spec |
+| No accessibility notes | Reject — always include a11y |
+| Direct v2.0 delegation without gaspol layers | Reject — always apply project context on top |
+
+---
+
+## Integration Summary
+
+| Skill | Interaction |
+|---|---|
+| `gaspol-brainstorm` Phase 2.5 | Design gate (AskUserQuestion if ambiguous UI detection) |
+| `gaspol-brainstorm` Phase 3 | Auto-triggered for UI work (expanded triggers) |
+| `gaspol-plan` | Per UI phase, produces Design Deliverable column content |
+| `gaspol-execute` | Per UI phase, runs design_audit.py for fidelity check |
+| `gaspol-verify` Layer 4 | Design compliance sub-check |
+| `gaspol-learn` | UI patterns auto-captured after gaspol-finish |
+| `gaspol-adr` | Divergences from KB precedent captured as ADR |
+| `gaspol-research` | Research verdicts on design tools/libs |
+| `gaspol-kb-audit` | UI patterns entries audited periodically |
+
+---
+
+## Verification Checklist
+
+Before returning design output:
+
+- [ ] Target project CLAUDE.md read
+- [ ] Stack detected
+- [ ] KB queried, precedent surfaced (if any)
+- [ ] Aesthetic direction chosen with justification
+- [ ] Color palette respects CLAUDE.md tokens
+- [ ] Typography respects CLAUDE.md fonts
+- [ ] Layout has intentional asymmetry or data-driven structure
+- [ ] Component states (loading/error/empty) specified
+- [ ] Motion plan with timing + easing
+- [ ] Accessibility specified (semantic HTML, ARIA, keyboard, contrast)
+- [ ] Code template matches detected stack
+- [ ] Anti-AI-slop self-check all passed
+- [ ] Output formatted appropriately for calling skill

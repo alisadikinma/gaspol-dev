@@ -30,10 +30,33 @@ Before writing a single line of the plan, you MUST:
 
 If you skip this step, the plan will inevitably reinvent existing abstractions.
 
-## Save Plans To
+## Save Plans To (Hybrid File Structure)
+
+Single file default — brainstorm + plan live in the same document:
 
 ```
 docs/plans/YYYY-MM-DD-<feature-name>.md
+```
+
+**Append behavior:** If a file with this name already exists (e.g., brainstorm already produced the design section), APPEND a new `## Implementation Plan` section to the same file. Do NOT create a separate `-plan.md` file.
+
+**Split conditions** (create separate `-plan.md` file only when):
+- Existing file would exceed 500 lines after appending
+- User explicitly requests `--split` flag
+- Design approved by stakeholder independently of plan (e.g., client sign-off)
+
+Check file existence before writing:
+```bash
+# Pseudo-logic:
+if [ -f "docs/plans/YYYY-MM-DD-<topic>.md" ]; then
+  if [ $(wc -l < "docs/plans/YYYY-MM-DD-<topic>.md") -gt 500 ]; then
+    # Split: write to YYYY-MM-DD-<topic>-plan.md
+  else
+    # Append ## Implementation Plan section
+  fi
+else
+  # Create new file with full plan
+fi
 ```
 
 ## Plan Document Header (MANDATORY)
@@ -109,7 +132,7 @@ Each phase MUST follow this exact structure:
 - Test: `src/__tests__/SegmentCard.test.tsx`
 
 **Steps:**
-1. Write failing test for SegmentCard rendering
+1. Write failing test for SegmentCard rendering. Expected error: `ReferenceError: SegmentCard is not defined`
 2. Run test, confirm it fails for the expected reason
 3. Implement SegmentCard with real data from useWorkspace()
 4. Run tests, confirm all pass
@@ -121,6 +144,24 @@ Each phase MUST follow this exact structure:
 - [ ] No placeholder/TODO comments in new code
 - [ ] Test suite passes
 ```
+
+**TDD Step 1 Hard Gate (MANDATORY):** Every phase MUST have step 1 in this exact format:
+```
+1. Write failing test for [specific behavior]. Expected error: [error class/message].
+```
+
+`gaspol-execute` enforces this — phase without proper TDD step 1 will be refused at execution time (Step 2 hard gate). Plans violating this template are rejected before execution starts.
+
+**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css`), the Phase table MUST include a Design Deliverable column:
+
+```markdown
+| Phase | Code Deliverable | Design Deliverable | Verification |
+|-------|-----------------|-------------------|--------------|
+| 1 | useAuth hook | n/a (backend) | Tests + types |
+| 2 | LoginForm component | Design spec (tokens, layout, motion, states) | Design system compliance |
+```
+
+Design deliverable is produced by invoking `gaspol-design` during plan creation for each UI phase.
 
 ## Verification Criteria per Phase (MANDATORY)
 
@@ -167,7 +208,8 @@ Before presenting the plan, verify none of these red flags are present:
 
 | Trigger | Skill | Relationship |
 |---------|-------|-------------|
-| Before this skill | `gaspol-brainstorm` | Brainstorm produces the design; this skill turns it into a plan |
-| Before this skill | `gaspol-worktree` | Create a feature branch before planning |
-| After this skill | `gaspol-execute` | Execute the plan with per-phase checkpoints |
-| After this skill | `gaspol-parallel` | Execute independent phases in parallel |
+| Before this skill | `gaspol-brainstorm` | Brainstorm produces the design section in same file; plan appends |
+| During this skill | `gaspol-design` | Invoked for each UI phase to produce design deliverable |
+| During this skill | `gaspol-adr` | Capture architectural decisions at fork points in the plan |
+| After this skill | `gaspol-execute` | Execute the plan with per-phase checkpoints + TDD hard gate |
+| After this skill | `gaspol-parallel` | Execute independent phases in parallel (mode: plan-phases) |

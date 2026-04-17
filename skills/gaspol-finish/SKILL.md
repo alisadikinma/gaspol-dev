@@ -44,17 +44,29 @@ This ensures:
 
 If gaspol-verify was already run and passed in this session, you may skip this step.
 
-### Step 2: Run Plan Verifier
+### Step 2: Run Plan Verifier (BLOCKING)
 
-Compare the original plan (if one exists) against the actual implementation.
+Dispatch the upgraded `plan-verifier` agent (step-level, evidence-based) to audit the implementation against the plan. See `agents/plan-verifier.md`.
 
-**Check:**
-- Were all planned items implemented?
-- Were any unplanned items added? (Document why)
-- Were any planned items deferred? (Document why and create follow-up tasks)
-- Do the actual changes match the planned scope?
+**This step is BLOCKING.** You CANNOT present merge/PR options until the verdict is `CLEAN`.
 
-If no plan exists (ad-hoc implementation), skip this step.
+Input:
+- Plan file path (from `docs/plans/YYYY-MM-DD-<topic>.md`)
+- Base SHA and HEAD SHA (diff scope)
+
+Output — if verdict is:
+- **CLEAN** — all items FOUND with code evidence, 0 placeholders → proceed to Step 3
+- **BLOCKING** — MISSING > 0 OR unapproved PARTIAL > 0 OR placeholders > 0 → STOP
+
+For BLOCKING, use AskUserQuestion to present per-issue resolution:
+- Per MISSING item: `[Implement now]` / `[Defer with ADR capture]` / `[Remove from plan]`
+- Per PARTIAL item: `[Complete implementation]` / `[Accept as-is with documented gap]`
+- Per DIVERGED item: `[Revert to plan]` / `[Update plan to match implementation with justification]`
+- Per placeholder: `[Implement real source]` / `[Explicit user approval to ship with placeholder]`
+
+**Anti-hallucination spot-check (mandatory):** After plan-verifier reports, sample 3 random FOUND items and Read the quoted file:line to verify quote accuracy. Fabricated quotes → auto-downgrade to MISSING + re-evaluate verdict.
+
+If no plan exists (ad-hoc implementation), skip this step with documented reason.
 
 ### Step 3: Run gaspol-sync-docs
 
@@ -73,9 +85,11 @@ All three steps must be completed (or explicitly skipped with reason) before pro
 ```
 Verification Chain Status:
 [x] gaspol-verify: PASSED (or: passed earlier this session)
-[x] Plan verifier: PASSED (or: no plan exists, skipped)
+[x] Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
 [x] gaspol-sync-docs: COMPLETED
 ```
+
+**If plan-verifier returned BLOCKING**, the chain is incomplete. Do NOT present options. Return to execute/fix the issues, then re-run verification.
 
 ---
 
@@ -170,23 +184,6 @@ git worktree remove .worktrees/my-feature --force
 
 ---
 
-## Worktree Cleanup
-
-For options 1, 2, and 4, clean up the worktree if one was used:
-
-```bash
-# For option 1 (merged) and 2 (pushed):
-git worktree remove .worktrees/feature-name
-
-# For option 4 (discarded):
-git worktree remove --force .worktrees/feature-name
-
-# Prune stale worktree references
-git worktree prune
-```
-
----
-
 ## Post-Finish Summary
 
 After executing the chosen option, provide a summary:
@@ -227,5 +224,6 @@ Changes:
 | `gaspol-verify` | Step 1 of verification chain |
 | `gaspol-sync-docs` | Step 3 of verification chain |
 | `gaspol-execute` | Finish is the final step of execute workflow |
-| `gaspol-worktree` | Worktree cleanup after merge/discard |
+| `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
 | `gaspol-tdd` | Tests must pass before finishing |
+| `gaspol-adr` | Capture ADRs for deferred MISSING items and DIVERGED items |
