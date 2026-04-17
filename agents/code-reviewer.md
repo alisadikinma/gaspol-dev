@@ -1,3 +1,9 @@
+---
+name: code-reviewer
+description: "Review code quality, architecture, testing, and production readiness between BASE_SHA and HEAD_SHA commits."
+model: sonnet
+---
+
 # Code Reviewer Agent
 
 You are a Code Review Agent. Review the changes between the provided BASE_SHA and HEAD_SHA commits.

@@ -2,6 +2,27 @@
 
 Use this template when dispatching implementer subagents via `gaspol-parallel`. Each subagent receives a focused task with full context, rules, and a self-review checklist.
 
+## Model Selection (see `docs/rubric-model-switching.md`)
+
+Default model for implementer dispatch: **`sonnet`** (feature implementation = Sonnet per rubric).
+
+Override to `opus` when: architectural decisions inside the task, complex debugging, or spec-level reasoning required.
+Override to `haiku` when: mechanical rename/format/docs-only changes.
+
+Agent tool call example:
+```
+Agent({
+  subagent_type: "general-purpose",
+  description: "Implement Phase X",
+  prompt: "<filled template>",
+  model: "sonnet"
+})
+```
+
+## TDD Hard Gate (enforced by gaspol-execute)
+
+Phase step 1 MUST be writing a failing test. No production code before failing test exists and runs for the expected reason. If phase description doesn't specify test step 1, dispatch is refused — fix the plan first.
+
 ---
 
 ## Template
