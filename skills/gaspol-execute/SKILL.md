@@ -261,6 +261,37 @@ If result = `SKIP`:
 - Note in checkpoint: "Auto-review skipped — [reason]"
 - Proceed to Step 4
 
+**Step 3.5: Design Fidelity Audit (for UI phases only)**
+
+If the phase involves UI work (detected by: file extensions changed include `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss`, OR phase description mentions UI component/layout/design):
+
+```bash
+python3 skills/gaspol-design/scripts/design_audit.py <project-root> --json
+```
+
+Output analyzed for:
+- Hardcoded colors (should use design tokens from CLAUDE.md)
+- Hardcoded fonts (should use design system)
+- Missing responsive breakpoints
+- Missing component states (loading/error/empty)
+- Accessibility gaps (ARIA, semantic HTML, keyboard nav)
+
+Include Design Audit section in checkpoint:
+```markdown
+### Design Fidelity Audit (Phase X — UI work detected)
+Hardcoded colors: N violations
+Hardcoded fonts: N violations
+Missing states: [list]
+A11y gaps: [list]
+Verdict: 🟢 COMPLIANT / 🟡 PARTIAL / 🔴 NON-COMPLIANT
+```
+
+If NON-COMPLIANT → treat as critical review finding (blocks phase approval unless user override with documented reason).
+If PARTIAL → include in checkpoint as review finding for user decision.
+If COMPLIANT → note pass, proceed.
+
+Skip Step 3.5 entirely for non-UI phases (backend, config, docs).
+
 Then:
 - Present the structured checkpoint report (see `checkpoint-template.md`)
 - List all components and their data sources with real/placeholder classification

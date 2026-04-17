@@ -211,9 +211,9 @@ PLACEHOLDER SCAN:
 
 ---
 
-## Layer 4: Integration Verification
+## Layer 4: Integration + Design Compliance Verification
 
-For every component that connects to a backend service, verify the full data flow.
+For every component that connects to a backend service, verify the full data flow. For every UI component, additionally verify design system compliance.
 
 ### Hook/Context Connection
 For each component:
@@ -257,6 +257,45 @@ INTEGRATION VERIFICATION:
     Error:    N/A (local state) -- N/A
     Empty:    "Generate script" CTA -- PRESENT
 ```
+
+### Design Compliance Sub-Check (NEW in v1.2 — for UI changesets only)
+
+If the changeset includes any file matching UI extensions (`.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), run design compliance audit:
+
+```bash
+python3 skills/gaspol-design/scripts/design_audit.py <project-root> --json
+```
+
+Validates per file:
+- **Design tokens** — all colors/fonts/spacing use tokens from CLAUDE.md design system (no hardcoded `#7C3AED`, no `font-family: Inter`)
+- **Responsive breakpoints** — layouts include `sm:/md:/lg:/xl:` breakpoints (Tailwind) or equivalent
+- **Component states** — loading, error, empty states implemented per design spec
+- **Accessibility** — semantic HTML (`<nav>`, `<main>`, `<button>`), ARIA labels on interactive elements, keyboard navigation (`onKeyDown`, `tabIndex`), WCAG AA contrast ratios
+
+### Evidence Format (Design Sub-Check)
+```
+DESIGN COMPLIANCE (UI changeset):
+  Hardcoded colors:       0 violations                   ✓
+  Hardcoded fonts:        0 violations                   ✓
+  Responsive breakpoints: 5/5 files                      ✓
+  States coverage:
+    loading:              5/5 files                      ✓
+    error:                4/5 files (LoginForm missing)  ✗
+    empty:                3/5 files (2 N/A)              ✓
+  A11y:
+    aria labels:          5/5 files                      ✓
+    semantic HTML:        5/5 files                      ✓
+    keyboard nav:         4/5 files (Modal missing)      ✗
+
+  Verdict: 🟡 PARTIAL COMPLIANCE (2 gaps: LoginForm error state, Modal keyboard nav)
+  Status: Must resolve or document override before completion claim
+```
+
+If design_audit.py reports 🔴 NON-COMPLIANT (score <60) → Layer 4 FAILS. Cannot claim completion until resolved or user approves ship-with-known-gaps.
+If 🟡 PARTIAL (60-80) → Layer 4 conditional pass (gaps listed in report, user decides).
+If 🟢 COMPLIANT (≥80) → Layer 4 passes for design dimension.
+
+Skip design sub-check entirely if changeset has no UI files.
 
 ---
 
