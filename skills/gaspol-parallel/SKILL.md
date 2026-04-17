@@ -1,9 +1,9 @@
 ---
 name: gaspol-parallel
-description: "Use when executing implementation plans with independent tasks in the current session. Dispatches fresh subagent per task with anti-placeholder enforcement and two-stage review (spec compliance then code quality)."
+description: "Use when executing implementation plans with independent phases (mode: plan-phases) OR when handling 2+ independent problem domains ad-hoc (mode: independent-domains). Dispatches fresh subagent per task with anti-placeholder enforcement, conflict check, and two-stage review (spec compliance then code quality). Replaces former gaspol-dispatch."
 ---
 
-# Sparkfluence Parallel Development
+# gaspol-parallel (with Mode Field)
 
 ## Overview
 
@@ -11,21 +11,49 @@ Fresh subagent per task + two-stage review = high quality, fast iteration.
 
 Each task gets a dedicated implementer subagent with full context (no accumulated state drift), followed by two independent review passes: spec compliance (did you build the right thing?) then code quality (did you build it right?). Anti-placeholder rules are enforced at every stage.
 
-## When to Use
+## Mode Field (NEW)
 
-Use this skill when ALL of the following are true:
+This skill supports two modes, selected at invocation:
+
+### Mode 1: `plan-phases`
+
+Execute an implementation plan with multiple phases that are mostly independent.
+
+**Use when:**
 - You have an implementation plan (from `gaspol-plan`)
-- Tasks are mostly independent (can be done in sequence without heavy cross-dependencies)
+- Phases are mostly independent (can be done in sequence without heavy cross-dependencies)
 - You want to stay in this session (not creating worktrees for parallel human review)
 
-Do NOT use when:
+**Process:** Phase Intake → per-phase (Implementer → Spec Review → Quality Review) → Final integration
+
+### Mode 2: `independent-domains`
+
+Dispatch one agent per independent problem domain for true concurrent resolution (divide-and-conquer).
+
+**Use when:**
+- 3+ failures with different root causes (e.g., broken tests in auth, API, and UI simultaneously)
+- Multiple independent subsystems need changes (database migration + frontend component + API endpoint, when they don't depend on each other)
+- No shared state between tasks — each agent can work without knowing what the others are doing
+- Embarrassingly parallel work
+- Large refactoring across multiple unrelated files or modules
+
+**Process:** Domain Identification → Conflict Check → Concurrent Dispatch (single message, multiple Agent tool calls) → Review + Integrate
+
+### Do NOT Use This Skill When
+
 - Tasks are trivial (< 3 steps each) — just implement directly
 - Tasks are heavily interdependent — implement sequentially yourself
-- You need human review between tasks — use `gaspol-worktree` instead
+- Related failures (fixing one might fix others) — work sequentially
+- Shared state — tasks read/write the same files, variables, database tables
+- Sequential dependencies — task B depends on output of task A
+- Single root cause with multiple symptoms
+- Small tasks where dispatch overhead exceeds time saved
 
 ## Process Flow
 
-### Phase 1: Plan Intake
+Select based on mode:
+
+### Mode `plan-phases` — Phase 1: Plan Intake
 
 1. Read the implementation plan (from `gaspol-plan` output or user-provided)
 2. Extract individual tasks with their:
@@ -35,6 +63,36 @@ Do NOT use when:
    - Acceptance criteria
 3. Determine execution order based on dependencies
 4. Confirm task list with user before starting
+
+### Mode `independent-domains` — Phase 1: Domain Identification + Conflict Check
+
+1. List all problems/tasks
+2. For each pair, ask: "Can these be done simultaneously without conflicts?"
+3. **Conflict check** (BLOCKING):
+   - Do they modify the same files? If yes → do NOT parallelize
+   - Do they modify the same database tables? If yes → do NOT parallelize
+   - Does one produce output the other needs? If yes → do NOT parallelize
+4. If all pairs pass conflict check, proceed to concurrent dispatch
+5. Create focused task descriptions per domain (self-contained prompts):
+   - Context (what the agent needs to know, ONLY that)
+   - Task (exactly what to do, specific, measurable)
+   - Constraints (what NOT to touch)
+   - Output (what to produce)
+
+Example:
+```
+Agent 1: Authentication Middleware Fix
+  Context: src/middleware/auth.ts rejects JWT with array roles
+  Task: Fix JWT validation to accept both array and string role claims
+  Constraints: Do NOT modify User model, routing, other middleware
+  Output: Modified auth.ts, new test file, summary
+
+Agent 2: User Profile UI Update
+  Context: src/screens/Profile.tsx needs timezone selector
+  Task: Add timezone dropdown using existing Select component
+  Constraints: Do NOT modify auth flow, API endpoints, database schema
+  Output: Modified Profile.tsx, updated hook if needed, summary
+```
 
 ### Phase 2: Task Execution (repeat per task)
 
@@ -103,11 +161,20 @@ If issues found:
 - Note any issues deferred to later tasks
 - Move to next task
 
-### Phase 3: Final Review
+### Phase 3: Final Review + Integration
 
-After ALL tasks complete:
-1. Run `gaspol-review` on the full changeset (all tasks combined)
-2. Run `gaspol-finish` to finalize
+**Mode `plan-phases`:** After ALL phases complete:
+1. Run `gaspol-review` on the full changeset
+2. Run `plan-verifier` agent (BLOCKING — step-level evidence-based)
+3. Run `gaspol-finish` to finalize
+
+**Mode `independent-domains`:** After ALL agents complete (concurrent dispatch returned):
+1. Read each agent's summary
+2. Check for conflicts — any unexpected file overlaps?
+3. Run the full test suite — do all changes work together?
+4. Resolve conflicts — if agents modified same file unexpectedly, manually merge
+5. Integration test — verify combined changes work as a system
+6. Run `gaspol-verify` (all 4 layers including plan-verifier if applicable)
 
 ## Anti-Placeholder Rules (CRITICAL)
 
@@ -169,10 +236,12 @@ For every component/function the implementer creates:
 ## Integration
 
 This skill works with:
-- **gaspol-plan**: Provides the implementation plan with task breakdown
+- **gaspol-plan**: Provides the implementation plan with task breakdown (mode: plan-phases)
+- **gaspol-debug**: Identifies independent failure domains to dispatch (mode: independent-domains)
+- **gaspol-tdd**: Each dispatched agent follows TDD independently
 - **gaspol-review**: Provides the code-reviewer template for quality review
+- **plan-verifier** agent: Blocking final audit (mode: plan-phases)
 - **gaspol-finish**: Finalizes the work after all tasks complete
-- **gaspol-worktree**: Alternative when you need human review between tasks
 
 ## Task Execution Tracking
 
