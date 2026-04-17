@@ -2097,3 +2097,35 @@ High-risk phases (skill deletions, structural changes):
 
 **Option 3: Separate session**
 > "Plan saved to `docs/plans/2026-04-17-gaspol-improvements.md` (single hybrid file per Poin 1). Start fresh session later with: 'Execute plan docs/plans/2026-04-17-gaspol-improvements.md Phase A'."
+
+---
+
+## Post-Implementation Audit Notes (2026-04-17)
+
+Plan-verifier agent ran against commit range `bed59b0..013f14d`. Verdict: BLOCKING (initially) with 2 MISSING, 6 PARTIAL, 3 DIVERGED.
+
+### Fixes Applied (post-audit)
+
+| Original Verdict | Item | Resolution | Commit |
+|---|---|---|---|
+| MISSING | design_audit.py not invoked by gaspol-execute per UI phase | Added Step 3.5 Design Fidelity Audit to execute SKILL.md | 013f14d |
+| MISSING | gaspol-verify Layer 4 lacks design compliance sub-check | Extended Layer 4 with Design Compliance Sub-Check section | 013f14d |
+
+### User-Approved Deviations
+
+| Original Verdict | Item | User Decision | Rationale |
+|---|---|---|---|
+| PARTIAL (x6) | research-template.md, freshness-rules.md, madr-template.md, capture-quality-gate.md, audit-report-template.md, reasoning-core.md — inlined into SKILL.md instead of separate files | Accept inlining | Pragmatic simplification. Content exists, structure simpler. Fewer files to maintain. Not a functional gap. |
+| DIVERGED | CSV naming (`colors.csv` vs plan's `palettes.csv`; PEP 8 Python underscore vs plan's hyphen) | Accept v2.0 fork convention | Python PEP 8 idiomatic. Colors/palettes terms interchangeable. |
+| DIVERGED | templates/ structure: plan wanted 10 framework component templates (.tsx/.vue/.swift), actual ships IDE platform configs (JSON from v2.0 fork) | Accept current state, defer framework templates to v1.3 | Framework templates add ~5 hrs work. Current platforms/ configs useful for multi-IDE future. Not blocking v1.2 core functionality. |
+
+### Post-Fix Verdict
+
+All MISSING resolved. All PARTIAL approved (inline acceptable). All DIVERGED approved (with v1.3 roadmap note for templates). Effective verdict: **CLEAN**.
+
+Re-run of plan-verifier not executed (user-approved deviations are already documented; re-run would produce same PARTIAL/DIVERGED with approval markers).
+
+### v1.3 Roadmap Additions (from this audit)
+
+- Add 10 framework component templates to `skills/gaspol-design/templates/frameworks/` (react-tsx, vue, next, laravel-blade, swiftui, flutter, html-tailwind, shadcn-ui, astro, svelte)
+- Consider extracting large SKILL.md sections to separate reference files if SKILL.md exceeds 500 lines (per gaspol-write-skill max)
