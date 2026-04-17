@@ -1,0 +1,228 @@
+---
+name: gaspol-learn
+description: "Use when feature implementation ships successfully (auto-triggered from gaspol-finish after verification chain passes). Distills reusable patterns from completed work, captures them to cross-project knowledge base with user confirmation and quality gate validation to prevent KB pollution."
+---
+
+# gaspol-learn
+
+## Iron Law
+
+```
+NO CAPTURE WITHOUT QUALITY GATE + USER CONFIRMATION
+```
+
+Junk captures pollute KB. Every entry must pass content/tag/duplicate/source validation AND get explicit user confirmation before commit. Rejected captures logged to `.rejected-log` for audit but not added to INDEX.
+
+---
+
+## Core Principle
+
+Shipped features contain patterns worth reusing — but only if captured cleanly. Auto-capture after `gaspol-finish` extracts candidate patterns, user confirms which are genuinely reusable (vs project-specific quirks). Quality gate prevents the KB from becoming a "notes dump".
+
+## When to Use
+
+- Auto-triggered by `gaspol-finish` after verification chain returns CLEAN
+- Manual invocation: `/gaspol-learn` to capture pattern outside normal flow (retroactive learning)
+
+## When NOT to Use
+
+- Implementation incomplete (gaspol-verify not passed)
+- Pattern is trivial (1-line fix, rename, obvious code)
+- Pattern is project-specific (tightly coupled to single project's quirks — not reusable)
+- User indicates no reusable patterns in this feature
+
+---
+
+## Process Flow
+
+### Step 1: Analyze Shipped Feature
+
+Input: branch/commits that just shipped (base SHA + HEAD SHA).
+
+Sub-agent dispatch (model: sonnet) analyzes diff + final code for:
+- UI patterns (new component patterns, layout approaches, interaction flows)
+- Architecture patterns (hook compositions, context usage, data flow)
+- Code snippets (reusable utilities, hooks, helpers)
+- Design decisions already captured via gaspol-adr (reference, don't duplicate)
+
+Output: candidate list (1-3 patterns max).
+
+### Step 2: User Confirmation (MANDATORY per candidate)
+
+For EACH candidate, use `AskUserQuestion`:
+
+```
+Candidate pattern detected:
+  Type: UI pattern
+  Title: Image generation 3-pane layout
+  Location: src/pages/ImageGen.tsx:12-89
+  Reusable because: prompt + preview + history common in AI generation UIs
+  Proposed tags: [image-gen, gallery, 3-pane, ai-generation]
+
+Capture to KB?
+  [Yes, capture as proposed]
+  [Yes, but edit title/tags/description]
+  [No, project-specific quirk]
+  [No, already captured elsewhere]
+```
+
+Without user confirm, no capture. Silent skip.
+
+### Step 3: Quality Gate Validation
+
+Before writing to KB, validate:
+
+| Check | Rule | Action if fail |
+|---|---|---|
+| Min content | Body ≥200 words describing pattern | Reject, prompt user to expand |
+| Tag validation | ≥2 tags from allowed taxonomy | Reject, prompt to add tags |
+| Duplicate detection | Grep INDEX.md for similar titles (>80% overlap) | Surface duplicate, ask merge/keep-separate |
+| Not CLAUDE.md restate | Content must go beyond what's already in project CLAUDE.md | Reject if pure restate |
+| Source citation (research type) | ≥2 URLs if entry type is `research` | Reject, demand sources |
+| Body structure | Has sections: Context, Pattern, When to Use, Example, Variations | Reject if bare dump |
+
+Failed quality gate → log to `~/.claude/gaspol-knowledge/.rejected-log`:
+
+```
+[2026-04-17 14:32] Rejected: "Image generation 3-pane layout"
+  Reason: body only 89 words, tags insufficient
+  Path: d:/Projects/sparkfluence/src/pages/ImageGen.tsx
+  User can reconsider — view: .rejected-log
+```
+
+### Step 4: Category Routing
+
+Determine target directory:
+
+| Pattern Type | Target |
+|---|---|
+| UI component layout, interaction pattern | `ui-patterns/` |
+| System-level architecture (auth, data flow, state) | `architecture/` |
+| Reusable code snippet (hook, utility, helper) | `reusable-snippets/` |
+| (ADRs go via gaspol-adr, not gaspol-learn) | `design-decisions/` |
+| (Research goes via gaspol-research, not gaspol-learn) | `research/` |
+
+### Step 5: Write Entry
+
+File: `~/.claude/gaspol-knowledge/<category>/<slug>.md`
+
+```yaml
+---
+id: <category>-YYYY-MM-DD-<slug>
+title: <Title>
+date: YYYY-MM-DD
+status: proposed                # default; user can promote to accepted via gaspol-kb-audit
+type: <ui-pattern | architecture | snippet>
+source_project: <project-name>
+source_location: <file:line-range>
+tags: [<tag1>, <tag2>, ...]
+reusable_in: [<domain1>, <domain2>]    # where this pattern fits
+last_validated: YYYY-MM-DD              # initial = date created
+---
+
+# <Title>
+
+## Context
+<Original problem this pattern solved.>
+
+## Pattern
+<Description of the reusable pattern itself — decoupled from source project specifics.>
+
+## When to Use
+<Conditions where this pattern fits future projects.>
+
+## When NOT to Use
+<Anti-patterns or contexts where this doesn't fit.>
+
+## Example (from source)
+<Code snippet or layout reference — anonymized if needed.>
+
+## Variations
+<Variations considered, alternatives that would also work.>
+
+## Related
+<Links to other KB entries, ADRs, research.>
+```
+
+### Step 6: Update INDEX.md
+
+```markdown
+- title: <Title>
+  path: <category>/<slug>.md
+  tags: [<tags>]
+  status: 🟨 proposed
+  source: <project> YYYY-MM-DD
+  hook: <1-line summary of reusability>
+```
+
+### Step 7: Commit + Push
+
+```bash
+cd ~/.claude/gaspol-knowledge/
+git add .
+git commit -m "learn: capture <pattern> from <project>"
+git push
+```
+
+If offline, queue in `.pending-push` for retry next session.
+
+---
+
+## Quality Gate — Capture Rejection Log
+
+Path: `~/.claude/gaspol-knowledge/.rejected-log`
+
+Contents: chronological rejected captures with reasons. NOT indexed, NOT committed to git (user can gitignore or not).
+
+Purpose: allow user to reconsider rejected captures later without losing proposal context.
+
+---
+
+## Anti-Pollution Measures
+
+1. **User confirmation mandatory** per candidate — no bulk auto-capture
+2. **Max 3 candidates per feature** — prevents noise flood
+3. **Quality gate with 6 checks** — reject junk before it enters KB
+4. **Status: proposed by default** — user promotes to `accepted` via gaspol-kb-audit after validation in future project
+5. **Duplicate detection before write** — prevents near-duplicates
+6. **Source location anchored** — every entry points to source code, traceable
+
+---
+
+## Red Flags
+
+| Red Flag | Fix |
+|---|---|
+| Auto-capture without user confirm | Reject — always prompt |
+| >3 candidates from single feature | Prune — pick best 3, log rest to .rejected-log |
+| Tags missing or generic ("code", "ui") | Reject — demand specific tags |
+| Body <200 words | Reject — demand expansion |
+| Pattern description IS the code (no abstraction) | Reject — pattern needs decoupling from source |
+| Silent capture without push to remote KB | Fail loud — require git push or explicit offline queue |
+
+---
+
+## Integration
+
+| Skill | Interaction |
+|---|---|
+| `gaspol-finish` | Auto-triggers gaspol-learn after CLEAN verification |
+| `gaspol-adr` | Architectural decisions captured separately (not by learn) |
+| `gaspol-research` | Research entries captured separately (by research skill) |
+| `gaspol-kb-audit` | Validates proposed entries for promotion to accepted |
+| `gaspol-brainstorm` Phase 0.5 | Queries captured patterns for future reuse |
+
+---
+
+## Verification Checklist
+
+Before commit:
+
+- [ ] User confirmed capture (AskUserQuestion response = yes)
+- [ ] All 6 quality gate checks passed
+- [ ] File written to correct category directory
+- [ ] Frontmatter complete (id, title, tags, status, source_project, source_location)
+- [ ] Body has all 6 sections (Context, Pattern, When to Use, When NOT, Example, Variations)
+- [ ] INDEX.md updated
+- [ ] Git committed + pushed
+- [ ] Status = `proposed` (not `accepted`) until validated in future project
