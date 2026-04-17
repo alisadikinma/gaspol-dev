@@ -182,7 +182,27 @@ This saves 10-50k tokens per brainstorm session by avoiding redundant codebase e
 
 ### Cross-Project Knowledge Base (NEW in v1.2)
 
-Persistent cross-project memory at `~/.claude/gaspol-knowledge/` (synced via GitHub private repo `alisadikinma/gaspol-knowledge`):
+Persistent cross-project memory at `~/.claude/gaspol-knowledge/` (synced via **per-user** private GitHub repo — each user creates their own, configured via `~/.claude/gaspol-config.json`).
+
+**Per-user requirement:** This plugin is public. The KB is **PRIVATE PER USER** — never share a KB repo across users. Each gaspol-dev user:
+1. Creates their own private repo (e.g., `<your-username>/gaspol-knowledge`)
+2. Clones locally to `~/.claude/gaspol-knowledge/` (standard path, same for all users)
+3. Writes `~/.claude/gaspol-config.json` with their personal remote URL
+
+Config file schema:
+```json
+{
+  "kb_remote": "git@github.com:<your-github-username>/gaspol-knowledge.git",
+  "kb_local": "~/.claude/gaspol-knowledge",
+  "kb_owner": "<your-github-username>"
+}
+```
+
+Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
+
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) read remote URL from config — never hardcoded. If config absent → graceful skip (no KB features, plugin still works for single-project flow).
+
+Structure (same on every user's machine):
 
 ```
 ~/.claude/gaspol-knowledge/

@@ -29,7 +29,7 @@ Review plugin gaspol-dev v1.1.0 berdasarkan 5 pain point teridentifikasi user se
 | 1 | File design.md dan plan.md terpisah | **Hybrid single file**, split kalau >500 lines atau butuh stakeholder approval mid-way | Kurangi artifact orphan, satu source of truth, tetap allow split untuk large features |
 | 2 | Review cuma di akhir execute | **Tiered auto review** per-phase kalau threshold terpenuhi | Catch bug dini tanpa token waste di phase trivial |
 | 3 | Semua task pakai Opus → mahal | **Auto-rubric by task type** — Opus orchestrator, Sonnet impl/review, Haiku docs/rename | Hemat cost, match model ke kompleksitas actual |
-| 4 | Knowledge hilang antar project | **File-based KB di GitHub private repo** — `alisadikinma/gaspol-knowledge` | Zero infra baru, version history free, git sync cross-device, backend-abstract untuk future upgrade |
+| 4 | Knowledge hilang antar project | **File-based KB di GitHub private repo** — `<your-username>/gaspol-knowledge` | Zero infra baru, version history free, git sync cross-device, backend-abstract untuk future upgrade |
 | 5 | Plugin butuh lebih powerful | **3 skill baru**: `gaspol-research`, `gaspol-auto`, `gaspol-adr` | Isi gap vs superpowers + synergi penuh dengan Poin 4 KB |
 | 6 | 6 skill jarang fire (kickstart/design/tdd/dispatch/worktree/write-skill) | **REMOVE kickstart** (fold ke brainstorm Phase 0), **DEVELOP design** (power peer ui-ux-pro-max v2.0 via hybrid fork + optional delegate, wired ke gaspol-plan/execute/verify), **HARD GATE tdd**, **MERGE dispatch→parallel**, **REMOVE worktree** (tidak realistis dipakai), keep write-skill. **Net: 16 → 13 skills.** | YAGNI untuk skill unused, INVEST di skill berkapabilitas tinggi (design) supaya power peer dengan ui-ux-pro-max + integrated across chain |
 | 7 | Brainstorm kasih ide generic, tidak grounded di industry current state | **Tiered auto research** via Phase 1.5 Novelty Assessment — precedent/semi-new/new decision tree | Balance: tidak boros token di familiar domain, tidak generic di new domain |
@@ -126,7 +126,7 @@ OR: Skipped because: docs-only phase
 
 **Repo setup (one-time):**
 ```bash
-gh repo create alisadikinma/gaspol-knowledge --private \
+gh repo create <your-username>/gaspol-knowledge --private \
   --description "Gaspol cross-project knowledge base"
 ```
 
@@ -829,7 +829,7 @@ User selalu lihat age sebelum decide pakai cached atau re-research.
 
 #### 9.5 Audit Trail di Git
 
-Setiap update research → commit ke `alisadikinma/gaspol-knowledge` dengan message pattern:
+Setiap update research → commit ke `<your-username>/gaspol-knowledge` dengan message pattern:
 - `research: new [topic] (sparkfluence 2026-04)`
 - `research: verified freshness [topic] (+180 days)`
 - `research: superseded by [new-topic] [topic]`
@@ -1283,7 +1283,7 @@ Split jadi 2 PR / commits supaya bisa review separately:
 - AskUserQuestion modal → ✓
 
 **Yang butuh setup eksternal:**
-- GitHub repo `alisadikinma/gaspol-knowledge` → `gh repo create` one-time
+- GitHub repo `<your-username>/gaspol-knowledge` → `gh repo create` one-time
 - `gh` CLI tersedia di PATH → check `which gh`; kalau tidak ada, fallback instruction untuk manual create via web
 - SSH key untuk GitHub → assumed existing (user sudah pakai git-based workflow)
 
@@ -1317,7 +1317,7 @@ Yang TIDAK dikerjakan di improvement round ini:
 - [ ] Complexity classifier correctly identifies: docs-only skip, config-only skip, new feature trigger, rename skip
 - [ ] Auto-review fires di phase yang benar, skip di trivial phase
 - [ ] Model rubric applied: ≥80% dispatches pakai Sonnet/Haiku, ~20% Opus (verified via test run)
-- [ ] KB repo live at `alisadikinma/gaspol-knowledge`, accessible from 2+ devices
+- [ ] KB repo live at `<your-username>/gaspol-knowledge`, accessible from 2+ devices
 - [ ] Phase 0.5 in brainstorm pulls KB, greps INDEX, surfaces matches
 - [ ] `gaspol-learn` captures pattern → commit → push → visible at GitHub
 - [ ] `gaspol-research` run produces cached file di `research/`
@@ -1412,7 +1412,7 @@ Ship gaspol-dev v1.2.0 dengan 11 improvement areas implemented: remove 3 unused 
 See full table in spec above (Data Integration Map section). Plan references existing entries.
 
 Critical contract points:
-- **GitHub repo** `alisadikinma/gaspol-knowledge` — doesn't exist yet → Phase A creates via `gh repo create`
+- **GitHub repo** `<your-username>/gaspol-knowledge` — doesn't exist yet → Phase A creates via `gh repo create`
 - **Agent model overrides** — Claude Code supports → Phase C updates frontmatter
 - **Plan-verifier step-level parsing** — regex + Read on plan files → Phase D new logic
 - **ui-ux-pro-max fork** — needs license verification → Phase M check first
@@ -1463,7 +1463,7 @@ Q-U sequential (each depends on prior state).
 **Blocks:** H (gaspol-research), J (gaspol-learn), K (gaspol-kb-audit), R (Phase 0.5)
 
 **Files:**
-- Create (remote): `github.com/alisadikinma/gaspol-knowledge` (private)
+- Create (remote): `github.com/<your-username>/gaspol-knowledge` (private)
 - Create (local): `~/.claude/gaspol-knowledge/INDEX.md`
 - Create (local): `~/.claude/gaspol-knowledge/{ui-patterns,architecture,design-decisions,research,reusable-snippets}/.gitkeep`
 - Create (local): `~/.claude/gaspol-knowledge/README.md`
@@ -1471,16 +1471,16 @@ Q-U sequential (each depends on prior state).
 
 **Steps:**
 1. Run `gh auth status` to verify GitHub CLI auth (2 min)
-2. Run `gh repo create alisadikinma/gaspol-knowledge --private --description "Gaspol cross-project knowledge base"` (2 min)
+2. Run `gh repo create <your-username>/gaspol-knowledge --private --description "Gaspol cross-project knowledge base"` (2 min)
 3. Create local directory `~/.claude/gaspol-knowledge/` and clone repo (2 min)
 4. Write `INDEX.md` template dengan frontmatter schema + empty entries list (3 min)
 5. Create 5 category subdirectories dengan `.gitkeep` placeholder (1 min)
 6. Write `README.md` untuk KB repo explaining structure (3 min)
-7. Write `~/.claude/gaspol-config.json` dengan `{"kb_remote": "git@github.com:alisadikinma/gaspol-knowledge.git", "kb_local": "~/.claude/gaspol-knowledge"}` (2 min)
+7. Write `~/.claude/gaspol-config.json` dengan `{"kb_remote": "git@github.com:<your-username>/gaspol-knowledge.git", "kb_local": "~/.claude/gaspol-knowledge"}` (2 min)
 8. Initial commit + push (2 min)
 
 **Verification:**
-- [ ] `gh repo view alisadikinma/gaspol-knowledge` returns repo
+- [ ] `gh repo view <your-username>/gaspol-knowledge` returns repo
 - [ ] Local clone exists at `~/.claude/gaspol-knowledge/`
 - [ ] All 5 category directories present
 - [ ] INDEX.md has valid frontmatter schema

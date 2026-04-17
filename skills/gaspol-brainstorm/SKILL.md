@@ -28,12 +28,14 @@ BEFORE exploring codebase, ALWAYS read CLAUDE.md first.
 
 Saves 10-50k tokens per brainstorm session.
 
-## Phase 0.5: KB Cross-Project Query (MANDATORY -- after CLAUDE.md, before questions)
+## Phase 0.5: KB Cross-Project Query (AFTER CLAUDE.md, before questions — graceful skip if KB not configured)
 
 ```
 BEFORE asking clarifying questions, query cross-project KB for precedent.
+IF KB not configured (no ~/.claude/gaspol-config.json or directory) -> SKIP silently.
 ```
 
+0. **Check KB config** — `test -f ~/.claude/gaspol-config.json && test -d ~/.claude/gaspol-knowledge/`. If either missing, skip Phase 0.5 entirely with brief log: "KB not configured, skipping cross-project query. Run KB setup from README to enable."
 1. **Pull latest KB** — `cd ~/.claude/gaspol-knowledge/ && git pull --quiet` (skip gracefully if offline)
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
 3. **Grep INDEX.md** — `grep -i "<tag1>|<tag2>" INDEX.md`

@@ -258,7 +258,7 @@ Health thresholds:
 | `gaspol-learn` | Proposed entries become audit candidates at 90 days |
 | `gaspol-research` | Freshness tiers inform stale detection |
 | `gaspol-adr` | Supersession handling shared with audit |
-| Git repo `alisadikinma/gaspol-knowledge` | All audit actions committed + pushed |
+| Git repo `$GASPOL_KB_REMOTE (per-user KB, configured via ~/.claude/gaspol-config.json)` | All audit actions committed + pushed |
 
 ---
 

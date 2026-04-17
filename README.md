@@ -45,9 +45,19 @@ claude plugin install gaspol-dev
 # Or clone directly:
 git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-dev
 
-# First-time KB setup (one-time, required for cross-project features):
-gh repo create alisadikinma/gaspol-knowledge --private
-git clone ssh://git@github.com/alisadikinma/gaspol-knowledge ~/.claude/gaspol-knowledge
+# First-time KB setup (one-time, required for cross-project features)
+# IMPORTANT: KB is PER-USER — create YOUR OWN private repo, do NOT share!
+gh repo create <your-github-username>/gaspol-knowledge --private
+git clone ssh://git@github.com/<your-github-username>/gaspol-knowledge ~/.claude/gaspol-knowledge
+
+# Write config file with YOUR remote URL:
+cat > ~/.claude/gaspol-config.json <<EOF
+{
+  "kb_remote": "git@github.com:<your-github-username>/gaspol-knowledge.git",
+  "kb_local": "~/.claude/gaspol-knowledge",
+  "kb_owner": "<your-github-username>"
+}
+EOF
 ```
 
 Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes over from there.
@@ -102,7 +112,7 @@ gaspol: Approach chosen: 3-pane (prompt + preview + history). ADR-2026-03-15 cap
 ...feature ships via gaspol-finish...
 gaspol-learn: Candidate pattern "image-gen-3-pane-layout". Capture? [Yes with tags: image-gen, gallery, 3-pane]
 gaspol-learn: Saved to ui-patterns/image-generation-ui.md (status: proposed)
-gaspol-adr: Research cache + ADR committed to alisadikinma/gaspol-knowledge.
+gaspol-adr: Research cache + ADR committed to <your-username>/gaspol-knowledge (your private KB).
 
 [3 months later: new project, same domain — 2026-06]
 You: /gaspol-brainstorm AI video editor UI
@@ -262,24 +272,43 @@ git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-de
 
 ### KB Setup (one-time, required for cross-project features)
 
+> ⚠️ **Per-User Repo — Critical:** gaspol-dev is a public plugin, but the knowledge base is **private per user**. Each user creates their OWN repo under THEIR OWN GitHub account. Never share a KB repo across users — it mixes personal project patterns, leaks work, and breaks permission boundaries.
+
+Replace `<your-github-username>` with your actual GitHub handle in all commands below.
+
 ```bash
 # Authenticate gh CLI
 gh auth login
 
-# Create private KB repo
-gh repo create alisadikinma/gaspol-knowledge --private \
-  --description "gaspol-dev cross-project knowledge base"
+# Create private KB repo UNDER YOUR OWN ACCOUNT
+gh repo create <your-github-username>/gaspol-knowledge --private \
+  --description "My personal gaspol-dev cross-project knowledge base"
 
-# Clone locally
-git clone ssh://git@github.com/alisadikinma/gaspol-knowledge \
+# Clone locally (standard path, same on every user's machine)
+git clone ssh://git@github.com/<your-github-username>/gaspol-knowledge \
   ~/.claude/gaspol-knowledge
+
+# Write config file so skills know YOUR remote URL
+cat > ~/.claude/gaspol-config.json <<EOF
+{
+  "kb_remote": "git@github.com:<your-github-username>/gaspol-knowledge.git",
+  "kb_local": "~/.claude/gaspol-knowledge",
+  "kb_owner": "<your-github-username>"
+}
+EOF
 
 # Initialize structure
 cd ~/.claude/gaspol-knowledge
 mkdir -p ui-patterns architecture design-decisions research reusable-snippets
-echo "# gaspol-knowledge INDEX" > INDEX.md
+echo "# gaspol-knowledge INDEX (personal)" > INDEX.md
 git add . && git commit -m "init: KB structure" && git push
 ```
+
+### Alternative: Skip KB Setup
+
+KB features are **optional**. Plugin works without KB — you lose cross-project learning (gaspol-learn, gaspol-research cache, Phase 0.5 precedent surfacing, gaspol-kb-audit) but all per-project features (brainstorm, plan, execute, verify, finish, design, TDD, debug, review) work fine.
+
+To skip: just don't create the config file. Skills that touch KB will silent-skip with a brief warning.
 
 ### Verify
 

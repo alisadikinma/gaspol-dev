@@ -138,7 +138,7 @@ superseded_by: null
 
 Update `INDEX.md` with new entry + freshness badge.
 
-Commit + push to `alisadikinma/gaspol-knowledge` repo.
+Commit + push to `$GASPOL_KB_REMOTE (per-user, configured via ~/.claude/gaspol-config.json)` repo.
 
 ### Phase 7: Return to Caller
 
