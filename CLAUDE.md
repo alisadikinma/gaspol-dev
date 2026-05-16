@@ -1,5 +1,17 @@
 # gaspol-dev — Claude Plugin Instructions
 
+## 🧠 Vault Context Link
+
+Skill library — agnostic, dipakai cross-project.
+
+Pre-read kalau perlu konteks:
+- `20-Projects/claude-plugin/README.md` — skill ecosystem overview
+- `30-Knowledge/Claude-Skills/` — search via `obsidian` MCP `search-vault` untuk skill pattern reference
+- `10-Identity/tech-preferences.md` — stack defaults (Laravel/Vue/Python/etc)
+- `10-Identity/voice-tone.md` — user-facing docs
+
+JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL.md / docs.
+
 ## Plugin Overview
 
 Claude Code plugin providing **18 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 with model rubric switching, step-level closure gates, industry research grounding, and KB lifecycle management.
