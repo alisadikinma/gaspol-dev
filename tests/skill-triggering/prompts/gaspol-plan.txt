@@ -1,0 +1,1 @@
+We've agreed on the design for a notifications system (in-app + email digest). Break this down into an implementation plan I can hand to an engineer.

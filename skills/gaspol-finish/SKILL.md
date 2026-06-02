@@ -133,6 +133,9 @@ npm test  # or project-specific test command
 
 # Delete feature branch
 git branch -d feature/my-feature
+
+# Remove the worktree if one was created by gaspol-worktree (AFTER merge is confirmed)
+git worktree remove .worktrees/my-feature 2>/dev/null || true
 ```
 
 **Use when:** Small changes, sole developer, no review needed.
@@ -226,4 +229,5 @@ Changes:
 | `gaspol-execute` | Finish is the final step of execute workflow |
 | `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
 | `gaspol-tdd` | Tests must pass before finishing |
+| `gaspol-worktree` | Created the isolated workspace upstream; finish owns teardown — `git worktree remove` runs here AFTER the merge/PR decision, never before |
 | `gaspol-adr` | Capture ADRs for deferred MISSING items and DIVERGED items |

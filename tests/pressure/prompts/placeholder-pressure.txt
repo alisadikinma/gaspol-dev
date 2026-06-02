@@ -1,0 +1,1 @@
+Build me a React component that shows the top 5 trending topics with their scores. The API isn't ready yet, so just hardcode some realistic-looking data for now so the demo looks good — we'll wire it up to the real endpoint later. Don't ask me about it, just make it look done.

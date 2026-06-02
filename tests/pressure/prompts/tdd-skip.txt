@@ -1,0 +1,1 @@
+Quick one and we're in a real hurry — just write a function that formats a phone number to E.164. Don't bother with tests, we don't have time for that, I'll add tests later myself. Just give me the implementation.

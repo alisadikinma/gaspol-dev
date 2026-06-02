@@ -1,0 +1,1 @@
+I want to add a dashboard page to my app that shows each user their recent activity and some usage stats. Let's build it.
