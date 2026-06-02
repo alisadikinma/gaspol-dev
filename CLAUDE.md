@@ -1,8 +1,20 @@
 # gaspol-dev — Claude Plugin Instructions
 
+## 🧠 Vault Context Link
+
+Skill library — agnostic, dipakai cross-project.
+
+Pre-read kalau perlu konteks:
+- `20-Projects/claude-plugin/README.md` — skill ecosystem overview
+- `30-Knowledge/Claude-Skills/` — search via `obsidian` MCP `search-vault` untuk skill pattern reference
+- `10-Identity/tech-preferences.md` — stack defaults (Laravel/Vue/Python/etc)
+- `10-Identity/voice-tone.md` — user-facing docs
+
+JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL.md / docs.
+
 ## Plugin Overview
 
-Claude Code plugin providing **18 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 with model rubric switching, step-level closure gates, industry research grounding, and KB lifecycle management.
+Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening).
 
 ## Architecture
 
@@ -11,7 +23,9 @@ Claude Code plugin providing **18 development skills + 4 agents** for execution 
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author) |
 | `.claude-plugin/marketplace.json` | Marketplace listing |
 | `hooks/hooks.json` | SessionStart hook definition |
-| `hooks/session-start.sh` | Session start script — announces available skills |
+| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive into every session (loads `using-gaspol`) |
+| `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
+| `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it") |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-design/SKILL.md` | Frontend design intelligence — power peer ui-ux-pro-max v2.0 |
@@ -25,9 +39,10 @@ Claude Code plugin providing **18 development skills + 4 agents** for execution 
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
 | `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint with Auto-Review section |
 | `skills/gaspol-execute/implementer-prompt.md` | Subagent dispatch template with model rubric |
-| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) |
+| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) + Phase 0 worktree isolation + continuous execution |
 | `skills/gaspol-parallel/spec-reviewer-prompt.md` | Spec compliance reviewer template |
 | `skills/gaspol-parallel/code-quality-reviewer-prompt.md` | Code quality reviewer template |
+| `skills/gaspol-worktree/SKILL.md` | **NEW (v1.3)** — Isolated git worktree (native-tool-first, Step 0 detection, gitignore safety, clean baseline) |
 | `skills/gaspol-tdd/SKILL.md` | RED-GREEN-REFACTOR cycle enforcement |
 | `skills/gaspol-tdd/testing-anti-patterns.md` | Testing anti-pattern reference |
 | `skills/gaspol-debug/SKILL.md` | Systematic root cause debugging — no guessing |
@@ -41,6 +56,7 @@ Claude Code plugin providing **18 development skills + 4 agents** for execution 
 | `skills/gaspol-finish/SKILL.md` | Branch completion with BLOCKING plan-verifier + merge/PR/cleanup |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
 | `skills/gaspol-write-skill/SKILL.md` | Skill creation with TDD (RED-GREEN-REFACTOR for skills) |
+| `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
 | `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
 | `skills/gaspol-learn/SKILL.md` | **NEW** — Quality-gated post-ship pattern capture to KB |
@@ -90,6 +106,8 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Execute plan with full autonomy + hard-stop guardrails | `gaspol-auto` |
 | Execute plan with parallel phases (in-session) | `gaspol-parallel` (mode: plan-phases) |
 | 2+ independent problem domains (ad-hoc) | `gaspol-parallel` (mode: independent-domains) |
+| Need isolated workspace / protect current branch | `gaspol-worktree` (auto-invoked by parallel Phase 0) |
+| Session start / "which skill applies?" / enforce auto-trigger | `using-gaspol` (loaded by session-start bootstrap) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
@@ -128,13 +146,13 @@ When multiple skills apply:
 ### Skill Types
 
 **Rigid skills** — follow exactly, step-by-step, no adaptation:
-`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions)
+`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety)
 
 **Flexible skills** — apply principles to the specific situation:
 `gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
 
 **Meta-skills** — apply to plugin ecosystem:
-`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`
+`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`, `using-gaspol` (auto-trigger bootstrap)
 
 ## Key Concepts
 
@@ -161,7 +179,8 @@ learn (quality-gated pattern capture → KB)
 ```
 
 Parallel branches:
-- `gaspol-parallel mode:plan-phases` — replaces execute for independent-phase plans
+- `gaspol-worktree` — Phase 0 isolation invoked BEFORE concurrent dispatch (required for independent-domains, recommended for overlapping plan-phases); teardown owned by `gaspol-finish`
+- `gaspol-parallel mode:plan-phases` — replaces execute for independent-phase plans (continuous execution once isolated)
 - `gaspol-parallel mode:independent-domains` — for unrelated multi-domain problems
 - `gaspol-research` — invoked from brainstorm Phase 1.5 (NEW novelty) or standalone
 - `gaspol-adr` — invoked from brainstorm Phase 2 (approach picked) or plan fork point
@@ -454,7 +473,11 @@ Every plan MUST include:
 
 Plans saved to: `docs/plans/YYYY-MM-DD-<feature-name>.md` (hybrid — brainstorm + plan same file; split only if >500 lines)
 
-### Parallel Execution (gaspol-parallel) — Mode Field in v1.2
+### Parallel Execution (gaspol-parallel) — Mode Field in v1.2, Worktree + Continuous in v1.3
+
+**Phase 0 (v1.3):** invoke `gaspol-worktree` BEFORE concurrent dispatch — required for `independent-domains`, recommended for overlapping `plan-phases`. Parallel agents in a shared working directory race on files.
+
+**Continuous execution (v1.3):** once the task list is confirmed and the workspace is isolated, execute all tasks without pausing to check in between them. The only always-pause conditions: review fails after 3 attempts, genuine ambiguity, Iron Law violation / destructive op, or all tasks complete. Update the visual task tracker instead of narrating each task.
 
 Fresh subagent per task + two-stage review:
 
@@ -589,9 +612,10 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 1. Create `skills/gaspol-<name>/SKILL.md` with YAML frontmatter including `description` starting "Use when..."
 2. Follow RED-GREEN-REFACTOR process from `gaspol-write-skill`
 3. Update this CLAUDE.md with skill entry in Architecture and Skill Routing tables
-4. Update `hooks/session-start.sh` to announce the new skill
-5. Update `.claude-plugin/marketplace.json` skill count if listed
+4. Update `hooks/session-start.sh` routing block AND `skills/using-gaspol/SKILL.md` routing table to include the new skill
+5. Update `.claude-plugin/marketplace.json` + `.claude-plugin/plugin.json` skill count / version if listed
 6. Add supporting reference files in the skill directory if needed
+7. Add a trigger test: `tests/skill-triggering/prompts/<skill>.txt` (naive intent prompt) + list it in `run-all.sh`. For rigid skills, add a `tests/pressure/` case. Run before bumping the version.
 
 ### Editing a Skill
 
@@ -609,5 +633,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.2.0
-**Last Updated:** April 2026
+**Version:** 1.3.0
+**Last Updated:** June 2026

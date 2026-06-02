@@ -1,0 +1,1 @@
+My checkout endpoint sometimes returns a 500 with "cannot read property id of undefined", but only for some users. Can you fix it?

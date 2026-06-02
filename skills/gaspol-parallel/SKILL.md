@@ -22,7 +22,7 @@ Execute an implementation plan with multiple phases that are mostly independent.
 **Use when:**
 - You have an implementation plan (from `gaspol-plan`)
 - Phases are mostly independent (can be done in sequence without heavy cross-dependencies)
-- You want to stay in this session (not creating worktrees for parallel human review)
+- You want to stay in this session (continuous execution, not separate worktrees per human review)
 
 **Process:** Phase Intake → per-phase (Implementer → Spec Review → Quality Review) → Final integration
 
@@ -48,6 +48,27 @@ Dispatch one agent per independent problem domain for true concurrent resolution
 - Sequential dependencies — task B depends on output of task A
 - Single root cause with multiple symptoms
 - Small tasks where dispatch overhead exceeds time saved
+
+## Phase 0: Workspace Isolation (MANDATORY before concurrent dispatch)
+
+Before dispatching ANY concurrent implementer subagents, ensure an isolated workspace exists — invoke **`gaspol-worktree`**.
+
+- **Mode `independent-domains`** (truly concurrent dispatch): isolation is **required**. Parallel agents editing the same working directory race on files. gaspol-worktree Step 0 detects existing isolation (no double-nesting) and creates a worktree via the harness native tool or a safe git fallback.
+- **Mode `plan-phases`** (sequential phases in one session): isolation is **recommended** when phases touch overlapping files or you want the current branch protected; optional for small, append-only phase sets.
+
+If `gaspol-worktree` reports you are already in a linked worktree, proceed — do not nest. If the user declines isolation, work in place but note the elevated conflict risk in mode `independent-domains`.
+
+## Continuous Execution Discipline
+
+Once the task list is confirmed and the workspace is isolated, **execute all tasks continuously — do not pause to check in between tasks.** Fresh subagent per task already prevents context drift; mid-run "Should I continue?" prompts and per-task progress summaries waste the user's time. The user asked you to execute the plan, so execute it.
+
+**The only reasons to stop mid-run:**
+- A spec/quality review fails after 3 fix attempts (escalate — see Handling Failures).
+- A genuine ambiguity in a task blocks progress (ask via AskUserQuestion).
+- An Iron Law violation or destructive operation is required (always pause).
+- All tasks complete.
+
+Update the visual task tracker as you go (see Task Execution Tracking) instead of narrating each task in prose. This is the in-session analogue of `gaspol-auto`'s hard-stop guardrails — autonomous flow, bounded by the same always-pause conditions.
 
 ## Process Flow
 
@@ -223,7 +244,8 @@ For every component/function the implementer creates:
 | Skipping spec review | "It looks done" is not the same as "it meets requirements" |
 | Skipping quality review | Spec-compliant code can still be poorly written |
 | Proceeding with unfixed Critical/Important issues | Technical debt compounds; fix now or pay 10x later |
-| Dispatching parallel implementation subagents | Race conditions, merge conflicts, context drift |
+| Dispatching parallel implementation subagents WITHOUT worktree isolation | Race conditions, merge conflicts, context drift — invoke gaspol-worktree (Phase 0) first |
+| Pausing to ask "should I continue?" between tasks | Breaks continuous execution — only stop on the bounded always-pause conditions |
 | Making subagent read plan file instead of pasting task text | Subagent may misparse, miss context, or read stale version |
 | Skipping scene-setting context in implementer dispatch | Subagent lacks project knowledge, makes wrong assumptions |
 | Ignoring subagent questions | Forces subagent to guess, leading to wrong implementations |
@@ -236,6 +258,7 @@ For every component/function the implementer creates:
 ## Integration
 
 This skill works with:
+- **gaspol-worktree**: Phase 0 isolation — required before concurrent dispatch (mode: independent-domains), recommended for overlapping plan-phases
 - **gaspol-plan**: Provides the implementation plan with task breakdown (mode: plan-phases)
 - **gaspol-debug**: Identifies independent failure domains to dispatch (mode: independent-domains)
 - **gaspol-tdd**: Each dispatched agent follows TDD independently

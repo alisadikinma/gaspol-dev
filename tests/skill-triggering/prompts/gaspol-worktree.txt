@@ -1,0 +1,1 @@
+I want to start on a big risky refactor but I don't want it to touch my current branch at all — set me up to work on it in isolation, then we'll decide whether to keep it.

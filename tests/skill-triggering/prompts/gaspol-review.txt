@@ -1,0 +1,1 @@
+I just finished the payments refactor on this branch. Can you take a look at the changes and tell me if they're any good before I merge?

@@ -2,7 +2,7 @@
 
 **Process discipline for Claude Code — so AI writes real code, not fake placeholders.**
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-18-purple)](#the-18-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-20-purple)](#the-20-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
 
 ---
 
@@ -16,7 +16,7 @@ You plan a feature carefully. Claude executes it. And then you find:
 - A new hook created, when an identical one already exists in the codebase
 - No memory of decisions made last month — same debates every session
 
-**gaspol-dev fixes this.** 18 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, and build a cross-project knowledge base that **compounds over time**.
+**gaspol-dev fixes this.** 20 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, isolate parallel work in git worktrees, auto-trigger the right skill at the right moment, and build a cross-project knowledge base that **compounds over time**.
 
 ---
 
@@ -64,7 +64,7 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 
 ---
 
-## The 18 skills (organized by workflow)
+## The 20 skills (organized by workflow)
 
 ### Planning & Design
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + design gate (Phase 2.5)
@@ -75,7 +75,8 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 
 ### Execution
 - **gaspol-execute** — Per-phase checkpoints + TDD hard gate + tiered auto-review + plan-verifier BLOCKING
-- **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` OR `mode: independent-domains`)
+- **gaspol-worktree** — Isolated git worktree (native-tool-first, Step 0 detection + safety verification) so parallel work never collides
+- **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` OR `mode: independent-domains`) with worktree isolation + continuous execution
 - **gaspol-auto** — Autonomous mode for familiar codebase (hard-stop guardrails on 8 conditions)
 - **gaspol-tdd** — RED-GREEN-REFACTOR hard-gated by execute (no production code before failing test)
 - **gaspol-debug** — Systematic root-cause debugging (no guessing, backward tracing)
@@ -91,6 +92,9 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 - **gaspol-sync-docs** — CLAUDE.md sync (3 modes: post-implementation / audit / session learning)
 - **gaspol-kb-audit** — Periodic KB health check (stale / duplicates / conflicts / orphans / broken refs / unpromoted)
 - **gaspol-write-skill** — TDD applied to skill creation (RED-GREEN-REFACTOR)
+
+### Bootstrap
+- **using-gaspol** — Auto-trigger backbone: loaded at session start, enforces the 1% rule (invoke the matching skill BEFORE responding), routing table, instruction priority, and rationalization Red Flags
 
 ### Agents
 - **code-reviewer** (Sonnet) — Quality review between commits
@@ -224,8 +228,9 @@ Full rules: `skills/gaspol-design/rules/anti-ai-slop.md`.
 
 - ✅ v1.0 — Core skills, anti-placeholder, per-phase checkpoints
 - ✅ v1.1 — Better docs, improved brainstorm flow
-- ✅ v1.2 (current) — Cross-project KB, power-peer design, tiered review, hard gates, research grounding, step-level closure, KB lifecycle, 5 new skills (research/adr/learn/kb-audit/auto)
-- 🔜 v1.3 — Semantic KB search (Qdrant backend swap), Research freshness auto-sweep scheduled job
+- ✅ v1.2 — Cross-project KB, power-peer design, tiered review, hard gates, research grounding, step-level closure, KB lifecycle, 5 new skills (research/adr/learn/kb-audit/auto)
+- ✅ v1.3 (current) — superpowers-parity hardening: `gaspol-worktree` (isolated parallel work), `using-gaspol` bootstrap + forceful session-start directive (reliable auto-trigger), continuous-execution mode in gaspol-parallel, and a `tests/` harness (skill-triggering + pressure tests)
+- 🔜 v1.4 — Visual brainstorm companion (browser mockup loop wired to gaspol-design's anti-AI-slop knowledge), Semantic KB search, research freshness auto-sweep
 - 🔮 v2.0 — Multi-IDE support (Cursor, Codex, Gemini) following superpowers' portability pattern
 
 ---
@@ -239,16 +244,22 @@ gaspol-dev overlaps ~60% with [superpowers](https://github.com/obra/superpowers)
 | Anti-placeholder rules | Explicit + enforced at hard gate | Implicit |
 | Cross-project memory | ✓ (GitHub-synced KB, 5 categories, freshness-aware) | ✗ |
 | Research grounding | Tiered novelty + deep research + cache + TTL | ✗ |
-| Design intelligence | Power peer (85+ styles, 162+ rules, multi-framework) | ✗ |
+| Design **knowledge** engine | Power peer (85+ styles, 162+ rules, multi-framework) | ✗ |
+| Design **interaction** loop (visual brainstorm) | ✗ (roadmap v1.4) | ✓ browser companion |
 | Model switching | Auto-rubric per task type | ✗ |
 | Step-level closure gate | ✓ Evidence-based, BLOCKING | Phase-level |
-| Autonomous mode | ✓ with 8 hard-stop conditions | ✓ |
-| Multi-IDE | Claude Code only (for now) | 5 IDEs |
+| Autonomous / continuous exec | ✓ gaspol-auto (8 hard-stops) + parallel continuous mode | ✓ subagent-driven |
+| Git worktree isolation | ✓ gaspol-worktree (Step 0 detect + safety) — v1.3 | ✓ |
+| Auto-trigger bootstrap | ✓ using-gaspol + session-start directive — v1.3 | ✓ using-superpowers |
+| Skill-trigger + pressure tests | ✓ tests/ harness — v1.3 | ✓ |
+| Multi-IDE | Claude Code only (for now) | 5+ IDEs |
 | KB self-maintenance | ✓ (gaspol-kb-audit, status lifecycle) | N/A |
+
+> **Honest note:** superpowers shipped a *visual* brainstorming companion (browser mockup loop). gaspol has the design **knowledge** (anti-AI-slop rules, 162+ reasoning rules) but not yet the interactive loop — that's v1.4. Conversely, gaspol's worktree, bootstrap, and test-harness gaps vs superpowers were closed in v1.3 (this release).
 
 **Pick gaspol-dev if:** deep integration with Claude Code + cross-project learning + process enforcement + anti-AI-slop design + model cost optimization matter more than IDE breadth.
 
-**Pick superpowers if:** multi-IDE is critical, you already have external KB infrastructure, or you want a simpler surface area.
+**Pick superpowers if:** multi-IDE is critical, you want the visual brainstorm loop, you already have external KB infrastructure, or you want a simpler surface area.
 
 ---
 
@@ -337,7 +348,7 @@ Key rules:
 ## Credits
 
 - **Design intelligence data** partially forked from [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) by Next Level Builder (MIT). See [NOTICE.md](skills/gaspol-design/NOTICE.md).
-- **Workflow patterns** inspired by [superpowers](https://github.com/obra/superpowers) by Jesse Brown.
+- **Workflow patterns** inspired by [superpowers](https://github.com/obra/superpowers) by Jesse Vincent (obra). The v1.3 `gaspol-worktree`, `using-gaspol` bootstrap, and `tests/` skill-triggering harness adapt patterns from superpowers' `using-git-worktrees`, `using-superpowers`, and `tests/skill-triggering` (MIT).
 - **Iron Law discipline** influenced by Kent Beck's XP practices.
 
 ---

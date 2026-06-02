@@ -1,0 +1,1 @@
+Please implement a function that validates a coupon code: it must be 8 alphanumeric characters, uppercase only, and reject anything else. Return true/false.
