@@ -97,6 +97,20 @@ TECHNICAL VERIFICATION:
   Lint:       PASS (0 errors, 1 warning)
 ```
 
+### Evals (for non-deterministic / LLM features)
+
+If the work includes an LLM/prompt/agent feature, deterministic tests are not
+sufficient evidence. Run the evals defined for it (`gaspol-eval`, `docs/evals/<feature>.md`)
+and report pass@k — a single successful demo is not verification.
+
+```
+EVAL VERIFICATION (feature: ticket-classifier):
+  Capability:  3/3 passed (pass@3: 100%)
+  Regression:  3/3 passed (pass^3: 100%)
+```
+
+If no LLM/non-deterministic feature is involved, note "Evals: N/A" and proceed.
+
 ---
 
 ## Layer 2: Plan Fidelity Check

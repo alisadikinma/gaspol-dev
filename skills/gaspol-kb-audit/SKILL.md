@@ -215,7 +215,8 @@ Resolved 23 findings:
 Health score: 🟢 GREEN (was 🟡 YELLOW pre-audit)
 EOF
 )"
-git push
+# push only in synced mode — see docs/kb-setup.md; local-only audits stay local with no error
+[ -n "$REMOTE" ] && git push --quiet || true
 ```
 
 ### Step 6: Update Health Metrics
@@ -258,7 +259,7 @@ Health thresholds:
 | `gaspol-learn` | Proposed entries become audit candidates at 90 days |
 | `gaspol-research` | Freshness tiers inform stale detection |
 | `gaspol-adr` | Supersession handling shared with audit |
-| Git repo `$GASPOL_KB_REMOTE (per-user KB, configured via ~/.claude/gaspol-config.json)` | All audit actions committed + pushed |
+| Local KB (default) or git remote `$GASPOL_KB_REMOTE` (synced mode) | All audit actions committed locally; pushed only in synced mode — see [docs/kb-setup.md](../../docs/kb-setup.md) |
 
 ---
 
@@ -274,4 +275,4 @@ Before completing audit:
 - [ ] Audit report written to `_audit/audit-YYYY-MM-DD.md`
 - [ ] Health metrics updated
 - [ ] Git committed with descriptive message
-- [ ] Pushed to remote KB repo
+- [ ] Committed locally (always); pushed to remote KB repo only if in synced mode (see [docs/kb-setup.md](../../docs/kb-setup.md))

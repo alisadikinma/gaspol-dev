@@ -50,12 +50,12 @@ Don't start broad research without defined question.
 
 ### Phase 2: Check Cache
 
-Before fetching anything, query KB:
+Before fetching anything, query KB (auto-init local dir if missing; see [docs/kb-setup.md](../../docs/kb-setup.md)):
 
 ```bash
-cd ~/.claude/gaspol-knowledge/
-git pull --quiet
-# Grep INDEX.md for matching tags
+KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+[ -n "$REMOTE" ] && git -C "$KB" pull --quiet || true   # synced mode only
+# Grep $KB/INDEX.md for matching tags (local-only mode reads local cache directly)
 ```
 
 If cache hit found:
@@ -138,7 +138,7 @@ superseded_by: null
 
 Update `INDEX.md` with new entry + freshness badge.
 
-Commit + push to `$GASPOL_KB_REMOTE (per-user, configured via ~/.claude/gaspol-config.json)` repo.
+Commit the cache entry locally (always); push only in synced mode (`kb_remote` / `$GASPOL_KB_REMOTE` configured). See [docs/kb-setup.md](../../docs/kb-setup.md). In local-only mode the cache persists locally and still serves future cache hits on this machine — no remote required.
 
 ### Phase 7: Return to Caller
 

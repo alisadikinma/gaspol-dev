@@ -47,6 +47,8 @@ Input:
 
 ### Step 2: Check KB for Precedent
 
+Resolve KB mode first (see [docs/kb-setup.md](../../docs/kb-setup.md)): skip only on explicit `"kb_mode":"off"`; otherwise auto-init the local KB dir if missing and continue. **No GitHub config needed — local-only is the default.**
+
 Query `~/.claude/gaspol-knowledge/design-decisions/` for similar decisions:
 - Grep by tags extracted from context
 - Grep by domain (auth, state-mgmt, image-gen, etc.)
@@ -159,7 +161,13 @@ Add to `~/.claude/gaspol-knowledge/INDEX.md`:
   date: YYYY-MM-DD
 ```
 
-Commit + push to KB repo.
+Commit locally (always), push only in synced mode — see [docs/kb-setup.md](../../docs/kb-setup.md):
+
+```bash
+KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+git -C "$KB" add . && git -C "$KB" commit -q -m "adr: <id> — <title>" || true
+[ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
+```
 
 ### Step 7: Return to Caller
 

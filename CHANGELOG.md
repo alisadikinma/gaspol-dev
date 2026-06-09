@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.4.0] - 2026-06-09
+
+### Added — selective adoption from ECC (Everything Claude Code)
+- **`gaspol-security-review`** — new rigid skill. Security checklist across 9 categories
+  (secrets, input validation, SQL injection, auth/authz, XSS, CSRF, rate limiting,
+  sensitive-data exposure, dependency security) plus a Supabase Row-Level-Security
+  section and a 16-item Pre-Deployment Security Checklist. Ported and adapted from the
+  ECC `security-review` skill (MIT); the blockchain/Solana section was dropped as
+  out-of-stack. Auto-triggered by `gaspol-execute` (Step 3.6) on security-sensitive
+  phases and gated by `gaspol-finish` before merge/PR. Pressure test added (it is a
+  second-order skill — auto-triggered downstream, so it is not cold-prompt
+  triggering-tested, like `gaspol-design`/`adr`/`learn`).
+- **`gaspol-eval`** — new flexible skill. Eval-driven development for non-deterministic /
+  LLM features (classification, extraction, generation, RAG, agents): capability +
+  regression evals, three grader types (code / model-as-judge / human), and pass@k /
+  pass^k metrics. Ported from the ECC `eval-harness` skill (MIT); eval definitions live
+  in `docs/evals/` (project-local — regression baselines are codebase-specific) rather
+  than the cross-project KB. Defined at plan time, run by `gaspol-verify`. Complements
+  `gaspol-tdd` (TDD for deterministic code, eval for non-deterministic behavior); does
+  not replace it. Second-order skill (auto-triggered via plan/verify wiring), so not
+  cold-prompt triggering-tested.
+
+### Why
+
+- **security-review:** gaspol-review covers general quality but had no security-specific
+  lens (secrets, SQLi, authz, RLS). Closes a real gap with a stack-fit checklist rather
+  than adopting ECC's broad library wholesale.
+- **eval:** gaspol-tdd asserts deterministic code, but a prompt edit is a behavior change
+  with no compiler and no single `expect()` to catch regressions. Most of gaspol's own
+  surface and Ali's content suite are LLM/prompt systems — this closes the
+  non-deterministic verification gap.
+
+## [1.3.1] - 2026-06-03
+
+### Changed — KB works out of the box (local-only default)
+- The cross-project Knowledge Base no longer requires a GitHub repo or `gaspol-config.json`. On first use the local KB auto-inits at `~/.claude/gaspol-knowledge/` and `gaspol-adr` / `gaspol-learn` start capturing immediately. GitHub sync is now an **optional upgrade**.
+- New canonical doc **[docs/kb-setup.md](docs/kb-setup.md)** — 3-mode resolution: `local-only` (default), `synced` (remote configured), `off` (explicit `"kb_mode":"off"`).
+- Reworked KB mechanics in `gaspol-brainstorm` (Phase 0.5), `gaspol-adr`, `gaspol-learn`, `gaspol-research`, `gaspol-kb-audit`: pull/push are now **conditional on synced mode**; commits always happen locally; missing remote is no longer a fail-loud condition. The old "no config → skip" behavior is replaced by "no config → local-only".
+- `session-start.sh` now prints the active KB mode (local-only / synced / off) so the user can see the flywheel is live.
+
+### Why
+adr & learn were effectively dormant for any user who never did the manual GitHub setup (silent-skip). This makes the KB flywheel — the headline "compounding knowledge" differentiator vs superpowers — active by default, with zero onboarding friction.
+
 ## [1.3.0] - 2026-06-03
 
 ### Added (superpowers-parity hardening)

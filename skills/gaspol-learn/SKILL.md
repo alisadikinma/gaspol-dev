@@ -155,16 +155,18 @@ last_validated: YYYY-MM-DD              # initial = date created
   hook: <1-line summary of reusability>
 ```
 
-### Step 7: Commit + Push
+### Step 7: Commit (+ Push if synced)
+
+See [docs/kb-setup.md](../../docs/kb-setup.md) for mode resolution. Auto-init the local KB dir if missing. **Always commit locally; push only in synced mode.**
 
 ```bash
-cd ~/.claude/gaspol-knowledge/
-git add .
-git commit -m "learn: capture <pattern> from <project>"
-git push
+KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+git -C "$KB" add . && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" || true
+# push ONLY if a remote is configured (kb_remote / $GASPOL_KB_REMOTE):
+[ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
 ```
 
-If offline, queue in `.pending-push` for retry next session.
+In **local-only mode** (default) there is no remote — the local commit IS the capture. No push, no offline queue, no error. In **synced mode**, if push fails (offline) queue in `.pending-push` for retry next session.
 
 ---
 
@@ -198,7 +200,8 @@ Purpose: allow user to reconsider rejected captures later without losing proposa
 | Tags missing or generic ("code", "ui") | Reject — demand specific tags |
 | Body <200 words | Reject — demand expansion |
 | Pattern description IS the code (no abstraction) | Reject — pattern needs decoupling from source |
-| Silent capture without push to remote KB | Fail loud — require git push or explicit offline queue |
+| Skipping capture entirely because "no KB configured" | Wrong — KB is local-only by default. Auto-init the dir and capture locally. Only skip on explicit `kb_mode: off` |
+| Fail-loud on missing remote in local-only mode | A missing remote is the expected default — commit locally, no error. Fail loud only if a *configured* push fails in synced mode |
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Process discipline for Claude Code — so AI writes real code, not fake placeholders.**
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-20-purple)](#the-20-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-22-purple)](#the-22-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
 
 ---
 
@@ -16,7 +16,7 @@ You plan a feature carefully. Claude executes it. And then you find:
 - A new hook created, when an identical one already exists in the codebase
 - No memory of decisions made last month — same debates every session
 
-**gaspol-dev fixes this.** 20 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, isolate parallel work in git worktrees, auto-trigger the right skill at the right moment, and build a cross-project knowledge base that **compounds over time**.
+**gaspol-dev fixes this.** 22 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, isolate parallel work in git worktrees, auto-trigger the right skill at the right moment, and build a cross-project knowledge base that **compounds over time**.
 
 ---
 
@@ -45,26 +45,15 @@ claude plugin install gaspol-dev
 # Or clone directly:
 git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-dev
 
-# First-time KB setup (one-time, required for cross-project features)
-# IMPORTANT: KB is PER-USER — create YOUR OWN private repo, do NOT share!
-gh repo create <your-github-username>/gaspol-knowledge --private
-git clone ssh://git@github.com/<your-github-username>/gaspol-knowledge ~/.claude/gaspol-knowledge
-
-# Write config file with YOUR remote URL:
-cat > ~/.claude/gaspol-config.json <<EOF
-{
-  "kb_remote": "git@github.com:<your-github-username>/gaspol-knowledge.git",
-  "kb_local": "~/.claude/gaspol-knowledge",
-  "kb_owner": "<your-github-username>"
-}
-EOF
+# That's it — the cross-project KB works out of the box (local-only, auto-created
+# on first use). No GitHub repo required. GitHub sync is an OPTIONAL upgrade below.
 ```
 
 Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes over from there.
 
 ---
 
-## The 20 skills (organized by workflow)
+## The 22 skills (organized by workflow)
 
 ### Planning & Design
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + design gate (Phase 2.5)
@@ -79,11 +68,13 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 - **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` OR `mode: independent-domains`) with worktree isolation + continuous execution
 - **gaspol-auto** — Autonomous mode for familiar codebase (hard-stop guardrails on 8 conditions)
 - **gaspol-tdd** — RED-GREEN-REFACTOR hard-gated by execute (no production code before failing test)
+- **gaspol-eval** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k); complements gaspol-tdd
 - **gaspol-debug** — Systematic root-cause debugging (no guessing, backward tracing)
 
 ### Verification & Closure
 - **gaspol-verify** — 4-layer verification (technical, plan fidelity BLOCKING, placeholder scan, integration + design compliance)
 - **gaspol-review** — Code review dispatch with code-reviewer subagent
+- **gaspol-security-review** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, Supabase RLS); auto-triggered on security-sensitive phases, gates pre-deploy in finish
 - **gaspol-receive-review** — Technical response (no performative agreement)
 - **gaspol-finish** — BLOCKING plan-verifier pre-chain + merge/PR/cleanup options
 
@@ -281,25 +272,33 @@ claude plugin install gaspol-dev
 git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-dev
 ```
 
-### KB Setup (one-time, required for cross-project features)
+### KB: zero setup (local-only default)
 
-> ⚠️ **Per-User Repo — Critical:** gaspol-dev is a public plugin, but the knowledge base is **private per user**. Each user creates their OWN repo under THEIR OWN GitHub account. Never share a KB repo across users — it mixes personal project patterns, leaks work, and breaks permission boundaries.
+Since **v1.3.1 the KB works out of the box.** On first use, `gaspol-adr` / `gaspol-learn`
+auto-create `~/.claude/gaspol-knowledge/` locally and start capturing — no GitHub repo,
+no config file. Cross-project learning works on this machine immediately. Full mode
+reference: [docs/kb-setup.md](docs/kb-setup.md).
 
-Replace `<your-github-username>` with your actual GitHub handle in all commands below.
+Three modes:
+
+| Mode | When | Behavior |
+|---|---|---|
+| **local-only** (default) | no config, or config without `kb_remote` | auto-init local dir, read/write locally, no remote |
+| **synced** | `kb_remote` set (config or `$GASPOL_KB_REMOTE`) | adds `git pull`/`push` for cross-machine sync |
+| **off** | `"kb_mode": "off"` in config | KB disabled, skills skip |
+
+### Optional upgrade: GitHub sync (cross-machine)
+
+Want your KB on more than one machine? Promote local-only → synced. The KB is
+**private per user** — create YOUR OWN repo, never share it.
 
 ```bash
-# Authenticate gh CLI
 gh auth login
+gh repo create <your-github-username>/gaspol-knowledge --private
+git -C ~/.claude/gaspol-knowledge remote add origin \
+  git@github.com:<your-github-username>/gaspol-knowledge.git
+git -C ~/.claude/gaspol-knowledge push -u origin main   # everything captured locally comes along
 
-# Create private KB repo UNDER YOUR OWN ACCOUNT
-gh repo create <your-github-username>/gaspol-knowledge --private \
-  --description "My personal gaspol-dev cross-project knowledge base"
-
-# Clone locally (standard path, same on every user's machine)
-git clone ssh://git@github.com/<your-github-username>/gaspol-knowledge \
-  ~/.claude/gaspol-knowledge
-
-# Write config file so skills know YOUR remote URL
 cat > ~/.claude/gaspol-config.json <<EOF
 {
   "kb_remote": "git@github.com:<your-github-username>/gaspol-knowledge.git",
@@ -307,28 +306,16 @@ cat > ~/.claude/gaspol-config.json <<EOF
   "kb_owner": "<your-github-username>"
 }
 EOF
-
-# Initialize structure
-cd ~/.claude/gaspol-knowledge
-mkdir -p ui-patterns architecture design-decisions research reusable-snippets
-echo "# gaspol-knowledge INDEX (personal)" > INDEX.md
-git add . && git commit -m "init: KB structure" && git push
 ```
-
-### Alternative: Skip KB Setup
-
-KB features are **optional**. Plugin works without KB — you lose cross-project learning (gaspol-learn, gaspol-research cache, Phase 0.5 precedent surfacing, gaspol-kb-audit) but all per-project features (brainstorm, plan, execute, verify, finish, design, TDD, debug, review) work fine.
-
-To skip: just don't create the config file. Skills that touch KB will silent-skip with a brief warning.
 
 ### Verify
 
 ```bash
 claude plugin list | grep gaspol-dev
-# Should show: gaspol-dev (v1.2.0)
+# Should show: gaspol-dev (v1.4.0)
 
-ls ~/.claude/gaspol-knowledge/
-# Should show: INDEX.md ui-patterns/ architecture/ design-decisions/ research/ reusable-snippets/
+ls ~/.claude/gaspol-knowledge/   # created automatically after your first brainstorm/adr/learn
+# INDEX.md ui-patterns/ architecture/ design-decisions/ research/ reusable-snippets/
 ```
 
 ---

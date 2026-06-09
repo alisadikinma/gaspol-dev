@@ -39,12 +39,18 @@ echo ""
 LOG_FILE="$OUTPUT_DIR/claude-output.json"
 cd "$OUTPUT_DIR"
 
-timeout 300 claude -p "$PROMPT" \
+# Portable timeout (GNU `timeout`, macOS `gtimeout`, or none) + `--verbose`
+# is required by recent claude CLI when `--output-format stream-json` is used
+# under `-p`. `< /dev/null` avoids the "no stdin data received in 3s" stall.
+TIMEOUT_CMD="$(command -v timeout || command -v gtimeout || true)"
+if [ -n "$TIMEOUT_CMD" ]; then TIMEOUT_PREFIX=("$TIMEOUT_CMD" 300); else TIMEOUT_PREFIX=(); fi
+"${TIMEOUT_PREFIX[@]}" claude -p "$PROMPT" \
     --plugin-dir "$PLUGIN_DIR" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \
     --output-format stream-json \
-    > "$LOG_FILE" 2>&1 || true
+    --verbose \
+    < /dev/null > "$LOG_FILE" 2>&1 || true
 
 echo "=== Results ==="
 # Match "skill":"gaspol-debug" or "skill":"gaspol-dev:gaspol-debug"

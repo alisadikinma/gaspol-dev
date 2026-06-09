@@ -28,15 +28,15 @@ BEFORE exploring codebase, ALWAYS read CLAUDE.md first.
 
 Saves 10-50k tokens per brainstorm session.
 
-## Phase 0.5: KB Cross-Project Query (AFTER CLAUDE.md, before questions — graceful skip if KB not configured)
+## Phase 0.5: KB Cross-Project Query (AFTER CLAUDE.md, before questions — local-only by default)
 
 ```
 BEFORE asking clarifying questions, query cross-project KB for precedent.
-IF KB not configured (no ~/.claude/gaspol-config.json or directory) -> SKIP silently.
+KB works out of the box (local-only). It only disables on explicit "kb_mode": "off".
 ```
 
-0. **Check KB config** — `test -f ~/.claude/gaspol-config.json && test -d ~/.claude/gaspol-knowledge/`. If either missing, skip Phase 0.5 entirely with brief log: "KB not configured, skipping cross-project query. Run KB setup from README to enable."
-1. **Pull latest KB** — `cd ~/.claude/gaspol-knowledge/ && git pull --quiet` (skip gracefully if offline)
+0. **Resolve KB mode** (see [docs/kb-setup.md](../../docs/kb-setup.md)): `off` (config has `"kb_mode":"off"`) → skip Phase 0.5 silently. Otherwise auto-init the local KB if missing (mkdir structure + `git init`) and proceed — no config needed.
+1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C ~/.claude/gaspol-knowledge pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
 3. **Grep INDEX.md** — `grep -i "<tag1>|<tag2>" INDEX.md`
 4. **Filter by status** — default show only `status: accepted` entries; optionally include `proposed`
