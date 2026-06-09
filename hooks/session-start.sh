@@ -22,8 +22,10 @@ ROUTING — match the user's intent, invoke BEFORE acting:
   parallel / independent work ................. gaspol-worktree → gaspol-parallel
   isolate workspace / protect branch .......... gaspol-worktree
   implement or fix (before code) .............. gaspol-tdd
+  LLM / prompt / agent (non-deterministic) .... gaspol-eval
   bug / error / test failure .................. gaspol-debug
   review code ................................. gaspol-review
+  auth/secrets/input/endpoint/payment ........ gaspol-security-review
   received review feedback .................... gaspol-receive-review
   claim done / ready to commit ................ gaspol-verify
   merge / PR / cleanup a branch ............... gaspol-finish
@@ -41,3 +43,16 @@ REMINDERS:
   • Use AskUserQuestion (interactive modal) for all confirmations/choices.
 ═══════════════════════════════════════════════════════════════
 EOF
+
+# --- KB status (cross-project knowledge base) -------------------------------
+CFG="$HOME/.claude/gaspol-config.json"
+KB="$HOME/.claude/gaspol-knowledge"
+if grep -q '"kb_mode"[[:space:]]*:[[:space:]]*"off"' "$CFG" 2>/dev/null; then
+  echo "KB: off (disabled via gaspol-config.json). adr/learn/research/kb-audit inactive."
+elif grep -q '"kb_remote"' "$CFG" 2>/dev/null || [ -n "$GASPOL_KB_REMOTE" ]; then
+  echo "KB: synced (GitHub) — adr/learn/research compounding cross-machine."
+elif [ -d "$KB" ]; then
+  echo "KB: local-only — capturing to ~/.claude/gaspol-knowledge (add a remote to sync; see docs/kb-setup.md)."
+else
+  echo "KB: local-only (default) — auto-creates on first adr/learn capture. No setup needed."
+fi

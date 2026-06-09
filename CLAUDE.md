@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening).
+Claude Code plugin providing **22 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening).
 
 ## Architecture
 
@@ -50,6 +50,8 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent |
+| `skills/gaspol-security-review/SKILL.md` | **NEW (v1.4)** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, RLS); gates pre-deploy in finish (ECC port) |
+| `skills/gaspol-eval/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
@@ -109,8 +111,10 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Need isolated workspace / protect current branch | `gaspol-worktree` (auto-invoked by parallel Phase 0) |
 | Session start / "which skill applies?" / enforce auto-trigger | `using-gaspol` (loaded by session-start bootstrap) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
+| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-eval` (define + run evals; complements `gaspol-tdd`) |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
+| Auth, secrets, user input, API endpoint, payment, sensitive data | `gaspol-security-review` (also auto-triggered by execute Step 3.6 + finish gate) |
 | Received code review feedback from others | `gaspol-receive-review` |
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
@@ -146,7 +150,7 @@ When multiple skills apply:
 ### Skill Types
 
 **Rigid skills** — follow exactly, step-by-step, no adaptation:
-`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety)
+`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety), `gaspol-security-review` (checklist resists pressure)
 
 **Flexible skills** — apply principles to the specific situation:
 `gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
@@ -201,7 +205,11 @@ This saves 10-50k tokens per brainstorm session by avoiding redundant codebase e
 
 ### Cross-Project Knowledge Base (NEW in v1.2)
 
-Persistent cross-project memory at `~/.claude/gaspol-knowledge/` (synced via **per-user** private GitHub repo — each user creates their own, configured via `~/.claude/gaspol-config.json`).
+Persistent cross-project memory at `~/.claude/gaspol-knowledge/`. **Works out of the box (local-only) since v1.3.1 — no GitHub required.** GitHub sync (cross-machine) is an optional upgrade. Three modes resolved by every KB skill (canonical: [docs/kb-setup.md](docs/kb-setup.md)):
+
+- **local-only** (DEFAULT — no config, or config without `kb_remote`): auto-init the local KB on first use, read/write local files, no pull/push, never fail on a missing remote. Cross-project learning works on this machine.
+- **synced** (`kb_remote` in config or `$GASPOL_KB_REMOTE` set): `git pull` before reads, `git commit && git push` after writes (per-user **private** repo — never shared).
+- **off** (`"kb_mode": "off"` in config): KB disabled, skills skip silently.
 
 **Per-user requirement:** This plugin is public. The KB is **PRIVATE PER USER** — never share a KB repo across users. Each gaspol-dev user:
 1. Creates their own private repo (e.g., `<your-username>/gaspol-knowledge`)
@@ -219,7 +227,7 @@ Config file schema:
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
-Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) read remote URL from config — never hardcoded. If config absent → graceful skip (no KB features, plugin still works for single-project flow).
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (auto-init `~/.claude/gaspol-knowledge/`, write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
 
 Structure (same on every user's machine):
 
@@ -597,7 +605,7 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | Agent creates duplicate hooks/contexts | CLAUDE.md-first rule not followed — check existing architecture before creating new |
 | Session-start hook not firing | Check `hooks/hooks.json` matcher pattern and `session-start.sh` permissions |
 | Skills not listed in session | Check that `CLAUDE.md` exists and is loaded by Claude Code |
-| KB not surfacing precedent | `gaspol-knowledge/` not cloned OR Phase 0.5 skipped — verify `~/.claude/gaspol-knowledge/` exists |
+| KB not surfacing precedent | Phase 0.5 skipped, OR KB still empty (nothing captured yet via adr/learn). Local-only auto-inits `~/.claude/gaspol-knowledge/` — check `"kb_mode":"off"` isn't set; see [docs/kb-setup.md](docs/kb-setup.md) |
 | Research claims without citations | `gaspol-research` quality gates not enforced — every claim needs URL |
 | Cache stale but used as-is | Freshness tier not checked — research entries need age filter |
 | Generic "Inter font" recommendation | `gaspol-design` anti-AI-slop rules bypassed — check `rules/anti-ai-slop.md` |
@@ -633,5 +641,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.3.0
+**Version:** 1.4.0
 **Last Updated:** June 2026

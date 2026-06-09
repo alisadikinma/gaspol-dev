@@ -163,6 +163,19 @@ Each phase MUST follow this exact structure:
 
 Design deliverable is produced by invoking `gaspol-design` during plan creation for each UI phase.
 
+**Security-Sensitive Phases:** When a phase touches **auth/authorization, secrets,
+user input or file uploads, a new API endpoint, payment, or sensitive data**, the
+phase's Verification block MUST include a security line (e.g. "inputs validated,
+queries parameterized, authz server-side, no secrets in source"). `gaspol-execute`
+auto-invokes `gaspol-security-review` for these phases (Step 3.6), and
+`gaspol-finish` runs the Pre-Deployment Security Checklist before merge.
+
+**Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior
+(classification, extraction, generation, RAG, routing), define evals at plan time via
+`gaspol-eval` — write `docs/evals/<feature>.md` (capability + regression + real
+fixtures) as the phase's success contract. Deterministic unit tests alone do not
+verify non-deterministic output; `gaspol-verify` runs these evals and reports pass@k.
+
 ## Verification Criteria per Phase (MANDATORY)
 
 Every phase MUST end with a Verification block. At minimum, include:

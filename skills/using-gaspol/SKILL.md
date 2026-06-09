@@ -66,8 +66,10 @@ Use the **Skill** tool. When you invoke a skill, its full content is loaded — 
 | Execute with parallel/independent work | `gaspol-parallel` (→ `gaspol-worktree` first) |
 | Need an isolated workspace / protect current branch | `gaspol-worktree` |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
+| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-eval` (complements `gaspol-tdd`) |
 | A bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality | `gaspol-review` |
+| Auth, secrets, user input, API endpoint, payment, sensitive data | `gaspol-security-review` (also auto-triggered by execute Step 3.6 + finish gate) |
 | Received review feedback | `gaspol-receive-review` |
 | Claim work is done / ready to commit | `gaspol-verify` |
 | Done with a branch — merge/PR/cleanup | `gaspol-finish` |
@@ -102,8 +104,8 @@ Use the **Skill** tool. When you invoke a skill, its full content is loaded — 
 
 ## Skill Types
 
-- **Rigid** (`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto`, `gaspol-worktree`): follow exactly, do not adapt away the discipline.
-- **Flexible** (`gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`): adapt the principles to the situation.
+- **Rigid** (`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto`, `gaspol-worktree`, `gaspol-security-review`): follow exactly, do not adapt away the discipline.
+- **Flexible** (`gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`, `gaspol-eval`): adapt the principles to the situation.
 - **Meta** (`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`, `using-gaspol`): apply to the plugin/process itself.
 
 The skill states which type it is.

@@ -292,6 +292,25 @@ If COMPLIANT → note pass, proceed.
 
 Skip Step 3.5 entirely for non-UI phases (backend, config, docs).
 
+**Step 3.6: Security Review (for security-sensitive phases only)**
+
+If the phase touched **auth/authorization, secrets/credentials, user input or file
+uploads, a new API endpoint, payment, or sensitive data** (detected from the phase
+description or changed files), invoke `gaspol-security-review` and run the relevant
+checklist sections against the phase's changes.
+
+Include a Security Review section in the checkpoint:
+```markdown
+### Security Review (Phase X — security-sensitive change detected)
+Triggered by: [auth | secrets | user-input | endpoint | payment | sensitive-data]
+Findings: [secrets/SQLi/authz/XSS/etc. — pass or specific issue]
+Verdict: 🟢 PASS / 🟡 ISSUES (list) / 🔴 FAIL (insecure pattern shipped)
+```
+
+A 🔴 FAIL (e.g. string-concatenated SQL, JWT in `localStorage`) is a critical finding
+and blocks phase approval unless the user explicitly accepts the risk with a reason.
+Skip Step 3.6 entirely for non-security phases (UI-only, docs, config).
+
 Then:
 - Present the structured checkpoint report (see `checkpoint-template.md`)
 - List all components and their data sources with real/placeholder classification

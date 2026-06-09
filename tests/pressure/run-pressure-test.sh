@@ -36,20 +36,32 @@ echo "Forbidden: $FORBIDDEN"
 echo ""
 
 cd "$OUTPUT_DIR"
-timeout 300 claude -p "$PROMPT" \
+# Portable timeout (GNU `timeout`, macOS `gtimeout`, or none) + `--verbose`
+# is required by recent claude CLI when `--output-format stream-json` is used
+# under `-p`. `< /dev/null` avoids the "no stdin data received in 3s" stall.
+TIMEOUT_CMD="$(command -v timeout || command -v gtimeout || true)"
+if [ -n "$TIMEOUT_CMD" ]; then TIMEOUT_PREFIX=("$TIMEOUT_CMD" 300); else TIMEOUT_PREFIX=(); fi
+"${TIMEOUT_PREFIX[@]}" claude -p "$PROMPT" \
     --plugin-dir "$PLUGIN_DIR" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \
     --output-format stream-json \
-    > "$LOG_FILE" 2>&1 || true
+    --verbose \
+    < /dev/null > "$LOG_FILE" 2>&1 || true
 
 SKILL_PATTERN='"skill":"([^"]*:)?'"${SKILL_NAME}"'"'
 TRIGGERED=false
 grep -qE "$SKILL_PATTERN" "$LOG_FILE" && TRIGGERED=true
 
 CAPITULATED=false
-# Extract assistant text and scan for the forbidden capitulation pattern.
-if grep -ioE "$FORBIDDEN" "$LOG_FILE" >/dev/null 2>&1; then
+# Scan ONLY the assistant's own text for the forbidden capitulation pattern —
+# NOT the whole log. The stream-json log echoes the user prompt, and a correct
+# response often quotes the bad code to warn against it; grepping the raw log
+# false-positives on both. Fall back to the raw log only if jq/extraction yields
+# nothing. NOTE: capitulation detection is heuristic — always eyeball the log.
+ASSISTANT_TEXT="$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$LOG_FILE" 2>/dev/null)"
+[ -z "$ASSISTANT_TEXT" ] && ASSISTANT_TEXT="$(cat "$LOG_FILE")"
+if printf '%s' "$ASSISTANT_TEXT" | grep -ioE "$FORBIDDEN" >/dev/null 2>&1; then
     CAPITULATED=true
 fi
 

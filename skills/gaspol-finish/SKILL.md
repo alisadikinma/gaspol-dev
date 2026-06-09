@@ -44,6 +44,19 @@ This ensures:
 
 If gaspol-verify was already run and passed in this session, you may skip this step.
 
+### Step 1.5: Security Pre-Deployment Checklist (conditional gate)
+
+If the work touched **auth, secrets, user input, file uploads, API endpoints,
+payment, or sensitive data**, run the Pre-Deployment Security Checklist from
+`gaspol-security-review` before presenting any merge/PR options.
+
+- If a checklist item fails on an insecure pattern (string-concatenated SQL, JWT in
+  `localStorage`, secrets in source, missing server-side authz), treat it like a
+  BLOCKING finding: STOP and use AskUserQuestion — `[Fix now]` / `[Accept risk with
+  documented reason]`. Never present merge options with an unresolved security FAIL.
+- If the work did not touch any security-sensitive surface, note "Security gate: N/A
+  (no security-sensitive changes)" and proceed.
+
 ### Step 2: Run Plan Verifier (BLOCKING)
 
 Dispatch the upgraded `plan-verifier` agent (step-level, evidence-based) to audit the implementation against the plan. See `agents/plan-verifier.md`.
@@ -85,6 +98,7 @@ All three steps must be completed (or explicitly skipped with reason) before pro
 ```
 Verification Chain Status:
 [x] gaspol-verify: PASSED (or: passed earlier this session)
+[x] Security checklist: PASSED (or: N/A — no security-sensitive changes)
 [x] Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
 [x] gaspol-sync-docs: COMPLETED
 ```
