@@ -28,6 +28,8 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it") |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
+| `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
+| `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
 | `skills/gaspol-design/SKILL.md` | Frontend design intelligence — power peer ui-ux-pro-max v2.0 |
 | `skills/gaspol-design/data/` | Forked 15 CSV files (85+ styles, 162+ reasoning rules, 99+ UX guidelines, 74+ fonts, etc.) |
 | `skills/gaspol-design/scripts/` | Search engine + design audit Python scripts |
@@ -660,5 +662,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.6.0
+**Version:** 1.7.0
 **Last Updated:** June 2026
