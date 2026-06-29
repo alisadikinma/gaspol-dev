@@ -67,7 +67,13 @@ Read `CLAUDE.md` in its entirety to understand:
 - API key patterns (pool vs. env secrets)
 - Edge Function conventions (CORS, response format, error handling)
 
-### Step 3: Create TodoWrite
+### Step 3: Create TodoWrite (+ resume from durable ledger)
+
+**Resume read first.** If `.gaspol/progress.md` exists in the project root, read it before
+creating TodoWrite — it is the durable record of phases already completed in a prior
+session or before a `/compact`. Restore those phases as `completed` and continue from the
+first unfinished one. TodoWrite is in-memory and is lost on compaction; the ledger is the
+source of truth for "where were we?".
 
 Create a TodoWrite entry for EVERY phase in the plan. The mapping must be 1:1 — if the plan has 6 phases, the TodoWrite has 6 items. Do not combine phases. Do not add phases the plan doesn't have.
 
@@ -169,6 +175,13 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 3. **Report deviations.** If anything differs from the plan, explain what and why.
 4. **Classify data sources.** Every component that handles data must list its source and whether it is real or placeholder.
 5. **List all file changes.** Every file created or modified in the phase.
+6. **Append to the durable ledger.** After presenting the checkpoint, append one line to
+   `.gaspol/progress.md` (create the file if absent): `Phase [X] [name] — COMPLETE — <1-line summary>`.
+   This survives `/compact` and session restart, so a resumed session knows exactly which
+   phases are done (see Step 3 resume read). **Never** write the ledger under `.git/` —
+   Claude Code treats `.git/` as a protected path and blocks agent writes there. Ensure the
+   project `.gitignore` contains `.gaspol/` (it is working-tree scratch, never committed).
+   Caveat: `git clean -fdx` deletes it — recover phase state from `git log` if that happens.
 
 ### Checkpoint Template Summary
 

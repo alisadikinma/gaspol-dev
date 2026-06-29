@@ -268,6 +268,14 @@ This skill works with:
 
 ## Task Execution Tracking
 
+**Durable ledger (survives `/compact`):** alongside the visual tracker below, append one
+line per finished task to `.gaspol/progress.md` in the project root (create if absent):
+`Task [N] [title] — COMPLETE — <1-line summary>`. The visual tracker is in-memory and is
+lost on compaction; the ledger is the durable record a resumed session reads to know which
+tasks are done. **Never** write under `.git/` (protected path — agent writes blocked).
+Ensure `.gaspol/` is in the project `.gitignore` (working-tree scratch, never committed);
+`git clean -fdx` deletes it, recover from `git log`.
+
 Track progress visually for the user:
 
 ```

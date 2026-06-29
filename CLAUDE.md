@@ -296,6 +296,11 @@ Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
 
 ### Per-Phase Checkpoints (Tiered Auto-Review in v1.2)
 
+**Durable ledger (v1.5):** after each checkpoint, `gaspol-execute`/`gaspol-parallel` append the
+phase/task status to `.gaspol/progress.md` (gitignored working-tree scratch, never `.git/`).
+It survives `/compact`; `gaspol-execute` Step 3 reads it on start to resume from the first
+unfinished phase. TodoWrite alone is in-memory and lost on compaction.
+
 After completing EACH phase (never batched), present structured checkpoint report with Auto-Review section:
 
 ```text
@@ -399,20 +404,25 @@ Per-finding resolution via AskUserQuestion: `[Promote]` / `[Supersede]` / `[Arch
 
 Health thresholds: 🟢 Green <10% stale | 🟡 Yellow 10-25% stale → audit recommended | 🔴 Red >25% stale → mandatory audit blocks new captures
 
-### Brainstorming Flow (gaspol-brainstorm) — UPDATED in v1.2
+### Brainstorming Flow (gaspol-brainstorm) — UPDATED in v1.2, hardened in v1.5
 
 When user wants to create, add, or modify anything:
 
+0. **HARD-GATE (v1.5)**: no implementation skill / code / scaffold until a design is
+   presented AND user-approved — every project, regardless of perceived simplicity.
 1. **Phase 0**: Read project's CLAUDE.md (MANDATORY before any codebase exploration)
 2. **Phase 0.5**: KB cross-project query (MANDATORY — git pull, grep INDEX.md, surface precedent)
-3. **Phase 1**: Ask clarifying questions ONE at a time via AskUserQuestion
+3. **Phase 1**: Ask clarifying questions ONE at a time via AskUserQuestion (**decompose gate
+   (v1.5)**: flag multi-subsystem requests first, split into sub-projects, each its own cycle)
 4. **Phase 1.5**: Novelty assessment (PRECEDENT / SEMI-NEW / NEW → decide research depth)
 5. **Phase 2**: Propose 2-3 approaches with trade-offs + MANDATORY source citations (from research cache or live research)
 6. **Phase 2.5**: Design gate (explicit AskUserQuestion if UI detection ambiguous)
 7. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — invokes `gaspol-design` power peer
 8. **Phase 4**: Implementation feasibility check (REAL data paths, existing backend)
 9. **Phase 5**: Present design in 200-300 word sections, AskUserQuestion confirm per section, include Data Integration Map
-10. **Phase 6**: Write to `docs/plans/YYYY-MM-DD-<topic>.md` (HYBRID file — no -design suffix), offer to proceed to `gaspol-plan`
+10. **Phase 6**: Write to `docs/plans/YYYY-MM-DD-<topic>.md` (HYBRID file — no -design suffix);
+    **spec self-review (v1.5)** (scan for placeholder/contradiction/ambiguity/scope) + **user
+    reviews the written spec** before offering to proceed to `gaspol-plan`
 
 ### TDD Enforcement (gaspol-tdd) — Hard-Gated by execute in v1.2
 
@@ -641,5 +651,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.4.0
+**Version:** 1.5.0
 **Last Updated:** June 2026

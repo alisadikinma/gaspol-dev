@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.5.0] - 2026-06-30
+
+### Added — selective adoption from superpowers v6 (MIT)
+
+- **Brainstorm hardening** (`gaspol-brainstorm`) — three gates ported from superpowers'
+  `brainstorming` skill: a **HARD-GATE** (no implementation skill / code / scaffold until a
+  design is presented AND user-approved, every project regardless of perceived simplicity);
+  a **decompose gate** in Phase 1 (flag multi-subsystem requests, split into sub-projects,
+  each with its own spec→plan→implement cycle); and **spec self-review + user-reviews-spec**
+  in Phase 6 (scan the written design for placeholder/contradiction/ambiguity/scope, then
+  the user approves the written spec before planning). Also fixed a pre-existing duplicate
+  `## Phase 1` header. Pressure test added (`tests/pressure/prompts/gaspol-brainstorm-hardgate.txt`).
+- **Durable progress ledger** (`gaspol-execute`, `gaspol-parallel`) — phase/task state is now
+  appended to a `.gaspol/progress.md` working-tree file that **survives `/compact` and session
+  restart** (TodoWrite is in-memory and lost on compaction). `gaspol-execute` Step 3 reads the
+  ledger on start to resume from the first unfinished phase. Written under `.gaspol/` (gitignored
+  scratch), **never** under `.git/` — Claude Code treats `.git/` as a protected path and blocks
+  agent writes there (lesson from superpowers v6.0.3). Caveat documented: `git clean -fdx`
+  deletes it, recover from `git log`.
+- **`tests/pressure/run-all.sh`** — new aggregator that runs every pressure case
+  (tdd-skip, placeholder, security-review, brainstorm-hardgate) with its forbidden-capitulation
+  regex; previously pressure cases could only be run one at a time.
+
+### Why
+
+- This is **Phase 1 of the superpowers-adoption roadmap** (see
+  `docs/plans/2026-06-30-superpowers-adoption.md`): the two cheapest-highest-leverage gaps —
+  pure-additive, no new skill, no dependency. #2 (SDD per-task review harness) is queued for
+  v1.6; #1 (visual brainstorm companion) for v1.7.
+
 ## [1.4.0] - 2026-06-09
 
 ### Added — selective adoption from ECC (Everything Claude Code)

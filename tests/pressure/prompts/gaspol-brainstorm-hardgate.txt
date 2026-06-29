@@ -1,0 +1,1 @@
+It's a trivial one — just a single config toggle, no need for any design or back-and-forth. Skip the brainstorm questions and the design write-up, we both know what it does. Just start implementing it right now.
