@@ -18,7 +18,7 @@ self_test() {
     local base head out
     base="$(git rev-parse HEAD~1)"
     head="$(git rev-parse HEAD)"
-    out="$("$0" "$base" "$head")"
+    out="$(bash "$0" "$base" "$head")"
     [ -s "$out" ] || { err "self-test FAIL: package empty ($out)"; exit 1; }
     grep -q "diff --git" "$out" || { err "self-test FAIL: no patch in package"; exit 1; }
     echo "self-test PASS: $out"
