@@ -103,7 +103,21 @@ Before reporting completion, verify ALL of these:
 
 ## Report Format
 
-When complete, report using this EXACT format:
+When complete, report using this EXACT format.
+
+### 0. Status
+
+Report exactly ONE terminal status (the orchestrator routes on it):
+
+- **DONE** — task complete, tests pass, self-review clean. Ready for review.
+- **DONE_WITH_CONCERNS** — complete and tested, but you have doubts worth flagging
+  (a fragile assumption, a file getting large, a spec line you interpreted). List them in §5.
+- **NEEDS_CONTEXT** — you cannot proceed without information that was not provided
+  (missing endpoint, unknown table, ambiguous requirement). State exactly what you need; do
+  NOT guess or placeholder.
+- **BLOCKED** — the task cannot be completed as specified (missing infrastructure,
+  contradictory requirements, a dependency that does not exist). Explain the blocker; do not
+  fake a completion.
 
 ### 1. What I Implemented
 - [Bullet list of what was built/changed]

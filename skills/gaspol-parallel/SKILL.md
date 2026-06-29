@@ -129,11 +129,21 @@ Gather scene-setting context the implementer needs:
 
 #### Step 2: Dispatch Implementer
 
+**Record the base SHA first** (`git rev-parse HEAD`) — this is the BASE you pass to
+`review-package` later. NEVER use `HEAD~1` as the base: a multi-commit task has more than one
+commit and `HEAD~1` silently drops all but the last.
+
 Use the `implementer-prompt.md` template. Key rules:
 - **Paste the full task text** into the subagent prompt — NEVER reference a file
 - Include all scene-setting context inline
 - Include anti-placeholder rules (see below)
 - Include self-review checklist
+- **Always specify the model explicitly**, scaled to task class (see
+  `docs/rubric-model-switching.md`): mechanical/transcription → cheap; integration/judgment →
+  standard; architecture/review → most capable. An unspecified model defaults to the wrong
+  tier. **Turn count beats token price** — a cheap model that takes 2-3× the turns costs more
+  wall-clock and context than the right-tier model; floor implementers working from prose at
+  the standard tier.
 
 #### Step 3: Handle Questions
 
@@ -149,32 +159,58 @@ The implementer:
 2. Runs tests (if applicable)
 3. Runs `tsc --noEmit` to verify types
 4. Self-reviews against the checklist
-5. Reports completion with the specified format
+5. Reports completion with the specified format — including a **§0 Status** line
+   (`DONE` / `DONE_WITH_CONCERNS` / `NEEDS_CONTEXT` / `BLOCKED`)
+
+##### Handling Implementer Status
+
+Route on the reported status — do NOT treat every return as "done":
+
+- **DONE** — generate the review package and proceed to Step 5.
+- **DONE_WITH_CONCERNS** — read the concerns FIRST. If they bear on correctness or scope,
+  resolve them before review; if they are observations, note and proceed.
+- **NEEDS_CONTEXT** — provide the missing information and **re-dispatch** the same task. Do
+  not review a guess.
+- **BLOCKED** — assess the blocker. Something must change (more context, a different model, a
+  plan fix, or escalate to the user). **Never** ignore the escalation or blind-retry the same
+  model with no change.
+
+##### Generate the review package
+
+Before either review, produce a stable diff artifact:
+
+```bash
+skills/gaspol-parallel/scripts/review-package <BASE> HEAD   # BASE = SHA recorded in Step 2
+```
+
+It prints the package path (`.gaspol/review/<base>-<head>.diff`). Hand that path to the
+reviewer subagents so they audit one stable artifact. **BASE is the Step-2 SHA, never `HEAD~1`**
+(the script rejects `HEAD~1` for this reason).
 
 #### Step 5: Spec Review
 
-Dispatch the spec reviewer using `spec-reviewer-prompt.md`:
+Dispatch the spec reviewer using `spec-reviewer-prompt.md` (pass the review-package path):
 - Reviewer reads ACTUAL CODE (not the implementer's report)
 - Compares implementation to requirements line by line
 - Checks for placeholder data (CRITICAL)
 - Returns: spec-compliant OR list of issues
 
-If issues found:
-1. Fix each issue (yourself or dispatch implementer again)
-2. Re-run spec review until clean
-3. Do NOT proceed to quality review until spec passes
+**Fix → re-review loop:** if issues are found, dispatch a fix (yourself or a fresh implementer
+subagent) and then **RE-RUN the spec review** — do not accept "I fixed it" without a clean
+re-review. Loop until spec passes; do NOT proceed to quality review until it does. After 3
+loops still failing → escalate (see Handling Failures).
 
 #### Step 6: Code Quality Review
 
-Dispatch the code quality reviewer using `code-quality-reviewer-prompt.md`:
+Dispatch the code quality reviewer using `code-quality-reviewer-prompt.md` (pass the same
+review-package path):
 - Uses the `gaspol-review` skill's code-reviewer template
-- Reviews commits between the task's base SHA and current HEAD
+- Reviews the diff in the review package (base SHA → HEAD)
 - Focuses on code quality, architecture, testing, production readiness
 
-If issues found:
-1. Fix Critical issues immediately
-2. Fix Important issues before proceeding
-3. Note Minor issues (fix if quick, otherwise track)
+**Fix → re-review loop:** for Critical/Important findings, dispatch a fix subagent then
+**RE-RUN the quality review** until clean. Note Minor issues (fix if quick, else track). Do not
+mark the task complete with unresolved Critical/Important findings.
 
 #### Step 7: Mark Complete
 
