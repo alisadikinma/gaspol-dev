@@ -215,6 +215,29 @@ gaspol-design returns:
 
 Present design recommendations 200-300 word sections, AskUserQuestion confirm after each.
 
+### Visual Companion (just-in-time — v1.7)
+
+A browser-based companion for showing mockups, diagrams, and visual options during
+brainstorming/design. It is a **tool, not a mode** — see
+[visual-companion.md](visual-companion.md) for the full guide.
+
+- **Offer just-in-time, NEVER upfront.** Wait until a question would genuinely be clearer
+  *shown* than *told* — a real mockup/layout/diagram question, not merely a UI topic. The
+  first time that happens, offer it as **its own message** (nothing else): "This next part
+  might be easier if I show you — I can put mockups/diagrams in a browser tab as we go. It's
+  token-intensive. Want me to?" If no visual question ever arises, never offer it.
+- **On approval:** start the server with
+  `skills/gaspol-brainstorm/visual-companion/scripts/start-server.sh --project-dir <repo> --open`
+  (it backgrounds itself, writes session files under `.gaspol/brainstorm/`, and returns a JSON
+  line with the keyed URL — always share the COMPLETE URL incl. `?key=…`). Add `.gaspol/` to
+  `.gitignore` if absent.
+- **Per-question decision** (even after acceptance): use the browser only when the content IS
+  visual (mockups, wireframes, layout/style comparisons, diagrams); use the terminal for
+  conceptual/tradeoff/requirements questions. "A UI topic" ≠ "a visual question".
+- **gaspol-design fusion:** feed `gaspol-design`'s output (aesthetic direction, palette,
+  layout blueprint, 162+ rules) into the mockup HTML you write to the screen dir — gaspol has
+  both the design *knowledge* and the interactive *loop*.
+
 ## Phase 4: Implementation Feasibility Check (NEW)
 
 Before finalizing:
