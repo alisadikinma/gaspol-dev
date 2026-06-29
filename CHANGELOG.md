@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.7.0] - 2026-06-30
+
+### Added — superpowers-adoption Phase 3 (#1 visual brainstorm companion, flagship; from superpowers MIT)
+
+- **Visual companion** (`skills/gaspol-brainstorm/visual-companion/`) — a browser-based loop
+  for showing mockups, diagrams, and side-by-side options during brainstorming/design. A local
+  Node server (zero npm deps) watches a screen dir, serves the newest HTML to the user's
+  browser (auto-wrapping content fragments in a frame), and records click/selection events to a
+  state dir the orchestrator reads next turn. Offered **just-in-time** (never upfront) and wired
+  into `gaspol-brainstorm` Phase 3; `visual-companion.md` is the operator guide.
+- **gaspol-design fusion** — the companion renders `gaspol-design` output (palette, layout
+  blueprint, 162+ rules) into the mockups: gaspol now has both the design *knowledge* and the
+  interactive *loop* (superpowers had the loop, gaspol adds the knowledge).
+- **Vendored + rebranded from obra/superpowers (MIT)** — see `NOTICE.md`. Privacy/brand strip:
+  removed the remote brand-image fetch to primeradiant.com and the telemetry plumbing (**the
+  server now makes zero outbound requests**); session files moved to `.gaspol/brainstorm/`;
+  brand is local text-only; version reads the gaspol manifest.
+- **Security-reviewed (🟢 PASS)** — session-key auth is constant-time on HTTP (403 unkeyed) and
+  on the WebSocket upgrade (key + origin allow-list); `/files/` serving has a `realpath`
+  containment guard against path traversal; binds loopback by default; `X-Frame-Options: DENY`
+  + `CSP frame-ancestors 'none'`; session key + server-info are owner-only (umask 077 / 0o600).
+- **`smoke-test.sh`** — proves the server boots, serves the keyed bootstrap (200), rejects
+  unkeyed requests (403), and stops clean (screen render itself is WebSocket+browser, validated
+  live).
+
+### Why
+
+- Phase 3 (flagship) of `docs/plans/2026-06-30-superpowers-adoption.md` — the last and heaviest
+  of the four adopted mechanisms. Completes the roadmap (v1.5 #3+#4, v1.6 #2, v1.7 #1). The
+  `indusia-image-gen` fusion (real preview images vs HTML wireframes) is noted as a future v1.8
+  stretch, not built here.
+
 ## [1.6.0] - 2026-06-30
 
 ### Added — superpowers-adoption Phase 2 (#2 SDD per-task review harness, from superpowers v6 MIT)
