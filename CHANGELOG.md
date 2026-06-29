@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.6.0] - 2026-06-30
+
+### Added — superpowers-adoption Phase 2 (#2 SDD per-task review harness, from superpowers v6 MIT)
+
+- **Status protocol** (`gaspol-parallel`) — the implementer subagent now reports one explicit
+  terminal status: `DONE` / `DONE_WITH_CONCERNS` / `NEEDS_CONTEXT` / `BLOCKED`
+  (`implementer-prompt.md` §0). The orchestrator routes on it — `NEEDS_CONTEXT` → provide
+  context + re-dispatch; `BLOCKED` → assess, **never** blind-retry the same model — instead of
+  treating every return as "done".
+- **`review-package` script** (`skills/gaspol-parallel/scripts/review-package`) — deterministic
+  task-diff artifact: `review-package <BASE> HEAD` writes commits + stat + patch to
+  `.gaspol/review/<base>-<head>.diff` and prints the path, so the spec/quality reviewers audit
+  one stable artifact. Records the superpowers gotcha as a hard guard: **rejects `HEAD~1` as
+  BASE** (it silently drops all but the last commit of a multi-commit task). Ships a
+  `--self-test`.
+- **Per-task model dispatch** (`gaspol-parallel`) — "always specify the model explicitly,"
+  scaled by task class (mechanical→cheap, integration→standard, architecture/review→capable,
+  per `docs/rubric-model-switching.md`). Principle: **turn count beats token price**.
+- **Fix → re-review loop** — Critical/Important review findings now dispatch a fix then
+  **re-run the review** until clean, rather than "fix and move on."
+- Pressure test `tests/pressure/prompts/gaspol-parallel-skipreview.txt` (resists "skip the
+  review, just mark all tasks done"), registered in the pressure aggregator.
+
+### Why
+
+- Phase 2 of `docs/plans/2026-06-30-superpowers-adoption.md`. gaspol-parallel already had
+  fresh-subagent-per-task + two-stage review; this closes the gaps vs superpowers v6's
+  `subagent-driven-development` rewrite (explicit status, deterministic review package,
+  per-task model choice, enforced re-review). #1 (visual brainstorm companion) remains for v1.7.
+
 ## [1.5.0] - 2026-06-30
 
 ### Added — selective adoption from superpowers v6 (MIT)

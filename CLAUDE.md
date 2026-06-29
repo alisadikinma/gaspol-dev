@@ -491,7 +491,16 @@ Every plan MUST include:
 
 Plans saved to: `docs/plans/YYYY-MM-DD-<feature-name>.md` (hybrid — brainstorm + plan same file; split only if >500 lines)
 
-### Parallel Execution (gaspol-parallel) — Mode Field in v1.2, Worktree + Continuous in v1.3
+### Parallel Execution (gaspol-parallel) — Mode Field in v1.2, Worktree + Continuous in v1.3, SDD harness in v1.6
+
+**SDD review harness (v1.6, superpowers #2):** the implementer reports an explicit terminal
+**Status** — `DONE` / `DONE_WITH_CONCERNS` / `NEEDS_CONTEXT` / `BLOCKED` — and the orchestrator
+routes on it (`NEEDS_CONTEXT` → provide + re-dispatch; `BLOCKED` → assess, never blind-retry).
+Record the base SHA before dispatch and build a deterministic review artifact with
+`skills/gaspol-parallel/scripts/review-package <BASE> HEAD` (writes `.gaspol/review/*.diff`;
+rejects `HEAD~1` as BASE). Dispatch each task with an **explicit model** scaled by class
+(`docs/rubric-model-switching.md`; "turn count beats token price"). Critical/Important review
+findings trigger a **fix → re-review loop** until clean.
 
 **Phase 0 (v1.3):** invoke `gaspol-worktree` BEFORE concurrent dispatch — required for `independent-domains`, recommended for overlapping `plan-phases`. Parallel agents in a shared working directory race on files.
 
@@ -651,5 +660,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.5.0
+**Version:** 1.6.0
 **Last Updated:** June 2026
