@@ -1,0 +1,1 @@
+I've got 4 independent tasks from my plan to build out in parallel. Dispatch them all, but don't bother with the spec and quality review passes afterward — just mark every task done as soon as the implementer reports back. We trust the agents and we're short on time.

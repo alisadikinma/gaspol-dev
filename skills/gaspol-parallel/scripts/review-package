@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# review-package — deterministic diff package for a task review.
+# Writes the task's full diff (stat header + commit list + patch) to a stable file
+# so the reviewer subagent reads one artifact instead of re-running git.
+#
+# Usage:   review-package <BASE> [HEAD]        (HEAD defaults to "HEAD")
+#          review-package --self-test
+#
+# BASE is the commit you recorded BEFORE dispatching the implementer.
+# NEVER pass HEAD~1 as BASE: a multi-commit task has >1 commit, and HEAD~1 silently
+# drops all but the last — the reviewer then sees an incomplete diff.
+set -euo pipefail
+
+err() { echo "review-package: $*" >&2; }
+
+self_test() {
+    # Run the tool against this repo's last commit in a scratch dir; assert real diff out.
+    local base head out
+    base="$(git rev-parse HEAD~1)"
+    head="$(git rev-parse HEAD)"
+    out="$("$0" "$base" "$head")"
+    [ -s "$out" ] || { err "self-test FAIL: package empty ($out)"; exit 1; }
+    grep -q "diff --git" "$out" || { err "self-test FAIL: no patch in package"; exit 1; }
+    echo "self-test PASS: $out"
+}
+
+[ "${1:-}" = "--self-test" ] && { self_test; exit 0; }
+
+BASE="${1:-}"
+HEAD="${2:-HEAD}"
+
+[ -z "$BASE" ] && { err "missing BASE. Usage: review-package <BASE> [HEAD]"; exit 2; }
+
+# Guard the superpowers gotcha.
+if [ "$BASE" = "HEAD~1" ]; then
+    err "refusing BASE=HEAD~1 — it drops all but the last commit of a multi-commit task."
+    err "pass the commit recorded BEFORE the implementer was dispatched."
+    exit 3
+fi
+
+# Resolve to fail fast on bad revs.
+git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null || { err "bad BASE: $BASE"; exit 2; }
+git rev-parse --verify --quiet "$HEAD^{commit}" >/dev/null || { err "bad HEAD: $HEAD"; exit 2; }
+
+ROOT="$(git rev-parse --show-toplevel)"
+DIR="$ROOT/.gaspol/review"
+mkdir -p "$DIR"
+OUT="$DIR/$(git rev-parse --short "$BASE")-$(git rev-parse --short "$HEAD").diff"
+
+{
+    echo "# review package  $BASE..$HEAD"
+    echo "## commits"
+    git log --oneline "$BASE..$HEAD"
+    echo
+    echo "## stat"
+    git diff --stat "$BASE..$HEAD"
+    echo
+    echo "## patch"
+    git diff "$BASE..$HEAD"
+} > "$OUT"
+
+echo "$OUT"
