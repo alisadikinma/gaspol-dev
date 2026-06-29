@@ -11,6 +11,21 @@ Help turn ideas into fully formed, implementation-ready designs through collabor
 
 > "I'm using the gaspol-brainstorm skill to explore this idea."
 
+## HARD-GATE (MANDATORY -- applies to EVERY request)
+
+```
+Do NOT invoke any implementation skill (gaspol-plan, gaspol-execute, gaspol-tdd,
+gaspol-parallel), write any code, or scaffold anything until a design has been
+presented AND the user has approved it.
+```
+
+This applies to **every** project regardless of perceived simplicity. "This is too
+simple to need a design" is exactly where unexamined assumptions cause the most wasted
+work — a config toggle, a one-line util, a rename all go through this. The design can be
+short (a few sentences for a truly trivial change), but you MUST present it and get
+approval before any implementation action. The ONLY terminal state of this skill is
+invoking `gaspol-plan` after the design is approved.
+
 ## Phase 0: CLAUDE.md-First (MANDATORY -- before ANY codebase exploration)
 
 ```
@@ -74,9 +89,13 @@ Saves additional 10-30k tokens per session by avoiding re-exploration of solved 
 
 ## Phase 1: Understanding the Idea
 
-## Phase 1: Understanding the Idea
-
 - Check project state (branch, recent commits)
+- **Decompose gate (BEFORE refining details):** if the request spans multiple independent
+  subsystems (e.g. "build a platform with chat, file storage, billing, and analytics"),
+  flag it immediately — do NOT spend clarifying questions on a project that must be
+  decomposed first. Help the user split it into sub-projects: what are the independent
+  pieces, how do they relate, what build order? Then brainstorm the FIRST sub-project
+  through the normal flow. Each sub-project gets its own spec → plan → implement cycle.
 - Ask questions ONE at a time using the **AskUserQuestion** tool (MANDATORY)
 - EVERY clarifying question MUST use `AskUserQuestion` with selectable options — this shows an interactive popup modal for the user to pick from
 - Format: provide a clear question text + 3-5 option strings (include "Something else" as last option for custom input)
@@ -224,6 +243,12 @@ Before finalizing:
 - Write to `docs/plans/YYYY-MM-DD-<topic>.md` (NO `-design` suffix — hybrid file)
 - Structure: start with `## Design` section (from this brainstorm)
 - `gaspol-plan` will APPEND `## Implementation Plan` section to the same file later
+- **Spec self-review (before handing off):** scan the written design for placeholders,
+  internal contradictions, ambiguity, and scope creep — fix inline. A spec that ships its
+  own ambiguity guarantees a wrong implementation.
+- **User reviews the written spec:** ask the user to read the spec file before proceeding
+  ("I've written the design to `<path>` — take a look before we plan"). Revise on requested
+  changes; only proceed to gaspol-plan once they approve the written spec.
 - Ask: "Ready to set up for implementation?"
 - If yes --> use gaspol-plan to create implementation plan (appends to this file)
 
