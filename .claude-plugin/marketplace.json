@@ -10,7 +10,7 @@
     {
       "name": "gaspol-dev",
       "description": "22 skills + 4 agents with anti-placeholder enforcement, step-level closure gate, cross-project knowledge base, auto-rubric model switching, industry research grounding, KB self-maintenance, power-peer design intelligence, security review, eval-driven development, git-worktree isolation, and an auto-trigger bootstrap",
-      "version": "1.7.0",
+      "version": "1.8.0",
       "source": {
         "source": "url",
         "url": "https://github.com/alisadikinma/gaspol-dev.git"

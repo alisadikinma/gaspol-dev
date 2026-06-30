@@ -30,6 +30,7 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
 | `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
+| `skills/gaspol-parallel/scripts/dag-lanes` | **NEW (v1.8)** — deterministic DAG scheduler (stdlib `graphlib`, zero deps): task graph → dependency waves + file-isolated lanes. Replaces binary conflict-check; has `--self-test` |
 | `skills/gaspol-design/SKILL.md` | Frontend design intelligence — power peer ui-ux-pro-max v2.0 |
 | `skills/gaspol-design/data/` | Forked 15 CSV files (85+ styles, 162+ reasoning rules, 99+ UX guidelines, 74+ fonts, etc.) |
 | `skills/gaspol-design/scripts/` | Search engine + design audit Python scripts |
@@ -41,7 +42,7 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
 | `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint with Auto-Review section |
 | `skills/gaspol-execute/implementer-prompt.md` | Subagent dispatch template with model rubric |
-| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) + Phase 0 worktree isolation + continuous execution |
+| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) + Phase 0 worktree isolation + continuous execution + per-task **Validation Ladder** (v1.8, static→unit→build→integration→edge, fail-fast `DONE` gate) |
 | `skills/gaspol-parallel/spec-reviewer-prompt.md` | Spec compliance reviewer template |
 | `skills/gaspol-parallel/code-quality-reviewer-prompt.md` | Code quality reviewer template |
 | `skills/gaspol-worktree/SKILL.md` | **NEW (v1.3)** — Isolated git worktree (native-tool-first, Step 0 detection, gitignore safety, clean baseline) |
@@ -51,7 +52,7 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/root-cause-tracing.md` | Backward tracing technique reference |
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
-| `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent |
+| `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
 | `skills/gaspol-security-review/SKILL.md` | **NEW (v1.4)** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, RLS); gates pre-deploy in finish (ECC port) |
 | `skills/gaspol-eval/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
@@ -504,6 +505,13 @@ rejects `HEAD~1` as BASE). Dispatch each task with an **explicit model** scaled 
 (`docs/rubric-model-switching.md`; "turn count beats token price"). Critical/Important review
 findings trigger a **fix → re-review loop** until clean.
 
+**Validation Ladder (v1.8) — `DONE` gate:** before an implementer may report `DONE`, it runs an
+ordered fail-fast ladder, stopping at the first failure: **L1 Static** (tsc + lint) → **L2 Unit**
+→ **L3 Build** → **L4 Integration** → **L5 Edge** (non-happy paths actually run). Cheap checks
+gate expensive ones; fail at level N → fix → restart from N; an N/A level is skipped *explicitly*
+(silent skip = placeholder-grade lie). This is per-task self-verification depth — it does NOT
+replace the independent spec + quality reviews (different subagent, different guarantee).
+
 **Phase 0 (v1.3):** invoke `gaspol-worktree` BEFORE concurrent dispatch — required for `independent-domains`, recommended for overlapping `plan-phases`. Parallel agents in a shared working directory race on files.
 
 **Continuous execution (v1.3):** once the task list is confirmed and the workspace is isolated, execute all tasks without pausing to check in between them. The only always-pause conditions: review fails after 3 attempts, genuine ambiguity, Iron Law violation / destructive op, or all tasks complete. Update the visual task tracker instead of narrating each task.
@@ -517,8 +525,8 @@ Fresh subagent per task + two-stage review:
 4. If spec fails after 3 attempts → stop and escalate
 
 **Mode `independent-domains`:** solve 2+ unrelated problems concurrently
-- Conflict check BLOCKING (same files/tables/dependencies → do NOT parallelize)
-- Concurrent dispatch (single message, multiple Agent tool calls)
+- **DAG lane scheduling (v1.8) BLOCKING** — declare each task's `deps` + `files` (DB table = synthetic `db:<name>` token), run `scripts/dag-lanes` → dependency **waves** + file-isolated **lanes**. Replaces the old all-or-nothing conflict check: one dependency no longer serializes the whole batch; independent tasks still parallelize, dependents wait for their wave. Matrix is the proof no two concurrent tasks touch the same file.
+- Wave-by-wave dispatch (one batch of concurrent Agent calls per wave, one per lane; multi-task lanes run sequentially); start wave N+1 only after wave N returns
 - Integration phase: read summaries, test together, resolve conflicts
 
 Final review: plan-verifier (mode:plan-phases) or full verify (mode:independent-domains).
@@ -662,5 +670,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.7.0
+**Version:** 1.8.0
 **Last Updated:** June 2026

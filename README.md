@@ -2,7 +2,7 @@
 
 **Process discipline for Claude Code — so AI writes real code, not fake placeholders.**
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-22-purple)](#the-22-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-22-purple)](#the-22-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
 
 ---
 
@@ -65,7 +65,7 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 ### Execution
 - **gaspol-execute** — Per-phase checkpoints + TDD hard gate + tiered auto-review + plan-verifier BLOCKING
 - **gaspol-worktree** — Isolated git worktree (native-tool-first, Step 0 detection + safety verification) so parallel work never collides
-- **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` OR `mode: independent-domains`) with worktree isolation + continuous execution
+- **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` OR `mode: independent-domains`) with worktree isolation + continuous execution + **DAG lane scheduling** (v1.8, dependency waves + file-isolated lanes for max safe parallelism) + per-task **Validation Ladder** (v1.8, static→unit→build→integration→edge `DONE` gate)
 - **gaspol-auto** — Autonomous mode for familiar codebase (hard-stop guardrails on 8 conditions)
 - **gaspol-tdd** — RED-GREEN-REFACTOR hard-gated by execute (no production code before failing test)
 - **gaspol-eval** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k); complements gaspol-tdd
@@ -73,7 +73,7 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 
 ### Verification & Closure
 - **gaspol-verify** — 4-layer verification (technical, plan fidelity BLOCKING, placeholder scan, integration + design compliance)
-- **gaspol-review** — Code review dispatch with code-reviewer subagent
+- **gaspol-review** — Code review dispatch with code-reviewer subagent + **adversarial refutation** (v1.8, one refuter per Critical/Important finding kills false positives before a wrong fix)
 - **gaspol-security-review** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, Supabase RLS); auto-triggered on security-sensitive phases, gates pre-deploy in finish
 - **gaspol-receive-review** — Technical response (no performative agreement)
 - **gaspol-finish** — BLOCKING plan-verifier pre-chain + merge/PR/cleanup options
@@ -220,8 +220,9 @@ Full rules: `skills/gaspol-design/rules/anti-ai-slop.md`.
 - ✅ v1.0 — Core skills, anti-placeholder, per-phase checkpoints
 - ✅ v1.1 — Better docs, improved brainstorm flow
 - ✅ v1.2 — Cross-project KB, power-peer design, tiered review, hard gates, research grounding, step-level closure, KB lifecycle, 5 new skills (research/adr/learn/kb-audit/auto)
-- ✅ v1.3 (current) — superpowers-parity hardening: `gaspol-worktree` (isolated parallel work), `using-gaspol` bootstrap + forceful session-start directive (reliable auto-trigger), continuous-execution mode in gaspol-parallel, and a `tests/` harness (skill-triggering + pressure tests)
-- 🔜 v1.4 — Visual brainstorm companion (browser mockup loop wired to gaspol-design's anti-AI-slop knowledge), Semantic KB search, research freshness auto-sweep
+- ✅ v1.3 — superpowers-parity hardening: `gaspol-worktree` (isolated parallel work), `using-gaspol` bootstrap + forceful session-start directive (reliable auto-trigger), continuous-execution mode in gaspol-parallel, and a `tests/` harness (skill-triggering + pressure tests)
+- ✅ v1.7 — Visual brainstorm companion (browser mockup loop wired to gaspol-design's anti-AI-slop knowledge)
+- ✅ v1.8 (current) — ECC-adoption (3 selective ports, rest rejected as bloat): **DAG lane scheduling** (`scripts/dag-lanes`, stdlib `graphlib`, zero deps), **adversarial refutation** in gaspol-review (false-positive killer), per-task **Validation Ladder** (static→unit→build→integration→edge `DONE` gate)
 - 🔮 v2.0 — Multi-IDE support (Cursor, Codex, Gemini) following superpowers' portability pattern
 
 ---

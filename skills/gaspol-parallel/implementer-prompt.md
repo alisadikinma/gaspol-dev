@@ -80,11 +80,20 @@ Questions are cheap; wrong implementations are expensive. Specifically ask about
 ## Implementation Requirements
 
 1. Follow all project conventions from the Context section
-2. Run `tsc --noEmit` after implementation to verify types compile
-3. Run relevant tests if they exist
-4. Do NOT add dependencies without asking
-5. Do NOT modify files outside the task's scope without asking
-6. Do NOT create documentation files unless the task explicitly requires it
+2. Run the **Validation Ladder in order, stopping at the first failure** — you may only report
+   `DONE` after it passes end to end:
+   1. **Static** — `tsc --noEmit` clean + linter clean on the files you changed.
+   2. **Unit** — unit tests covering what you changed pass.
+   3. **Build** — the project builds, if it has a build step.
+   4. **Integration** — integration/e2e tests on the changed path pass, if any exist.
+   5. **Edge** — you actually ran the non-happy paths (null/empty/boundary/error branch), not
+      just the success case.
+   Fail at a level → fix, then restart the ladder from L1 (cheap levels rerun fast; a fix can
+   re-break an earlier one). A level that genuinely does not apply is skipped **explicitly** in §4
+   ("L3 Build: N/A, no build step"), never silently.
+3. Do NOT add dependencies without asking
+4. Do NOT modify files outside the task's scope without asking
+5. Do NOT create documentation files unless the task explicitly requires it
 
 ## Self-Review Checklist
 
@@ -109,7 +118,8 @@ When complete, report using this EXACT format.
 
 Report exactly ONE terminal status (the orchestrator routes on it):
 
-- **DONE** — task complete, tests pass, self-review clean. Ready for review.
+- **DONE** — task complete, **full Validation Ladder passed** (or N/A levels stated in §4),
+  self-review clean. Ready for review.
 - **DONE_WITH_CONCERNS** — complete and tested, but you have doubts worth flagging
   (a fragile assumption, a file getting large, a spec line you interpreted). List them in §5.
 - **NEEDS_CONTEXT** — you cannot proceed without information that was not provided
@@ -130,7 +140,9 @@ Report exactly ONE terminal status (the orchestrator routes on it):
 ### 3. Files Created/Modified
 - `path/to/file.tsx` — [what changed]
 
-### 4. Tests
+### 4. Validation Ladder
+- L1 Static: [PASS / details] · L2 Unit: [PASS / N tests] · L3 Build: [PASS / N/A — reason] ·
+  L4 Integration: [PASS / N/A — reason] · L5 Edge: [which non-happy paths you ran]
 - [Tests added/modified, or "No tests required by task"]
 
 ### 5. Open Questions / Concerns

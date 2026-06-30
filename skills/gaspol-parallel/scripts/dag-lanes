@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""dag-lanes — schedule parallel tasks into dependency waves + file-isolated lanes.
+
+Turns gaspol-parallel's binary conflict-check ("can these all run in parallel? y/n")
+into a wave/lane schedule, so a MIXED plan (some tasks dependent, some sharing files)
+still extracts every bit of safe parallelism instead of falling back to all-sequential.
+
+Input  (stdin or file arg): JSON  {"tasks":[{"id":..,"deps":[ids],"files":[paths]}]}
+                            deps/files optional (default []).
+Output (stdout): human lane-verification matrix + a JSON block the orchestrator dispatches.
+
+Rules:
+  - WAVE = dependency layer. A task runs only after every dep's wave has finished.
+  - LANE = within one wave, tasks that share ANY file are one lane (run SEQUENTIALLY).
+           Tasks with no file overlap are separate lanes (run CONCURRENTLY).
+  - Cross-wave ordering already serializes dependent tasks; lanes only matter inside a wave.
+
+Dispatch contract: for each wave, dispatch the lanes concurrently (one batch of Agent
+calls); within a lane, run its tasks one after another. Never start wave N+1 until wave N
+is done. This is the safe-parallelism guarantee — no two concurrently-dispatched tasks
+ever touch the same file.
+
+Usage:  dag-lanes plan.json
+        cat plan.json | dag-lanes
+        dag-lanes --self-test
+"""
+import json
+import sys
+from graphlib import TopologicalSorter, CycleError
+
+
+def schedule(tasks):
+    """tasks: list of {id, deps?, files?}. Returns list[ wave ] where wave = list[ lane ]
+    and lane = list[task_id] in input order. Raises ValueError on bad input/cycle."""
+    if not isinstance(tasks, list):
+        raise ValueError("'tasks' must be a list")
+    for t in tasks:
+        if not isinstance(t, dict) or "id" not in t:
+            raise ValueError(f"task missing 'id' field: {t!r}")
+    ids = [t["id"] for t in tasks]
+    if len(ids) != len(set(ids)):
+        raise ValueError("duplicate task id")
+    order = {t["id"]: i for i, t in enumerate(tasks)}
+    deps = {t["id"]: list(t.get("deps", [])) for t in tasks}
+    files = {t["id"]: set(t.get("files", [])) for t in tasks}
+
+    for tid, ds in deps.items():
+        for d in ds:
+            if d not in order:
+                raise ValueError(f"task {tid!r} depends on unknown task {d!r}")
+
+    ts = TopologicalSorter({tid: set(ds) for tid, ds in deps.items()})
+    try:
+        ts.prepare()
+    except CycleError as e:
+        raise ValueError(f"dependency cycle: {e.args[1]}")
+
+    waves = []
+    while ts.is_active():
+        ready = sorted(ts.get_ready(), key=order.get)  # one full layer
+        waves.append(_lanes(ready, files, order))
+        ts.done(*ready)
+    return waves
+
+
+def _lanes(wave, files, order):
+    """Group same-wave tasks into lanes by file-overlap (union-find)."""
+    parent = {t: t for t in wave}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    file_owner = {}
+    for t in wave:  # union any task that reuses a file already claimed in this wave
+        for f in files[t]:
+            if f in file_owner:
+                parent[find(t)] = find(file_owner[f])
+            else:
+                file_owner[f] = t
+
+    groups = {}
+    for t in wave:
+        groups.setdefault(find(t), []).append(t)
+    lanes = [sorted(g, key=order.get) for g in groups.values()]
+    return sorted(lanes, key=lambda lane: order[lane[0]])
+
+
+def render(tasks, waves):
+    files = {t["id"]: sorted(t.get("files", [])) for t in tasks}
+    deps = {t["id"]: list(t.get("deps", [])) for t in tasks}
+    out = ["LANE VERIFICATION MATRIX", "wave  lane  task  files (deps)"]
+    for wi, wave in enumerate(waves, 1):
+        for li, lane in enumerate(wave, 1):
+            for t in lane:
+                f = ", ".join(files[t]) or "-"
+                d = f"  [deps: {', '.join(deps[t])}]" if deps[t] else ""
+                out.append(f"  {wi}    {li}    {t}    {f}{d}")
+    out.append("")
+    out.append("DISPATCH PLAN")
+    for wi, wave in enumerate(waves, 1):
+        conc = len(wave)
+        out.append(f"Wave {wi} — dispatch {conc} lane(s) CONCURRENTLY:")
+        for li, lane in enumerate(wave, 1):
+            seq = " → ".join(lane)
+            tag = "  (sequential within lane — shared file)" if len(lane) > 1 else ""
+            out.append(f"   lane {li}: {seq}{tag}")
+    out.append("")
+    out.append("JSON")
+    out.append(json.dumps({"waves": waves}))
+    return "\n".join(out)
+
+
+def _self_test():
+    tasks = [
+        {"id": "A", "files": ["src/auth.ts"]},
+        {"id": "B", "files": ["src/ui.tsx"]},
+        {"id": "C", "deps": ["A"], "files": ["src/auth.ts"]},
+        {"id": "D", "deps": ["A", "B"]},
+        {"id": "E", "deps": ["C"]},
+    ]
+    waves = schedule(tasks)
+    # wave1: A,B independent → 2 lanes. wave2: C,D (deps satisfied) → C(auth) & D(none)
+    # are separate lanes. wave3: E.
+    assert waves == [[["A"], ["B"]], [["C"], ["D"]], [["E"]]], waves
+
+    # shared file in same wave collapses to one sequential lane
+    shared = schedule([
+        {"id": "X", "files": ["a.ts"]},
+        {"id": "Y", "files": ["a.ts"]},
+        {"id": "Z", "files": ["b.ts"]},
+    ])
+    assert shared == [[["X", "Y"], ["Z"]]], shared
+
+    # cycle is rejected
+    try:
+        schedule([{"id": "P", "deps": ["Q"]}, {"id": "Q", "deps": ["P"]}])
+        assert False, "cycle not detected"
+    except ValueError:
+        pass
+
+    # unknown dep is rejected
+    try:
+        schedule([{"id": "P", "deps": ["nope"]}])
+        assert False, "unknown dep not detected"
+    except ValueError:
+        pass
+
+    # empty task list → no waves
+    assert schedule([]) == [], schedule([])
+
+    # self-dependency is a cycle → rejected
+    try:
+        schedule([{"id": "A", "deps": ["A"]}])
+        assert False, "self-dep not detected"
+    except ValueError:
+        pass
+
+    # task missing 'id' is rejected (not a raw KeyError)
+    try:
+        schedule([{"files": ["a.ts"]}])
+        assert False, "missing id not detected"
+    except ValueError:
+        pass
+
+    print("dag-lanes self-test: PASS")
+
+
+def main():
+    if "--self-test" in sys.argv[1:]:
+        _self_test()
+        return
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    try:
+        raw = open(args[0]).read() if args else sys.stdin.read()
+        data = json.loads(raw)
+        tasks = data.get("tasks", []) if isinstance(data, dict) else data
+        print(render(tasks, schedule(tasks)))
+    except (OSError, json.JSONDecodeError, ValueError, KeyError) as e:
+        sys.exit(f"dag-lanes: {e}")
+
+
+if __name__ == "__main__":
+    main()

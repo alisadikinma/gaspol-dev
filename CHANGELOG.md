@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.8.0] - 2026-06-30
+
+### Added — ECC-adoption (3 selective ports from a local kitchen-sink toolkit; rest rejected as bloat)
+
+- **DAG lane scheduling** (`skills/gaspol-parallel/scripts/dag-lanes`) — a deterministic Python3
+  stdlib-only (`graphlib`) scheduler that turns `gaspol-parallel` mode `independent-domains`'
+  binary conflict-check ("can all run parallel? y/n") into dependency **waves** (topological
+  layers) + file-isolated **lanes** (within a wave, tasks sharing any file → one sequential lane
+  via union-find; no overlap → concurrent). A single dependency no longer forces the whole batch
+  sequential. Prints a LANE VERIFICATION MATRIX proving no two concurrently-dispatched tasks
+  touch the same file. Rejects cycles / unknown deps / duplicate + missing ids with clean errors
+  (no traceback); has `--self-test` (7 cases). Zero new dependencies.
+- **Adversarial refutation** (`gaspol-review` Step 2.5) — before any Critical/Important finding
+  is acted on, one refuter subagent per finding (default REFUTED, verdict
+  `CONFIRMED | REFUTED | UNVERIFIABLE`) tries to disprove it. Kills hallucinated findings before
+  a wrong "fix" breaks working code; `UNVERIFIABLE` (runtime-only) fails safe → CONFIRMED. Only
+  confirmed/unverifiable Critical findings block. Wired into `gaspol-parallel` Step 6.
+- **Per-task Validation Ladder** (`gaspol-parallel` Step 4 + `implementer-prompt.md`) — an
+  implementer may not report `DONE` until an ordered fail-fast ladder passes: L1 Static (tsc +
+  lint) → L2 Unit → L3 Build → L4 Integration → L5 Edge (non-happy paths actually run). Cheap
+  levels gate expensive ones; fail → fix → restart from L1; an N/A level is skipped *explicitly*
+  (silent skip = placeholder-grade lie). Does NOT replace the independent spec + quality reviews
+  (Steps 5–6) — self-validation and independent review are different guarantees.
+- **Pressure test** (`tests/pressure/prompts/gaspol-parallel-skipladder.txt`) — verifies an
+  implementer resists "skip the build/integration/edge levels, mark it DONE."
+
+### Why
+
+- Compared `gaspol-parallel`/`gaspol-execute` against a local 200-skill / 70-agent toolkit
+  ("ECC"). Verdict: not strictly better, different axes — ECC had 3 real ideas worth porting
+  (parallel throughput, review trust, verification depth); the rest (200+ skills, multi-IDE,
+  external-model subagent zoo, per-language reviewers) is surface area, not value, and was
+  deliberately NOT adopted (ponytail: focus + Iron Laws beat breadth). Self-reviewed via
+  `gaspol-review`; the review's own Critical was refuted (Step 2.5 dogfood), 2 Important +
+  minors fixed.
+
 ## [1.7.0] - 2026-06-30
 
 ### Added — superpowers-adoption Phase 3 (#1 visual brainstorm companion, flagship; from superpowers MIT)

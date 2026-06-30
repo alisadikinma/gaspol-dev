@@ -1,6 +1,6 @@
 ---
 name: gaspol-parallel
-description: "Use when executing implementation plans with independent phases (mode: plan-phases) OR when handling 2+ independent problem domains ad-hoc (mode: independent-domains). Dispatches fresh subagent per task with anti-placeholder enforcement, conflict check, and two-stage review (spec compliance then code quality). Replaces former gaspol-dispatch."
+description: "Use when executing implementation plans with independent phases (mode: plan-phases) OR when handling 2+ independent problem domains ad-hoc (mode: independent-domains). Dispatches fresh subagent per task with anti-placeholder enforcement, DAG lane scheduling (dependency waves + file-isolated lanes for max safe parallelism), and two-stage review (spec compliance then code quality). Replaces former gaspol-dispatch."
 ---
 
 # gaspol-parallel (with Mode Field)
@@ -37,7 +37,7 @@ Dispatch one agent per independent problem domain for true concurrent resolution
 - Embarrassingly parallel work
 - Large refactoring across multiple unrelated files or modules
 
-**Process:** Domain Identification → Conflict Check → Concurrent Dispatch (single message, multiple Agent tool calls) → Review + Integrate
+**Process:** Domain Identification → DAG Lane Scheduling (`scripts/dag-lanes`) → Wave-by-Wave Dispatch (each wave = one batch of concurrent Agent calls, one per lane; lanes with multiple tasks run sequentially inside) → Review + Integrate. A new wave starts only after the previous wave's tasks all return.
 
 ### Do NOT Use This Skill When
 
@@ -85,15 +85,37 @@ Select based on mode:
 3. Determine execution order based on dependencies
 4. Confirm task list with user before starting
 
-### Mode `independent-domains` — Phase 1: Domain Identification + Conflict Check
+### Mode `independent-domains` — Phase 1: Domain Identification + DAG Lane Scheduling
 
-1. List all problems/tasks
-2. For each pair, ask: "Can these be done simultaneously without conflicts?"
-3. **Conflict check** (BLOCKING):
-   - Do they modify the same files? If yes → do NOT parallelize
-   - Do they modify the same database tables? If yes → do NOT parallelize
-   - Does one produce output the other needs? If yes → do NOT parallelize
-4. If all pairs pass conflict check, proceed to concurrent dispatch
+1. List all problems/tasks.
+2. For EACH task, write its **dependency + write set** (this is what the scheduler needs):
+   - `deps`: which other task(s) must finish first (one produces output the other needs)
+   - `files`: which files/modules the task writes (treat a shared DB table as a synthetic
+     file token, e.g. `db:users`, so the scheduler serializes table writers too)
+3. **Run the scheduler** (BLOCKING — do not hand-schedule; topological order and file-overlap
+   grouping are error-prone by eye):
+
+   ```bash
+   echo '{"tasks":[
+     {"id":"auth-fix","files":["src/auth.ts"]},
+     {"id":"ui-tz","files":["src/Profile.tsx"]},
+     {"id":"auth-test","deps":["auth-fix"],"files":["src/auth.ts"]},
+     {"id":"db-migrate","files":["db:users"]}
+   ]}' | skills/gaspol-parallel/scripts/dag-lanes
+   ```
+
+   It returns a **LANE VERIFICATION MATRIX** + **DISPATCH PLAN** + a `{"waves":[...]}` JSON.
+   - **Wave** = dependency layer. Never start wave N+1 until wave N fully completes.
+   - **Lane** = within a wave, tasks sharing a file are one lane (run **sequentially**); lanes
+     with no file overlap run **concurrently**.
+   - This replaces the old all-or-nothing conflict check: a single dependency no longer forces
+     the whole batch sequential — independent tasks still parallelize, dependents just wait for
+     their wave. The matrix is the proof that **no two concurrently-dispatched tasks touch the
+     same file** (the safe-parallelism guarantee).
+   - The scheduler rejects dependency cycles and unknown deps (`ValueError`) — fix the task
+     graph before dispatching.
+4. **Sanity-check the matrix.** If two tasks landed in the same lane but you expected them
+   parallel, you under-declared `files` (or over-declared a shared one). Adjust and re-run.
 5. Create focused task descriptions per domain (self-contained prompts):
    - Context (what the agent needs to know, ONLY that)
    - Task (exactly what to do, specific, measurable)
@@ -156,11 +178,36 @@ The implementer may ask questions before or during implementation. This is GOOD.
 
 The implementer:
 1. Implements the task
-2. Runs tests (if applicable)
-3. Runs `tsc --noEmit` to verify types
-4. Self-reviews against the checklist
-5. Reports completion with the specified format — including a **§0 Status** line
+2. Runs the **Validation Ladder** below — `DONE` is not allowed until it passes
+3. Self-reviews against the checklist
+4. Reports completion with the specified format — including a **§0 Status** line
    (`DONE` / `DONE_WITH_CONCERNS` / `NEEDS_CONTEXT` / `BLOCKED`)
+
+##### Validation Ladder (fail-fast, cheapest first)
+
+A passing unit test proves nothing if the types don't compile, and a green build proves
+nothing if the edge cases were never exercised. Run these levels **in order, stopping at the
+first failure** — cheap fast checks gate the expensive slow ones, so a typo never costs a full
+integration run:
+
+| # | Level | Gate (what must pass) |
+|---|-------|-----------------------|
+| 1 | **Static** | `tsc --noEmit` clean + linter clean on changed files. No type errors, no lint errors. |
+| 2 | **Unit** | Unit tests covering the changed units pass (the TDD tests written for this task). |
+| 3 | **Build** | The project builds (`build` script / bundler) if it has a build step. |
+| 4 | **Integration** | Integration/e2e tests exercising the changed code path pass, if any exist. |
+| 5 | **Edge** | The non-happy paths are actually run — null/empty/boundary/error branch, not just the success case. This is the anti-"green on happy path only" gate. |
+
+Rules:
+- **Fail at level N → fix, then restart the ladder from L1** — a fix can re-break an earlier level
+  (a type error introduced while fixing the build), and L1–L2 are the cheap fast levels, so
+  rerunning them costs almost nothing. Never resume mid-ladder on faith.
+- **A level that genuinely doesn't apply is skipped explicitly, not silently** — e.g. "L3 Build:
+  N/A, no build step" / "L4 Integration: N/A, no integration suite". A silent skip reads as
+  "passed" when it didn't (same failure mode as placeholder data).
+- The ladder is per-task verification depth; it does not replace Steps 5–6 (independent spec +
+  quality review by a *different* subagent). Self-validation and independent review are different
+  guarantees.
 
 ##### Handling Implementer Status
 
@@ -208,7 +255,12 @@ review-package path):
 - Reviews the diff in the review package (base SHA → HEAD)
 - Focuses on code quality, architecture, testing, production readiness
 
-**Fix → re-review loop:** for Critical/Important findings, dispatch a fix subagent then
+**Adversarial refutation (gaspol-review Step 2.5):** before acting on any Critical/Important
+finding, dispatch one refuter subagent per finding (default REFUTED) to kill false positives —
+otherwise the fix → re-review loop below burns turns chasing hallucinated bugs. Drop REFUTED
+findings; only CONFIRMED (or unverifiable) ones proceed.
+
+**Fix → re-review loop:** for surviving Critical/Important findings, dispatch a fix subagent then
 **RE-RUN the quality review** until clean. Note Minor issues (fix if quick, else track). Do not
 mark the task complete with unresolved Critical/Important findings.
 
