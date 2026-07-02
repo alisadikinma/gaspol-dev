@@ -15,6 +15,16 @@ Write comprehensive implementation plans assuming the executor has **zero contex
 
 Plans follow: DRY, YAGNI, TDD-first, frequent commits.
 
+## Laziness Gate (scope is decided HERE)
+
+Scope is born in the plan — pruning it here saves every downstream token. For each phase before you write it, run the ladder from `skills/_shared/laziness-ladder.md`:
+
+1. Does this phase/step need to exist at all? Speculative → cut it, note why in one line.
+2. Stdlib / native platform feature / already-installed dep already does it? → plan that, not new code.
+3. Can the phase be one line or one file fewer? Do that.
+
+Prefer the fewest phases and the shortest diff that satisfies the spec. No phase for a speculative "we might need it." **Boundary:** this prunes SCOPE, never FIDELITY — a phase that a real integration genuinely requires stays (the Data Integration Map is the contract; the ladder never turns a real data source into a placeholder). Mark any deliberate simplification the plan bakes in with a `ponytail:` note so the executor keeps it lazy on purpose.
+
 ## Announce at Start
 
 > "I'm using the gaspol-plan skill to create the implementation plan."

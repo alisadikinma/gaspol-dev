@@ -122,6 +122,16 @@ Before starting ANY phase, consult CLAUDE.md. This is not optional.
 
 ---
 
+## Laziness Gate (before writing code for any phase)
+
+Anti-placeholder guarantees the code is REAL; the laziness ladder guarantees it is MINIMAL. Both fire, they do not conflict. Before implementing a phase, run the ladder from `skills/_shared/laziness-ladder.md`:
+
+1. Does this need to exist? YAGNI → skip, one-line why.
+2. Stdlib → native platform feature → already-installed dep → one line → only then minimum code.
+3. No unrequested abstraction, no scaffolding "for later." Fewest files, shortest diff.
+
+**Boundary (critical, do not misread):** the ladder cuts SCOPE, never FIDELITY. It NEVER excuses a placeholder when the plan specifies a real integration, nor skipping validation/security/tests. `const data = []` awaiting an API is a PLACEHOLDER (Iron Law 1), not a lazy one-liner — see the Data Source Classification below. If a "lazy" move would cross into fake data or a skipped safety check, it is negligent, not lazy: do the real thing. Mark deliberate simplifications with a `ponytail:` comment naming the upgrade path.
+
 ## Anti-Placeholder Rules
 
 **This is the most critical section of this skill.** Read `anti-placeholder-rules.md` for the full reference.

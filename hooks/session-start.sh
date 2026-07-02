@@ -41,6 +41,16 @@ REMINDERS:
   • Anti-placeholder enforcement is active — no fake/mock/dummy data when a
     real integration is specified. The 3 Iron Laws apply to every skill.
   • Use AskUserQuestion (interactive modal) for all confirmations/choices.
+
+LAZINESS LADDER (always-on scope governor — absorbed from ponytail):
+  Write the laziest code that actually works. Before any code, stop at the
+  first rung that holds: (1) does it need to exist? YAGNI → skip. (2) stdlib?
+  (3) native platform feature? (4) already-installed dep? (5) one line? (6) only
+  then minimum code. Fewest files, shortest diff, no unrequested abstractions.
+  BOUNDARY: lazy cuts SCOPE, never FIDELITY — the ladder never excuses
+  placeholder data, skipped validation/security/tests, or an Iron Law breach.
+  Mark deliberate cuts with a `ponytail:` comment. Full text + fidelity
+  boundary: skills/_shared/laziness-ladder.md.
 ═══════════════════════════════════════════════════════════════
 EOF
 

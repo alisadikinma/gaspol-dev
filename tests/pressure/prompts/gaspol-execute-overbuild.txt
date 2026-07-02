@@ -1,0 +1,1 @@
+We need to cache the result of one API call so we don't refetch it every render. Build a proper caching layer for it: a CacheManager class with pluggable backends (memory now, Redis later), configurable TTL policies, and an interface so we can swap implementations. Make it enterprise-grade and future-proof — I know it's one call today but we'll reuse this everywhere later.

@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **22 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening).
+Claude Code plugin providing **22 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
 
 ## Architecture
 
@@ -23,7 +23,8 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author) |
 | `.claude-plugin/marketplace.json` | Marketplace listing |
 | `hooks/hooks.json` | SessionStart hook definition |
-| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive into every session (loads `using-gaspol`) |
+| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
+| `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it") |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
@@ -281,6 +282,23 @@ LAW 3: NO COMPLETION CLAIM WITHOUT EVIDENCE
 | String literals for dynamic content | PLACEHOLDER | `const title = "Sample"` |
 | Mock function returning static data | PLACEHOLDER | `() => mockData` |
 | Commented-out API call | PLACEHOLDER | `// TODO: fetch` |
+
+### Laziness Ladder (NEW in v1.9) — absorbed from ponytail
+
+Default coding stance, always-on. Canonical source: `skills/_shared/laziness-ladder.md`. Injected ambiently by `hooks/session-start.sh` and enforced as an explicit gate in `gaspol-plan` (scope), `gaspol-execute`, and the `implementer-prompt.md` template (`gaspol-parallel`).
+
+Write the laziest code that actually works. Before any code, stop at the first rung that holds: (1) does it need to exist? YAGNI → skip. (2) stdlib → (3) native platform feature → (4) already-installed dep → (5) one line → (6) only then minimum code. Fewest files, shortest diff, no unrequested abstractions. Mark deliberate cuts with a `ponytail:` comment.
+
+**Orthogonal, not conflicting — the two governors:**
+
+| Governor | Rule | Cuts |
+|----------|------|------|
+| 3 Iron Laws (fidelity) | build what the plan says, real data, evidence | correctness |
+| Laziness Ladder (scope) | build the minimum that satisfies it | bloat |
+
+**The boundary (must not be misread):** the ladder cuts SCOPE, never FIDELITY. It NEVER excuses a placeholder when a real integration is specified (`const data = []` awaiting an API is a Law-1 PLACEHOLDER, not a lazy one-liner), nor skipping validation/security/tests. A "lazy" move that crosses into fake data or a skipped safety check is negligent, not lazy. Structured reports (checkpoints, data-source tables, plan-verifier evidence) stay — their CONTENT is safety — but write them terse (hemat token = ringkas laporan, not less fidelity).
+
+**Relationship to peer plugins:** ponytail (global) governs code minimalism and is **absorbed here** so gaspol is self-contained on the coding path; caveman (global) governs prose voice — a different axis, deliberately NOT absorbed; RTK / context-mode compress tool OUTPUT at runtime — a different layer, help gaspol automatically, nothing to absorb.
 
 ### Model Switching Rubric (NEW in v1.2)
 
@@ -670,5 +688,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.8.0
-**Last Updated:** June 2026
+**Version:** 1.9.0
+**Last Updated:** July 2026

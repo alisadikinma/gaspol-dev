@@ -119,6 +119,21 @@ Options: (a) implement [alternative], (b) skip, (c) placeholder with TODO.
 Awaiting user decision.
 ```
 
+## Laziness Ladder (write MINIMAL code)
+
+Anti-placeholder makes your code REAL; this makes it MINIMAL. Both apply. Before writing code, stop at the first rung that holds:
+
+1. Does this need to exist? YAGNI → skip it, say so in one line.
+2. Stdlib does it? → use it.
+3. Native platform/framework feature? → use it (DB constraint over app code, CSS over JS).
+4. Already-installed dependency? → use it. Never add a new dep for a few lines.
+5. One line? → one line.
+6. Only then: minimum code that works.
+
+No unrequested abstractions (no interface with one impl, no factory for one product), no scaffolding "for later." Fewest files, shortest diff. Mark deliberate simplifications with a `ponytail:` comment naming the upgrade path.
+
+**Boundary:** lazy cuts SCOPE, never FIDELITY. This NEVER overrides the 3 Iron Laws above — a required real integration stays real (a lazy `const data = []` is still a PLACEHOLDER = Law 1 violation), and you never skip validation, security, or the failing-test-first step to "be lazy."
+
 ## Files You May Create or Modify
 [List the specific files this subagent is authorized to work on. Be explicit.]
 
