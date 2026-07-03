@@ -317,10 +317,13 @@ Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
 
 ### Per-Phase Checkpoints (Tiered Auto-Review in v1.2)
 
-**Durable ledger (v1.5):** after each checkpoint, `gaspol-execute`/`gaspol-parallel` append the
-phase/task status to `.gaspol/progress.md` (gitignored working-tree scratch, never `.git/`).
-It survives `/compact`; `gaspol-execute` Step 3 reads it on start to resume from the first
-unfinished phase. TodoWrite alone is in-memory and lost on compaction.
+**Durable ledger + handoff cursor (v1.5, cursor v1.9.1):** after each checkpoint, `gaspol-execute`/`gaspol-parallel`
+append the phase/task status to `.gaspol/progress.md` (gitignored working-tree scratch, never `.git/`).
+Each line carries a trailing **handoff cursor** — `— NEXT: <next phase, or DONE>` on a COMPLETE line, or
+`— WIP — <done so far> — BLOCKER: <what's stuck> — NEXT: <exact resume action>` when a phase is left unfinished
+(blocker/`/compact`/pause). It survives `/compact`; `gaspol-execute` Step 3 reads the LAST line's cursor on start
+to resume from the exact `NEXT:` action and surface any open `BLOCKER:`, instead of merely inferring the first
+unfinished phase. Older suffix-less lines still parse (backward-compatible). TodoWrite alone is in-memory and lost on compaction.
 
 After completing EACH phase (never batched), present structured checkpoint report with Auto-Review section:
 
@@ -688,5 +691,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.9.0
+**Version:** 1.9.1
 **Last Updated:** July 2026

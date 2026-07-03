@@ -71,9 +71,12 @@ Read `CLAUDE.md` in its entirety to understand:
 
 **Resume read first.** If `.gaspol/progress.md` exists in the project root, read it before
 creating TodoWrite — it is the durable record of phases already completed in a prior
-session or before a `/compact`. Restore those phases as `completed` and continue from the
-first unfinished one. TodoWrite is in-memory and is lost on compaction; the ledger is the
-source of truth for "where were we?".
+session or before a `/compact`. Restore those phases as `completed`. Then read the **LAST
+line's handoff cursor**: `NEXT:` tells you exactly where to resume, and a `WIP`/`BLOCKER:`
+line means the last phase was left unfinished — surface that blocker to the user and pick up
+from its `NEXT:` action rather than blindly restarting the phase. Absent a cursor (older
+ledger), fall back to continuing from the first unfinished phase. TodoWrite is in-memory and
+is lost on compaction; the ledger is the source of truth for "where were we?".
 
 Create a TodoWrite entry for EVERY phase in the plan. The mapping must be 1:1 — if the plan has 6 phases, the TodoWrite has 6 items. Do not combine phases. Do not add phases the plan doesn't have.
 
@@ -185,8 +188,14 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 3. **Report deviations.** If anything differs from the plan, explain what and why.
 4. **Classify data sources.** Every component that handles data must list its source and whether it is real or placeholder.
 5. **List all file changes.** Every file created or modified in the phase.
-6. **Append to the durable ledger.** After presenting the checkpoint, append one line to
-   `.gaspol/progress.md` (create the file if absent): `Phase [X] [name] — COMPLETE — <1-line summary>`.
+6. **Append to the durable ledger (with handoff cursor).** After presenting the checkpoint, append one line to
+   `.gaspol/progress.md` (create the file if absent):
+   `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <phase X+1 name, or "DONE" if last phase>`.
+   If a phase is left **unfinished** (a blocker, an approaching `/compact`, or you pause mid-phase), append instead:
+   `Phase [X] [name] — WIP — <what's done so far> — BLOCKER: <what's stuck / why paused> — NEXT: <the exact action to resume>`.
+   The trailing `NEXT:`/`BLOCKER:` fields are the **handoff cursor** — a resumed session reads the LAST line to
+   know precisely where to continue and what's blocking, instead of inferring "first unfinished phase". Older
+   lines without the suffix still parse (backward-compatible; NEXT/BLOCKER are additive).
    This survives `/compact` and session restart, so a resumed session knows exactly which
    phases are done (see Step 3 resume read). **Never** write the ledger under `.git/` —
    Claude Code treats `.git/` as a protected path and blocks agent writes there. Ensure the

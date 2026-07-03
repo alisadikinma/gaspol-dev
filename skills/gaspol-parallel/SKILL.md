@@ -358,9 +358,13 @@ This skill works with:
 
 **Durable ledger (survives `/compact`):** alongside the visual tracker below, append one
 line per finished task to `.gaspol/progress.md` in the project root (create if absent):
-`Task [N] [title] — COMPLETE — <1-line summary>`. The visual tracker is in-memory and is
-lost on compaction; the ledger is the durable record a resumed session reads to know which
-tasks are done. **Never** write under `.git/` (protected path — agent writes blocked).
+`Task [N] [title] — COMPLETE — <1-line summary> — NEXT: <next task, or "DONE">`. If a task
+is left unfinished (blocker or `/compact`), append instead:
+`Task [N] [title] — WIP — <what's done> — BLOCKER: <what's stuck> — NEXT: <exact resume action>`.
+The trailing `NEXT:`/`BLOCKER:` fields are the handoff cursor a resumed session reads to know
+where to continue and what's blocking (older lines without the suffix still parse). The visual
+tracker is in-memory and is lost on compaction; the ledger is the durable record a resumed
+session reads to know which tasks are done. **Never** write under `.git/` (protected path — agent writes blocked).
 Ensure `.gaspol/` is in the project `.gitignore` (working-tree scratch, never committed);
 `git clean -fdx` deletes it, recover from `git log`.
 
