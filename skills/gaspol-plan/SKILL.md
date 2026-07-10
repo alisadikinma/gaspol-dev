@@ -78,6 +78,8 @@ Every plan document MUST start with this header:
 > **CRITICAL:** This plan specifies real integrations. During execution,
 > NEVER substitute placeholders for real data sources without explicit
 > user approval. If a data source doesn't exist yet, STOP and ask.
+> **Progress ledger:** `.gaspol/progress/<slug>.md` (slug = this plan's filename, minus the date prefix and `.md`). The executor updates ONLY this file — never the shared `.gaspol/progress.md`. This keeps concurrent plans from writing over each other's ledger.
+> **Self-contained:** this plan is the COMPLETE spec. It must be executable by an agent with **no other context** — a fresh post-`/compact` session, or an external executor in a separate process that cannot see this chat or read a linked PDF. Every file path, contract, config key, and convention it needs is written here **verbatim**, not merely referenced. If it lives only in the conversation, copy it in.
 
 ## Goal
 
@@ -213,6 +215,20 @@ After the plan is written and saved, offer the user three options:
 **Option 3: Separate session**
 > "Save plan for a new session? The plan file at `docs/plans/...` has everything needed."
 
+**Option 4: External executor** — offer this **only if** an executor is configured (see below):
+> "Hand off to your external executor? I'll run `<resolved command>` — it implements **blind** from this self-contained plan and its per-plan ledger, then you return here for review + commit."
+
+This is the two-lane, token-saving path: planning + review stay in this session; the heavy codegen runs in a separate, cheaper executor process. **gaspol-dev ships no executor of its own** — this option surfaces a command *you* wired up, and never invents one.
+
+**Resolving the executor command (in order, first hit wins):**
+1. `$GASPOL_EXECUTOR` environment variable.
+2. First line of a `.gaspol/executor` file in the project root (lets a repo commit its own executor).
+3. **Neither set → do not show Option 4 at all.** The plugin works fully with Options 1–3 (pure in-session, zero setup).
+
+The value is a **command template** with `{plan}` and `{ledger}` placeholders, e.g. `aider --file {plan}`, `opencode run {plan}`, `cursor-agent {plan}`. Substitute the plan path and the resolved per-plan ledger path, then present the concrete command for approval before running.
+
+**Invariants regardless of executor:** the external tool implements + runs tests to green but **NEVER commits/pushes** — the finished diff returns to this session (or the human) for review + commit. Review is never skipped.
+
 ## Red Flags (Self-Check Before Finishing)
 
 Before presenting the plan, verify none of these red flags are present:
@@ -226,6 +242,8 @@ Before presenting the plan, verify none of these red flags are present:
 | No test steps | No TDD cycle, bugs ship silently | Add write-test/run-test steps |
 | Phase too large (>15 min estimated) | Executor loses focus, skips verification | Break into smaller phases |
 | Placeholder language ("TODO: wire up later") | Violates anti-placeholder contract | Specify the real integration now |
+| Plan only makes sense with the chat context | A fresh-session or external executor runs blind and will guess | Inline every contract/convention verbatim — the plan alone must suffice |
+| No `Progress ledger:` line in the header | Executor writes the shared global ledger, colliding with concurrent plans | Add `Progress ledger: .gaspol/progress/<slug>.md` to the header |
 
 ## Integration with Other Skills
 

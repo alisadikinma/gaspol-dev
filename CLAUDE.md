@@ -317,8 +317,10 @@ Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
 
 ### Per-Phase Checkpoints (Tiered Auto-Review in v1.2)
 
-**Durable ledger + handoff cursor (v1.5, cursor v1.9.1):** after each checkpoint, `gaspol-execute`/`gaspol-parallel`
-append the phase/task status to `.gaspol/progress.md` (gitignored working-tree scratch, never `.git/`).
+**Durable ledger + handoff cursor (v1.5, cursor v1.9.1, per-plan v1.10):** after each checkpoint, `gaspol-execute`/`gaspol-parallel`
+append the phase/task status to the plan's declared ledger — per-plan `.gaspol/progress/<slug>.md` (v1.10, so
+concurrent plans never collide), falling back to the shared `.gaspol/progress.md` when the plan names none
+(gitignored working-tree scratch, never `.git/`).
 Each line carries a trailing **handoff cursor** — `— NEXT: <next phase, or DONE>` on a COMPLETE line, or
 `— WIP — <done so far> — BLOCKER: <what's stuck> — NEXT: <exact resume action>` when a phase is left unfinished
 (blocker/`/compact`/pause). It survives `/compact`; `gaspol-execute` Step 3 reads the LAST line's cursor on start

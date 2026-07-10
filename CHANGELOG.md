@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.10.0] - 2026-07-11
+
+### Added — two-lane execution (plan-once, run-anywhere)
+
+The plan artifact is now identical whether executed **in-session** or handed to a **separate
+executor process** — the lane is chosen by one optional config, not by two plan formats. Planning
+and review stay in the (expensive) main session; heavy codegen can run in a cheaper executor,
+saving tokens. Works fully with zero config (pure in-session).
+
+- **`gaspol-plan` — self-contained plan header.** Every plan now declares a `Progress ledger:`
+  path and a `Self-contained:` contract: the plan must be executable by an agent with no other
+  context (a fresh post-`/compact` session, or an external executor that can't see the chat or a
+  linked PDF) — every path, contract, config key, and convention written verbatim, not linked.
+- **`gaspol-plan` — Execution Handoff Option 4: External executor.** Surfaces **only if**
+  `$GASPOL_EXECUTOR` or a `.gaspol/executor` file is set (a command template with `{plan}`/`{ledger}`
+  placeholders, e.g. `aider --file {plan}`). Unset → hidden → Options 1–3 work exactly as before.
+  gaspol-dev ships **no executor of its own** and never invents one; the external tool implements +
+  tests to green but **never commits** — the diff returns for review + commit.
+- **Per-plan progress ledger.** `gaspol-execute`/`gaspol-parallel` now read/write the plan's declared
+  `.gaspol/progress/<slug>.md`, so concurrent plans no longer overwrite each other's ledger. Falls
+  back to the shared `.gaspol/progress.md` when a plan names none (backward-compatible).
+- **New Red Flags:** plan that only makes sense with chat context; missing `Progress ledger:` header.
+
 ## [1.8.0] - 2026-06-30
 
 ### Added — ECC-adoption (3 selective ports from a local kitchen-sink toolkit; rest rejected as bloat)

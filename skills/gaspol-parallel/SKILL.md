@@ -357,7 +357,9 @@ This skill works with:
 ## Task Execution Tracking
 
 **Durable ledger (survives `/compact`):** alongside the visual tracker below, append one
-line per finished task to `.gaspol/progress.md` in the project root (create if absent):
+line per finished task to the plan's resolved ledger — per-plan `.gaspol/progress/<slug>.md`
+when the plan header names it, else the shared `.gaspol/progress.md` (create the file, and its
+parent dir, if absent):
 `Task [N] [title] — COMPLETE — <1-line summary> — NEXT: <next task, or "DONE">`. If a task
 is left unfinished (blocker or `/compact`), append instead:
 `Task [N] [title] — WIP — <what's done> — BLOCKER: <what's stuck> — NEXT: <exact resume action>`.

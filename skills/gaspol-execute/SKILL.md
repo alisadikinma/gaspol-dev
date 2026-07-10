@@ -69,7 +69,12 @@ Read `CLAUDE.md` in its entirety to understand:
 
 ### Step 3: Create TodoWrite (+ resume from durable ledger)
 
-**Resume read first.** If `.gaspol/progress.md` exists in the project root, read it before
+**Ledger path.** Use the plan's declared **Progress ledger** — its header names a per-plan
+path (`.gaspol/progress/<slug>.md`) so concurrent plans never collide. Fall back to the shared
+`.gaspol/progress.md` only when the plan names no ledger (older plans). Resolve this path once;
+read AND write the same file throughout.
+
+**Resume read first.** If the resolved ledger exists, read it before
 creating TodoWrite — it is the durable record of phases already completed in a prior
 session or before a `/compact`. Restore those phases as `completed`. Then read the **LAST
 line's handoff cursor**: `NEXT:` tells you exactly where to resume, and a `WIP`/`BLOCKER:`
@@ -189,7 +194,7 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 4. **Classify data sources.** Every component that handles data must list its source and whether it is real or placeholder.
 5. **List all file changes.** Every file created or modified in the phase.
 6. **Append to the durable ledger (with handoff cursor).** After presenting the checkpoint, append one line to
-   `.gaspol/progress.md` (create the file if absent):
+   the plan's resolved ledger (per-plan `.gaspol/progress/<slug>.md`, else the shared `.gaspol/progress.md`; create the file, and its parent dir, if absent):
    `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <phase X+1 name, or "DONE" if last phase>`.
    If a phase is left **unfinished** (a blocker, an approaching `/compact`, or you pause mid-phase), append instead:
    `Phase [X] [name] — WIP — <what's done so far> — BLOCKER: <what's stuck / why paused> — NEXT: <the exact action to resume>`.
