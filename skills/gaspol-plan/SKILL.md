@@ -78,7 +78,7 @@ Every plan document MUST start with this header:
 > **CRITICAL:** This plan specifies real integrations. During execution,
 > NEVER substitute placeholders for real data sources without explicit
 > user approval. If a data source doesn't exist yet, STOP and ask.
-> **Progress ledger:** `.gaspol/progress/<slug>.md` (slug = this plan's filename, minus the date prefix and `.md`). The executor updates ONLY this file — never the shared `.gaspol/progress.md`. This keeps concurrent plans from writing over each other's ledger.
+> **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/<slug>.md` (slug = this plan's filename, minus the date prefix and `.md`). After EACH phase and **BEFORE** starting the next, STOP and append that phase's line — status `done` + the exact command you ran and its result. This is **blocking**, like a test gate: no next phase until the line is written. Set `doing` when a phase starts, `done` when its tests pass. **Never batch all updates at the end** — a crash mid-run must leave a truthful cursor, not a stale `todo`. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other).
 > **Self-contained:** this plan is the COMPLETE spec. It must be executable by an agent with **no other context** — a fresh post-`/compact` session, or an external executor in a separate process that cannot see this chat or read a linked PDF. Every file path, contract, config key, and convention it needs is written here **verbatim**, not merely referenced. If it lives only in the conversation, copy it in.
 
 ## Goal

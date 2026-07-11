@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.10.1] - 2026-07-11
+
+### Changed — ledger update is now a hard per-phase gate
+
+Field report: an external executor filled the per-plan ledger only once at the end of the run
+(or not visibly during it), so mid-run it still read all-`todo` and a crash would have recorded
+zero progress. The contract wording was too soft ("update after each phase"). Strengthened the
+plan header (`gaspol-plan`) to state the ledger write is **blocking, like a test gate**: after
+each phase and BEFORE the next, append the line (`doing` on start → `done` + command/result on
+green); never batch at the end. No API change — wording/enforcement only.
+
 ## [1.10.0] - 2026-07-11
 
 ### Added — two-lane execution (plan-once, run-anywhere)
