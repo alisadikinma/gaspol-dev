@@ -2,7 +2,9 @@
 
 **Process discipline for Claude Code — so AI writes real code, not fake placeholders.**
 
-[![Version](https://img.shields.io/badge/version-1.8.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-22-purple)](#the-22-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
+![gaspol-dev: brainstorm, plan, execute, verify, review, finish, learn](assets/image/20260816-093045-17ed2e8a-991a-11f1-ae6f-9ed8777adf50.png)
+
+[![Version](https://img.shields.io/badge/version-1.10.1-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-22-purple)](#the-22-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents)
 
 ---
 
@@ -220,38 +222,13 @@ Full rules: `skills/gaspol-design/rules/anti-ai-slop.md`.
 - ✅ v1.0 — Core skills, anti-placeholder, per-phase checkpoints
 - ✅ v1.1 — Better docs, improved brainstorm flow
 - ✅ v1.2 — Cross-project KB, power-peer design, tiered review, hard gates, research grounding, step-level closure, KB lifecycle, 5 new skills (research/adr/learn/kb-audit/auto)
-- ✅ v1.3 — superpowers-parity hardening: `gaspol-worktree` (isolated parallel work), `using-gaspol` bootstrap + forceful session-start directive (reliable auto-trigger), continuous-execution mode in gaspol-parallel, and a `tests/` harness (skill-triggering + pressure tests)
+- ✅ v1.3 — Workflow-discipline hardening: `gaspol-worktree` (isolated parallel work), `using-gaspol` bootstrap + forceful session-start directive (reliable auto-trigger), continuous-execution mode in gaspol-parallel, and a `tests/` harness (skill-triggering + pressure tests)
 - ✅ v1.7 — Visual brainstorm companion (browser mockup loop wired to gaspol-design's anti-AI-slop knowledge)
-- ✅ v1.8 (current) — ECC-adoption (3 selective ports, rest rejected as bloat): **DAG lane scheduling** (`scripts/dag-lanes`, stdlib `graphlib`, zero deps), **adversarial refutation** in gaspol-review (false-positive killer), per-task **Validation Ladder** (static→unit→build→integration→edge `DONE` gate)
-- 🔮 v2.0 — Multi-IDE support (Cursor, Codex, Gemini) following superpowers' portability pattern
-
----
-
-## Comparison vs Superpowers
-
-gaspol-dev overlaps ~60% with [superpowers](https://github.com/obra/superpowers) (both inspired by structured workflow discipline). Differences:
-
-| | gaspol-dev | superpowers |
-|---|---|---|
-| Anti-placeholder rules | Explicit + enforced at hard gate | Implicit |
-| Cross-project memory | ✓ (GitHub-synced KB, 5 categories, freshness-aware) | ✗ |
-| Research grounding | Tiered novelty + deep research + cache + TTL | ✗ |
-| Design **knowledge** engine | Power peer (85+ styles, 162+ rules, multi-framework) | ✗ |
-| Design **interaction** loop (visual brainstorm) | ✗ (roadmap v1.4) | ✓ browser companion |
-| Model switching | Auto-rubric per task type | ✗ |
-| Step-level closure gate | ✓ Evidence-based, BLOCKING | Phase-level |
-| Autonomous / continuous exec | ✓ gaspol-auto (8 hard-stops) + parallel continuous mode | ✓ subagent-driven |
-| Git worktree isolation | ✓ gaspol-worktree (Step 0 detect + safety) — v1.3 | ✓ |
-| Auto-trigger bootstrap | ✓ using-gaspol + session-start directive — v1.3 | ✓ using-superpowers |
-| Skill-trigger + pressure tests | ✓ tests/ harness — v1.3 | ✓ |
-| Multi-IDE | Claude Code only (for now) | 5+ IDEs |
-| KB self-maintenance | ✓ (gaspol-kb-audit, status lifecycle) | N/A |
-
-> **Honest note:** superpowers shipped a *visual* brainstorming companion (browser mockup loop). gaspol has the design **knowledge** (anti-AI-slop rules, 162+ reasoning rules) but not yet the interactive loop — that's v1.4. Conversely, gaspol's worktree, bootstrap, and test-harness gaps vs superpowers were closed in v1.3 (this release).
-
-**Pick gaspol-dev if:** deep integration with Claude Code + cross-project learning + process enforcement + anti-AI-slop design + model cost optimization matter more than IDE breadth.
-
-**Pick superpowers if:** multi-IDE is critical, you want the visual brainstorm loop, you already have external KB infrastructure, or you want a simpler surface area.
+- ✅ v1.8 — DAG lane scheduling (`scripts/dag-lanes`, stdlib `graphlib`, zero deps), adversarial refutation in gaspol-review (false-positive killer), per-task Validation Ladder (static→unit→build→integration→edge `DONE` gate)
+- ✅ v1.9 — Laziness Ladder (YAGNI→stdlib→native→existing-dep→one-line scope governor, always-on)
+- ✅ v1.10 (current) — Two-lane execution: self-contained plans + per-plan progress ledger + pluggable external executor
+- 🔮 v1.11 — Ticket-numbered ledgers, tiered review lanes with plan/artifact cross-check, mandatory finish-gate review, three-path brainstorm ceremony, proactive context-budget checkpoint
+- 🔮 v2.0 — Multi-IDE support (Cursor, Codex, Gemini)
 
 ---
 
