@@ -1,6 +1,6 @@
 ---
 name: gaspol-brainstorm
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Reads CLAUDE.md first, explores user intent through collaborative dialogue, auto-triggers design intelligence for UI work, and produces implementation-ready specifications with Data Integration Maps."
+description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior."
 ---
 
 ## Overview
@@ -24,7 +24,11 @@ simple to need a design" is exactly where unexamined assumptions cause the most 
 work — a config toggle, a one-line util, a rename all go through this. The design can be
 short (a few sentences for a truly trivial change), but you MUST present it and get
 approval before any implementation action. The ONLY terminal state of this skill is
-invoking `gaspol-plan` after the design is approved.
+invoking `gaspol-plan` after the design is approved (architectural path) or the user's
+explicit go-ahead on the in-chat design (spike/bounded paths — see Phase 1's Three Paths
+classification). The gate never weakens across paths: only the WEIGHT of the artifact
+you present scales down (spec file → short in-chat design → probe plan), never whether
+approval is required before you touch code.
 
 ## Phase 0: CLAUDE.md-First (MANDATORY -- before ANY codebase exploration)
 
@@ -43,7 +47,7 @@ BEFORE exploring codebase, ALWAYS read CLAUDE.md first.
 
 Saves 10-50k tokens per brainstorm session.
 
-## Phase 0.5: KB Cross-Project Query (AFTER CLAUDE.md, before questions — local-only by default)
+## Phase 0.5: KB Cross-Project Query (architectural path only — AFTER CLAUDE.md, before questions — local-only by default)
 
 ```
 BEFORE asking clarifying questions, query cross-project KB for precedent.
@@ -89,6 +93,44 @@ Saves additional 10-30k tokens per session by avoiding re-exploration of solved 
 
 ## Phase 1: Understanding the Idea
 
+### Three Paths: Classify Before Asking
+
+```
+Classify every request into one of three paths BEFORE asking any clarifying question,
+and state the classification to the user.
+```
+
+- **Spike** — a feasibility question ("can we...", "is it possible...") whose output is
+  an answer, not code to keep. No spec file. Present the question plus a 2-3 sentence
+  probe plan, get a nod, investigate cheaply, report a recommendation.
+- **Bounded** — a well-scoped change to code that ALREADY EXISTS in the repo (a flag, a
+  small endpoint, a one-file fix). "Bounded" measures whether the flow being touched
+  already exists to read — if there's no existing flow to point at, it isn't bounded.
+  Ask the clarifying questions that matter, present a SHORT design IN CHAT (a few
+  sentences to a short paragraph — architecture, files touched, testing approach), then
+  STOP and wait for explicit approval. No spec file, no implementation plan document.
+  Phase 0.5 (KB query), Phase 1.5 (novelty assessment), and Phase 2.5/3 (design gate /
+  `gaspol-design` invocation) do NOT run for this path.
+- **Architectural** — new subsystems, interface changes other code depends on, or
+  anything that doesn't cleanly fit spike/bounded. Full EXISTING pipeline, unchanged:
+  Phase 0.5 through Phase 6 all run as they do today, including the spec-file write.
+
+**One-way ratchet:** hidden complexity discovered mid-task upgrades the path (spike →
+bounded, bounded → architectural) — stop, say so, and step up. Nothing ever downgrades
+mid-task; once a heavier path is warranted you don't talk yourself back down.
+
+**Red flags (classification-dodging):**
+
+| Rationalization | Why It's Wrong |
+|----------------|----------------|
+| "This is too simple to need a design" | Simple means a short design, not no design. |
+| "I'll call it bounded and skip the spec" | Reaching for a label to dodge the spec IS the doubt — take the heavier path instead. |
+| "I understand this kind of app so it's bounded" | Bounded measures the repo in front of you, not your familiarity with the pattern. |
+
+The HARD-GATE above applies to **all three paths** without exception — it scales in
+artifact weight (spec file / short in-chat design / probe plan), never in whether
+approval is required before implementation.
+
 - Check project state (branch, recent commits)
 - **Decompose gate (BEFORE refining details):** if the request spans multiple independent
   subsystems (e.g. "build a platform with chat, file storage, billing, and analytics"),
@@ -103,7 +145,7 @@ Saves additional 10-30k tokens per session by avoiding re-exploration of solved 
 - Understand: what problem, who benefits, what exists already (from CLAUDE.md + KB from Phase 0.5)
 - NEVER ask questions as plain text output — always use the AskUserQuestion tool so the user gets the interactive selection UI
 
-## Phase 1.5: Novelty Assessment (before proposing approaches)
+## Phase 1.5: Novelty Assessment (architectural path only — before proposing approaches)
 
 ```
 Classify task novelty to decide research level:
@@ -156,7 +198,7 @@ Trade-offs:
 - Grounded in research, not generic
 ```
 
-## Phase 2.5: Design Gate (if UI work detected)
+## Phase 2.5: Design Gate (architectural path only — if UI work detected)
 
 ```
 If Phase 3 design triggers fire from Phase 1 intent keywords OR file extension hints OR approach involves UI:
@@ -263,7 +305,9 @@ Before finalizing:
 
 ## Phase 6: Documentation (Hybrid File)
 
-- Write to `docs/plans/YYYY-MM-DD-<topic>.md` (NO `-design` suffix — hybrid file)
+- (architectural path only) Write to `docs/plans/YYYY-MM-DD-<topic>.md` (NO `-design`
+  suffix — hybrid file). Spike/bounded paths stop at in-chat approval and skip this
+  spec-file write entirely — see Phase 1's Three Paths classification.
 - Structure: start with `## Design` section (from this brainstorm)
 - `gaspol-plan` will APPEND `## Implementation Plan` section to the same file later
 - **Spec self-review (before handing off):** scan the written design for placeholders,

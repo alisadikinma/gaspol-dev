@@ -1,0 +1,1 @@
+Add a --verbose flag to the existing CLI command in this repo that prints extra debug output. The command already exists, I just want a flag added.
