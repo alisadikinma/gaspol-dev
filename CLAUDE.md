@@ -694,5 +694,5 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 
 ---
 
-**Version:** 1.11.0
-**Last Updated:** July 2026
+**Version:** 1.12.0
+**Last Updated:** August 2026
