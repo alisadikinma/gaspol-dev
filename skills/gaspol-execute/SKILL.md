@@ -260,7 +260,7 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 
 ### Session-Length Checkpoint (Context-Budget Nudge)
 
-Count phases completed in the **current execute run** (phases restored from a prior session's ledger on resume do not count — only ones this run itself finishes). After presenting the checkpoint report for the **3rd** phase completed in this run — and every 3rd subsequent one (6th, 9th, ...) — use the **AskUserQuestion** tool:
+Count phases completed in the **current execute run** (phases restored from a prior session's ledger on resume do not count — only ones this run itself finishes). After presenting the checkpoint report for the **6th** phase completed in this run — and every 6th subsequent one (12th, 18th, ...) — use the **AskUserQuestion** tool:
 
 > "N phases done this session. Continue here, or pick up fresh next session? The ledger (`.gaspol/progress/progress-<TICKET>.md`, or the plan's declared ledger path) has the exact resume point either way."
 
@@ -269,7 +269,7 @@ Options:
 - **(b) Stop here** — report the resume point clearly (the last ledger line's `NEXT:` cursor) and end the session
 - **(c) Raise the threshold for this run** — user specifies N; don't ask again until N more phases complete
 
-Do **not** fire on phase 1 or phase 2 of the run. The first prompt fires only at the 3rd completed phase, and repeats every 3rd phase thereafter unless the user raised the threshold via (c).
+Do **not** fire before the 6th completed phase of the run. The first prompt fires only at the 6th completed phase, and repeats every 6th phase thereafter unless the user raised the threshold via (c).
 
 ---
 
