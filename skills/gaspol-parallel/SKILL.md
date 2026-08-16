@@ -1,6 +1,6 @@
 ---
 name: gaspol-parallel
-description: "Use when executing implementation plans with independent phases (mode: plan-phases) OR when handling 2+ independent problem domains ad-hoc (mode: independent-domains). Dispatches fresh subagent per task with anti-placeholder enforcement, DAG lane scheduling (dependency waves + file-isolated lanes for max safe parallelism), and two-stage review (spec compliance then code quality). Replaces former gaspol-dispatch."
+description: "Use when executing implementation plans with independent phases (mode: plan-phases) OR when handling 2+ independent problem domains ad-hoc (mode: independent-domains)."
 ---
 
 # gaspol-parallel (with Mode Field)
@@ -67,6 +67,9 @@ Once the task list is confirmed and the workspace is isolated, **execute all tas
 - A genuine ambiguity in a task blocks progress (ask via AskUserQuestion).
 - An Iron Law violation or destructive operation is required (always pause).
 - All tasks complete.
+- The session-length checkpoint fires — every 3rd wave/phase completed this run (see Task
+  Execution Tracking below) — a deliberate, bounded context-budget offer via AskUserQuestion,
+  not a per-task check-in.
 
 Update the visual task tracker as you go (see Task Execution Tracking) instead of narrating each task in prose. This is the in-session analogue of `gaspol-auto`'s hard-stop guardrails — autonomous flow, bounded by the same always-pause conditions.
 
@@ -369,6 +372,26 @@ tracker is in-memory and is lost on compaction; the ledger is the durable record
 session reads to know which tasks are done. **Never** write under `.git/` (protected path — agent writes blocked).
 Ensure `.gaspol/` is in the project `.gitignore` (working-tree scratch, never committed);
 `git clean -fdx` deletes it, recover from `git log`.
+
+**Session-length checkpoint (context-budget nudge):** count waves completed (mode
+`independent-domains`) or phases completed (mode `plan-phases`) in the **current run** —
+not ones restored from the ledger on resume, only ones this run itself finishes. After every
+**3rd** wave/phase completes — the 3rd, 6th, 9th, ... — use the **AskUserQuestion** tool:
+
+> "N phases done this session. Continue here, or pick up fresh next session? The ledger
+> (`.gaspol/progress/progress-<TICKET>.md`, or the plan's declared ledger path) has the exact
+> resume point either way."
+
+Options:
+- **(a) Continue as normal** — proceed with the next wave/phase immediately
+- **(b) Stop here** — report the resume point clearly (the last ledger line's `NEXT:` cursor)
+  and end the session
+- **(c) Raise the threshold for this run** — user specifies N; don't ask again until N more
+  waves/phases complete
+
+Do **not** fire on wave/phase 1 or 2 — only starting at the 3rd completed in this run,
+repeating every 3rd thereafter unless raised. This is a bounded, explicit exception to
+Continuous Execution Discipline, not a contradiction of it — see the added bullet there.
 
 Track progress visually for the user:
 
