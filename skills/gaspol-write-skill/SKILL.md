@@ -223,6 +223,18 @@ Re-test the skill. Look for:
 
 Tighten the language. Add examples. Re-test.
 
+### Micro-Test Wording Before Full Pressure Scenarios
+
+Full pressure-scenario runs (subagent dispatch, multi-turn) are the final gate, but they're slow and expensive per iteration. Before paying for that, verify the WORDING itself with a cheaper pass:
+
+1. **One fresh-context sample per wording variant** -- a single-shot subagent call, system prompt = the realistic context the guidance will live in (the full skill/prompt template, not the guidance in isolation), user message = a task that tempts the specific failure.
+2. **Always include a no-guidance control.** If the control doesn't exhibit the failure, there's nothing to fix -- stop, don't author the guidance.
+3. **5+ reps per variant** -- a single sample lies.
+4. **Manually read every flagged match** -- don't just count matches programmatically; template echoes and quoted counter-examples can masquerade as hits.
+5. **Variance is itself a metric** -- when wording lands, reps converge on the same shape; five different interpretations across five reps means the wording isn't binding yet, tighten the form before adding more words.
+
+This micro-test step does NOT replace the full pressure-scenario run for discipline-enforcing skills. It's a cheap pre-pass that catches obviously-broken wording before paying for the expensive final gate.
+
 ---
 
 ## Bulletproofing
@@ -278,6 +290,24 @@ RED FLAGS:
 
 ---
 
+## Match the Form to the Failure
+
+Bulletproofing tells you HOW to harden guidance once you know its shape. This section tells you WHICH shape to reach for. Not every discipline problem is "agent knows the rule and breaks it anyway" — treating every failure as that one problem is why some skills grow a rationalization table for a failure that a rationalization table can't fix.
+
+Classify the baseline failure first, then pick the form:
+
+| Baseline failure | Right form | Wrong form |
+|---|---|---|
+| Skips/violates a rule under pressure (knows better, does it anyway) | Prohibition + rationalization table + red flags | Soft guidance ("prefer...", "consider...") |
+| Complies, but output has the wrong shape (bloated, buried verdict, restated spec) | Positive recipe/contract: state what the output IS — its parts, in order | Prohibition list ("don't restate", "never narrate") |
+| Omits a required element from something already produced | Structural: REQUIRED field/slot in the template being filled in | Prose reminders near the template |
+| Behavior should depend on a condition | Conditional keyed to an observable predicate ("if X exists, do Y") | Unconditional rule + exemption clauses |
+
+- **No nuance clauses.** "Don't X unless it matters" reopens negotiation — express any real exception as its own conditional keyed to an observable predicate, not an appended nuance clause on a rule that was otherwise clean.
+- **Exemption clauses don't scope.** "This limit doesn't apply to code blocks" still suppresses code blocks in practice — if part of the output must be exempt, restructure the rule so it structurally cannot reach that part, don't just declare an exemption.
+
+---
+
 ## Skill Creation Checklist
 
 ### RED Phase
@@ -295,6 +325,7 @@ RED FLAGS:
 - [ ] When to use / When NOT to use sections
 - [ ] Core pattern/process (numbered steps)
 - [ ] Every baseline failure addressed by an instruction
+- [ ] Guidance form matches the classified failure type (see Match the Form to the Failure)
 - [ ] Red flags list (specific, observable behaviors)
 - [ ] Rationalization prevention table
 - [ ] Verification checklist
