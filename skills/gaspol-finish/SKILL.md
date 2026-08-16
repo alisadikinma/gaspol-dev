@@ -30,9 +30,11 @@ Finishing is not just merging. It is the final quality gate that ensures the wor
 
 ## Pre-Finish Verification Chain (MANDATORY)
 
-Before presenting any options, complete this chain in order. Do not skip steps.
+Before presenting any options, complete this chain **in order, all six steps**. Do not skip
+steps. None of the six is optional or conditional on the diff's contents — steps 3 and 4 run on
+every finish pass exactly like steps 1, 2, 5, and 6 always have.
 
-### Step 1: Run gaspol-verify
+### Step 1: Run gaspol-verify (all 4 layers)
 
 If you haven't already run verification in this session, invoke gaspol-verify now.
 
@@ -44,20 +46,7 @@ This ensures:
 
 If gaspol-verify was already run and passed in this session, you may skip this step.
 
-### Step 1.5: Security Pre-Deployment Checklist (conditional gate)
-
-If the work touched **auth, secrets, user input, file uploads, API endpoints,
-payment, or sensitive data**, run the Pre-Deployment Security Checklist from
-`gaspol-security-review` before presenting any merge/PR options.
-
-- If a checklist item fails on an insecure pattern (string-concatenated SQL, JWT in
-  `localStorage`, secrets in source, missing server-side authz), treat it like a
-  BLOCKING finding: STOP and use AskUserQuestion — `[Fix now]` / `[Accept risk with
-  documented reason]`. Never present merge options with an unresolved security FAIL.
-- If the work did not touch any security-sensitive surface, note "Security gate: N/A
-  (no security-sensitive changes)" and proceed.
-
-### Step 2: Run Plan Verifier (BLOCKING)
+### Step 2: Run plan-verifier agent BLOCKING (step-level, evidence-based, spot-check 3 random FOUND items) -- unchanged from today
 
 Dispatch the upgraded `plan-verifier` agent (step-level, evidence-based) to audit the implementation against the plan. See `agents/plan-verifier.md`.
 
@@ -81,7 +70,44 @@ For BLOCKING, use AskUserQuestion to present per-issue resolution:
 
 If no plan exists (ad-hoc implementation), skip this step with documented reason.
 
-### Step 3: Run gaspol-sync-docs
+**If plan-verifier returned BLOCKING**, return to execute/fix the issues, then re-run
+plan-verifier. Do NOT proceed to Step 3 — don't waste a review pass on code that's about to
+change.
+
+### Step 3: Run gaspol-review AT TIER 1 -- BLOCKING on any surviving Critical finding
+
+Run `gaspol-review`, dispatched at **Tier 1** per its own Step 2 tiered-dispatch table
+(`skills/gaspol-review/SKILL.md`): Tier 0 (`agents/code-reviewer.md`, 1 call) plus the
+`plan-artifact-reviewer.md` lane (2 agent calls total, run concurrently). `gaspol-finish` is one
+of the two named Tier 1 triggers in that table — do NOT escalate to Tier 2 from this call site;
+Tier 2 stays opt-in (contested finding or explicit user request), not part of this mandatory
+chain.
+
+Findings must clear gaspol-review's own Step 2.5 adversarial refutation before they count.
+
+**This step is BLOCKING.** Any surviving (post-refutation, CONFIRMED or unverifiable) Critical
+finding STOPS the chain here.
+
+- If plan-verifier (Step 2) is BLOCKING, return to execute/fix first — don't waste a review pass
+  on code that's about to change.
+- If gaspol-review (this step) is BLOCKING, fix and re-run gaspol-review before proceeding. Do
+  not proceed to Step 4 until it is clean.
+
+### Step 4: Run gaspol-security-review -- ALWAYS runs from this chain
+
+Run the Pre-Deployment Security Checklist from `gaspol-security-review`. Its own SKILL.md
+description gates most call sites on a conditional trigger (auth, secrets, user input, file
+uploads, API endpoints, payment, or sensitive data) — but **from this finish chain the checklist
+ALWAYS runs**, on every branch, regardless of whether the diff appears security-sensitive. This
+is not conditional-trigger-only here. Its checklist result gets attached to the finish report.
+
+- If a checklist item fails on an insecure pattern (string-concatenated SQL, JWT in
+  `localStorage`, secrets in source, missing server-side authz), treat it like a
+  BLOCKING finding: STOP and use AskUserQuestion — `[Fix now]` / `[Accept risk with
+  documented reason]`. Never present merge options with an unresolved security FAIL.
+- Report the result even when every item passes, e.g. "Security checklist: PASSED (N/N items)."
+
+### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- unchanged
 
 Update CLAUDE.md and any other documentation with changes from this work.
 
@@ -91,19 +117,31 @@ This ensures:
 - Removed features are cleaned up from docs
 - The next session has accurate context
 
-### Step 4: Verify Chain Complete
+### Step 6: Trigger gaspol-learn (pattern capture) -- unchanged
 
-All three steps must be completed (or explicitly skipped with reason) before proceeding.
+Invoke `gaspol-learn` for quality-gated pattern capture into the cross-project knowledge base
+(user confirms before write).
+
+### Verify Chain Complete
+
+All six steps must be completed (or explicitly skipped with a documented reason) before
+proceeding.
 
 ```
 Verification Chain Status:
-[x] gaspol-verify: PASSED (or: passed earlier this session)
-[x] Security checklist: PASSED (or: N/A — no security-sensitive changes)
-[x] Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
-[x] gaspol-sync-docs: COMPLETED
+[x] Step 1 gaspol-verify: PASSED (or: passed earlier this session)
+[x] Step 2 Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
+[x] Step 3 gaspol-review (Tier 1): CLEAN (BLOCKING gate passed, 0 surviving Critical findings)
+[x] Step 4 Security checklist (gaspol-security-review): PASSED
+[x] Step 5 gaspol-sync-docs: COMPLETED
+[x] Step 6 gaspol-learn: COMPLETED (or: user declined capture)
 ```
 
-**If plan-verifier returned BLOCKING**, the chain is incomplete. Do NOT present options. Return to execute/fix the issues, then re-run verification.
+**If plan-verifier (step 2) returned BLOCKING**, the chain is incomplete. Do NOT present options.
+Return to execute/fix the issues, then re-run from Step 2.
+
+**If gaspol-review (step 3) is BLOCKING**, the chain is incomplete. Fix, re-run gaspol-review, and
+do not proceed to step 4 until clean.
 
 ---
 
@@ -226,7 +264,7 @@ Changes:
 ## Red Flags
 
 1. **Never merge with failing tests** -- Fix the tests first. No exceptions.
-2. **Never skip the verification chain** -- verify, plan-check, sync-docs. All three.
+2. **Never skip the verification chain** -- verify, plan-check, review (Tier 1), security-review, sync-docs, learn. All six.
 3. **Never force-push without explicit user request** -- Force-push rewrites history and can destroy others' work.
 4. **Never merge without knowing the base branch** -- Merging into the wrong branch causes cascading problems.
 5. **Never discard without typed confirmation** -- Accidental discards destroy work permanently.
@@ -239,9 +277,12 @@ Changes:
 | Skill | Interaction |
 |-------|-------------|
 | `gaspol-verify` | Step 1 of verification chain |
-| `gaspol-sync-docs` | Step 3 of verification chain |
-| `gaspol-execute` | Finish is the final step of execute workflow |
 | `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
+| `gaspol-review` | Tier 1 dispatch, BLOCKING on surviving Critical findings (Step 3 of chain) |
+| `gaspol-security-review` | Always runs from this call site, gates on checklist FAIL (Step 4 of chain) |
+| `gaspol-sync-docs` | Step 5 of verification chain |
+| `gaspol-learn` | Step 6 of verification chain (pattern capture) |
+| `gaspol-execute` | Finish is the final step of execute workflow |
 | `gaspol-tdd` | Tests must pass before finishing |
 | `gaspol-worktree` | Created the isolated workspace upstream; finish owns teardown — `git worktree remove` runs here AFTER the merge/PR decision, never before |
 | `gaspol-adr` | Capture ADRs for deferred MISSING items and DIVERGED items |

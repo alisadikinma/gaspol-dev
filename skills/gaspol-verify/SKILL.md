@@ -88,6 +88,16 @@ npm run lint
 - Check for unhandled promise rejections
 - Check for React key warnings or hook order violations
 
+### Live App Check (mandatory for UI / user-visible changes)
+
+For any change touching UI or user-visible behavior, Layer 1 must also invoke the `run` skill
+(the harness's app-launch skill) to actually launch the app and observe the feature live — not
+only `npm run build` / `npx tsc --noEmit` / `npm test` / lint. A passing per-phase gate is not by
+itself a quality claim — defects have shipped past green unit tests and per-feature e2e,
+surfacing only in cross-file integration and real browser/app use. Non-UI, non-user-visible
+changes (pure backend logic, config, docs) skip this check — note "Live app check: N/A (no
+UI/user-visible surface)".
+
 ### Evidence Format
 ```
 TECHNICAL VERIFICATION:
