@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# next-ticket — read a CLAUDE.md-style file's "## gaspol Ticket Counter"
+# section, increment "Last ticket:", rewrite it in place, print the new id.
+#
+# Usage:  next-ticket <path-to-CLAUDE.md-style-file>
+#         next-ticket --self-test
+#
+# Contract:
+#   $1        path to file containing (somewhere) a line "## gaspol Ticket Counter"
+#             followed eventually by a "Prefix: <PFX>" line and a
+#             "Last ticket: <PFX>-<N>" line.
+#   stdout    on success: the new ticket id, e.g. "IND-81" (nothing else)
+#   exit 0    success — file rewritten, only the "Last ticket:" line changed
+#   exit 2    no "## gaspol Ticket Counter" section found, OR the section
+#             exists but "Last ticket:" is missing/malformed. Clear message
+#             on stderr in both cases.
+#   exit 1    usage error (missing arg / file not found)
+set -euo pipefail
+
+SECTION_HEADER="## gaspol Ticket Counter"
+
+usage() {
+    echo "usage: next-ticket <path-to-file>" >&2
+    echo "       next-ticket --self-test" >&2
+}
+
+# next_ticket_for FILE — prints the new ticket id to stdout, rewrites FILE
+# in place (only the "Last ticket:" line changes), or exits 2 with a
+# stderr message on any parse failure.
+next_ticket_for() {
+    local file="$1"
+
+    if ! grep -qF "$SECTION_HEADER" "$file"; then
+        echo "next-ticket: no ticket counter section found — caller must AskUserQuestion for a prefix and create the section starting at <PREFIX>-1" >&2
+        return 2
+    fi
+
+    local last_line
+    last_line="$(grep -m1 '^Last ticket:' "$file" || true)"
+    if [[ -z "$last_line" ]]; then
+        echo "next-ticket: '## gaspol Ticket Counter' section found but no 'Last ticket:' line — file is malformed" >&2
+        return 2
+    fi
+
+    local current_ticket
+    current_ticket="$(sed -E 's/^Last ticket:[[:space:]]*//' <<<"$last_line")"
+
+    if [[ ! "$current_ticket" =~ ^([A-Za-z0-9]+)-([0-9]+)$ ]]; then
+        echo "next-ticket: 'Last ticket:' value '$current_ticket' is malformed — expected format '<PREFIX>-<N>'" >&2
+        return 2
+    fi
+
+    local prefix="${BASH_REMATCH[1]}"
+    local number="${BASH_REMATCH[2]}"
+    local next_number=$((10#$number + 1))
+    local new_ticket="${prefix}-${next_number}"
+
+    local tmp
+    tmp="$(mktemp "${file}.XXXXXX")"
+    sed "s/^Last ticket:.*/Last ticket: ${new_ticket}/" "$file" >"$tmp"
+    mv "$tmp" "$file"
+
+    printf '%s\n' "$new_ticket"
+    return 0
+}
+
+_self_test() {
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' RETURN
+
+    # Case 1: no section at all → exit 2
+    local f1="$tmp_dir/missing-section.md"
+    cat >"$f1" <<'EOF'
+# Some other file
+
+Nothing about tickets here.
+EOF
+    if next_ticket_for "$f1" >/dev/null 2>"$tmp_dir/err1"; then
+        echo "self-test FAIL: case 1 (missing section) should have exited non-zero" >&2
+        return 1
+    fi
+    if ! grep -q "no ticket counter section found" "$tmp_dir/err1"; then
+        echo "self-test FAIL: case 1 stderr message unexpected: $(cat "$tmp_dir/err1")" >&2
+        return 1
+    fi
+
+    # Case 2: normal increment → success + correct output + rewritten line
+    local f2="$tmp_dir/normal.md"
+    cat >"$f2" <<'EOF'
+## gaspol Ticket Counter
+
+Prefix: IND
+Last ticket: IND-80
+EOF
+    local out2
+    out2="$(next_ticket_for "$f2")"
+    if [[ "$out2" != "IND-81" ]]; then
+        echo "self-test FAIL: case 2 expected stdout 'IND-81', got '$out2'" >&2
+        return 1
+    fi
+    if ! grep -qx "Last ticket: IND-81" "$f2"; then
+        echo "self-test FAIL: case 2 fixture not rewritten correctly" >&2
+        return 1
+    fi
+    if ! grep -qx "Prefix: IND" "$f2"; then
+        echo "self-test FAIL: case 2 rewrite touched other lines" >&2
+        return 1
+    fi
+
+    # Case 3: section exists but malformed (no Last ticket: line) → exit 2
+    local f3="$tmp_dir/malformed.md"
+    cat >"$f3" <<'EOF'
+## gaspol Ticket Counter
+
+Prefix: IND
+EOF
+    if next_ticket_for "$f3" >/dev/null 2>"$tmp_dir/err3"; then
+        echo "self-test FAIL: case 3 (malformed section) should have exited non-zero" >&2
+        return 1
+    fi
+    if ! grep -q "malformed" "$tmp_dir/err3"; then
+        echo "self-test FAIL: case 3 stderr message unexpected: $(cat "$tmp_dir/err3")" >&2
+        return 1
+    fi
+
+    echo "next-ticket self-test: PASS"
+    return 0
+}
+
+main() {
+    if [[ "${1:-}" == "--self-test" ]]; then
+        _self_test
+        exit $?
+    fi
+
+    if [[ $# -ne 1 ]]; then
+        usage
+        exit 1
+    fi
+
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo "next-ticket: file not found: $file" >&2
+        exit 1
+    fi
+
+    next_ticket_for "$file"
+}
+
+main "$@"

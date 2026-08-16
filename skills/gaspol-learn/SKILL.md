@@ -1,6 +1,6 @@
 ---
 name: gaspol-learn
-description: "Use when feature implementation ships successfully (auto-triggered from gaspol-finish after verification chain passes). Distills reusable patterns from completed work, captures them to cross-project knowledge base with user confirmation and quality gate validation to prevent KB pollution."
+description: "Use when feature implementation ships successfully (auto-triggered from gaspol-finish after verification chain passes)."
 ---
 
 # gaspol-learn

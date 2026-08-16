@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# scan-active-ledgers — list progress-*.md ledgers in a directory that are
+# still active (last line's trailing "NEXT: ..." marker is not "DONE").
+#
+# Usage:  scan-active-ledgers <directory>
+#         scan-active-ledgers --self-test
+#
+# Contract:
+#   $1        directory to glob "progress-*.md" in (no glob matches → prints
+#             nothing, exit 0)
+#   stdout    one basename per line, for each ledger whose last non-empty
+#             line's trailing "NEXT: <text>" is not exactly "DONE"
+#   exit 0    always, on a normal scan (no ledgers, some active, none active)
+#   exit 1    usage error (missing arg / directory not found)
+set -euo pipefail
+
+usage() {
+    echo "usage: scan-active-ledgers <directory>" >&2
+    echo "       scan-active-ledgers --self-test" >&2
+}
+
+# is_active FILE — returns 0 (true) if FILE's last non-empty line's
+# trailing "NEXT: ..." text is not exactly "DONE". A file with no
+# "NEXT:" marker on its last non-empty line is treated as active
+# (conservative — surface it rather than silently drop it).
+is_active() {
+    local file="$1"
+    local last_line
+    last_line="$(grep -v '^[[:space:]]*$' "$file" | tail -n1 || true)"
+
+    if [[ "$last_line" != *NEXT:* ]]; then
+        return 0
+    fi
+
+    local trailing="${last_line##*NEXT:}"
+    trailing="$(sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' <<<"$trailing")"
+
+    [[ "$trailing" != "DONE" ]]
+}
+
+scan_dir() {
+    local dir="$1"
+    local file
+    shopt -s nullglob
+    for file in "$dir"/progress-*.md; do
+        if is_active "$file"; then
+            basename "$file"
+        fi
+    done
+    shopt -u nullglob
+}
+
+_self_test() {
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' RETURN
+
+    # Case 1: no progress-*.md files at all → prints nothing, exit 0
+    local empty_dir="$tmp_dir/empty"
+    mkdir -p "$empty_dir"
+    local out1
+    out1="$(scan_dir "$empty_dir")"
+    if [[ -n "$out1" ]]; then
+        echo "self-test FAIL: case 1 (no files) expected empty output, got '$out1'" >&2
+        return 1
+    fi
+
+    # Case 2: mix of active and done ledgers → only active basenames printed
+    local mix_dir="$tmp_dir/mix"
+    mkdir -p "$mix_dir"
+    cat >"$mix_dir/progress-IND-79.md" <<'EOF'
+# log
+
+step one — NEXT: Phase 3
+EOF
+    cat >"$mix_dir/progress-IND-80.md" <<'EOF'
+# log
+
+step one — NEXT: DONE
+EOF
+    cat >"$mix_dir/progress-IND-81.md" <<'EOF'
+# log
+
+step one — NEXT:    DONE
+EOF
+    local out2
+    out2="$(scan_dir "$mix_dir")"
+    if [[ "$out2" != "progress-IND-79.md" ]]; then
+        echo "self-test FAIL: case 2 expected only 'progress-IND-79.md', got:" >&2
+        printf '%s\n' "$out2" >&2
+        return 1
+    fi
+
+    # Case 3: ledger with trailing blank lines — last NON-EMPTY line must
+    # still be read correctly.
+    local blank_dir="$tmp_dir/blank"
+    mkdir -p "$blank_dir"
+    printf '# log\n\nstep one — NEXT: Phase 2\n\n\n' >"$blank_dir/progress-IND-90.md"
+    local out3
+    out3="$(scan_dir "$blank_dir")"
+    if [[ "$out3" != "progress-IND-90.md" ]]; then
+        echo "self-test FAIL: case 3 expected 'progress-IND-90.md', got '$out3'" >&2
+        return 1
+    fi
+
+    echo "scan-active-ledgers self-test: PASS"
+    return 0
+}
+
+main() {
+    if [[ "${1:-}" == "--self-test" ]]; then
+        _self_test
+        exit $?
+    fi
+
+    if [[ $# -ne 1 ]]; then
+        usage
+        exit 1
+    fi
+
+    local dir="$1"
+    if [[ ! -d "$dir" ]]; then
+        echo "scan-active-ledgers: directory not found: $dir" >&2
+        exit 1
+    fi
+
+    scan_dir "$dir"
+}
+
+main "$@"

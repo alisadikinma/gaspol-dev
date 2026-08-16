@@ -1,6 +1,6 @@
 ---
 name: gaspol-kb-audit
-description: "Use quarterly, on-demand, or auto-triggered when KB size exceeds 500 entries. Scans knowledge base for stale entries, duplicates, conflicts, orphans, and broken references. Generates audit report with per-finding resolution options (archive, merge, supersede, keep)."
+description: "Use quarterly, on-demand, or auto-triggered when KB size exceeds 500 entries."
 ---
 
 # gaspol-kb-audit

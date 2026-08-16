@@ -1,6 +1,6 @@
 ---
 name: gaspol-review
-description: "Use when completing tasks, implementing major features, or before merging to verify work meets requirements. Dispatches code-reviewer subagent with enhanced placeholder detection, then an adversarial refutation pass that kills false-positive Critical/Important findings before they cost a wrong fix."
+description: "Use when completing tasks, implementing major features, or before merging to verify work meets requirements."
 ---
 
 # Sparkfluence Code Review

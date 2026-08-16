@@ -1,6 +1,6 @@
 ---
 name: gaspol-auto
-description: "Use when executing an implementation plan on a familiar codebase where per-phase checkpoint fatigue outweighs safety benefit. Runs full plan autonomously with hard-stop guardrails (test failure, destructive ops, placeholder triggers, Iron Law violations, 3+ consecutive errors) — pauses ONLY at blockers, then consolidated post-run report."
+description: "Use when executing an implementation plan on a familiar codebase where per-phase checkpoint fatigue outweighs safety benefit."
 ---
 
 # gaspol-auto

@@ -1,6 +1,6 @@
 ---
 name: gaspol-sync-docs
-description: "Use after implementing significant code changes to keep CLAUDE.md in sync with actual code. Also use standalone for quality audits or to capture session learnings. CLAUDE.md is the single source of truth — if it's outdated, the next session repeats mistakes. Three modes: post-implementation sync, quality audit, session learning capture."
+description: "Use after implementing significant code changes to keep CLAUDE.md in sync with actual code. Also use standalone for quality audits or to capture session learnings."
 ---
 
 # gaspol-sync-docs

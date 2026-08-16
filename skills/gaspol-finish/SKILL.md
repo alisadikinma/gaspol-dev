@@ -1,6 +1,6 @@
 ---
 name: gaspol-finish
-description: "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work. Guides completion with mandatory verification chain: plan-verifier, sync-docs, then presents structured merge/PR/cleanup options."
+description: "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work."
 ---
 
 # Finishing a Development Branch

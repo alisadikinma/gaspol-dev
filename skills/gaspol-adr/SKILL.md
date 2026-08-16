@@ -1,6 +1,6 @@
 ---
 name: gaspol-adr
-description: "Use when an architectural decision is made during brainstorm Phase 2 approach selection, plan architectural fork, or when diverging from precedent. Auto-captures decision as MADR-formatted Architecture Decision Record to knowledge base with supersession support and divergence logging."
+description: "Use when an architectural decision is made during brainstorm Phase 2 approach selection, plan architectural fork, or when diverging from precedent."
 ---
 
 # gaspol-adr

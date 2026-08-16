@@ -1,6 +1,6 @@
 ---
 name: gaspol-verify
-description: "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs. Requires running verification commands, checking plan fidelity, scanning for placeholders, and confirming output before making any success claims. Evidence before assertions, always."
+description: "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs."
 ---
 
 # Sparkfluence Verify
