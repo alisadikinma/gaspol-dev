@@ -44,6 +44,34 @@ Every decision during execution must pass through these three laws. If a decisio
 
 **MANDATORY before writing ANY code.** Do not skip any step.
 
+### Step 0: Check for Other Active In-Flight Ledgers
+
+Before reading the plan or touching any code, check whether another plan is already
+mid-flight in this same working tree:
+
+```bash
+skills/gaspol-execute/scripts/scan-active-ledgers .gaspol/progress
+```
+
+- **Prints nothing, or only the current plan's own ledger** (compare each printed filename
+  against the current plan's own `Ledger:` header field) — proceed straight to ticket/ledger
+  resolution below, then Step 1.
+- **Prints one or more filenames that do NOT belong to the plan you're about to execute** —
+  STOP. Use the **AskUserQuestion** tool with exactly these 4 options:
+  - **(a) Create a new worktree for this task via `gaspol-worktree`** (recommended — isolates
+    file edits from the in-flight ticket)
+  - **(b) Resume the in-flight ticket instead** — switch to executing that other plan
+  - **(c) Proceed here anyway** — accepts file-conflict risk with the in-flight ticket
+  - **(d) Something else**
+  Do not proceed into Step 1 until the user has chosen.
+
+**Ticket/ledger resolution:** read this plan's ticket from its header's `Ticket:`/`Ledger:`
+fields (written by `gaspol-plan`'s ticket-minting step) and use them directly. If the plan
+predates this feature and has no `Ticket:` field, call
+`skills/gaspol-execute/scripts/next-ticket <project-CLAUDE.md-path>` directly as a fallback —
+same AskUserQuestion-for-prefix logic as `gaspol-plan` uses if it exits 2 (no
+`## gaspol Ticket Counter` section yet).
+
 ### Step 1: Read the Plan
 
 Read the plan file from `docs/plans/` completely. Not skimming — read every section, every phase, every bullet point. Identify:

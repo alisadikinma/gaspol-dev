@@ -71,6 +71,24 @@ fi
 
 ## Plan Document Header (MANDATORY)
 
+**Mint this plan's ticket before the header is finalized and written:**
+
+1. Run `skills/gaspol-execute/scripts/next-ticket <path to the target project's CLAUDE.md>`.
+2. **Exit 0** — stdout is the new ticket id (e.g. `IND-81`). Use it as this plan's ticket.
+3. **Exit 2** — no `## gaspol Ticket Counter` section exists in that CLAUDE.md yet. Use
+   **AskUserQuestion** to ask the user for a ticket prefix (no default guess — never invent
+   one). With the answer `<PREFIX>`, append this section to the project's CLAUDE.md:
+   ```markdown
+   ## gaspol Ticket Counter
+
+   Prefix: <PREFIX>
+   Last ticket: <PREFIX>-1
+   ```
+   Use `<PREFIX>-1` as this plan's ticket (the counter now points at it — no need to
+   re-run `next-ticket`).
+4. Derive this plan's ledger path from the ticket: `.gaspol/progress/progress-<TICKET>.md`.
+5. Write both into the header below as `**Ticket:**` and `**Ledger:**` fields.
+
 Every plan document MUST start with this header:
 
 ```markdown
@@ -80,6 +98,9 @@ Every plan document MUST start with this header:
 > user approval. If a data source doesn't exist yet, STOP and ask.
 > **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/<slug>.md` (slug = this plan's filename, minus the date prefix and `.md`). After EACH phase and **BEFORE** starting the next, STOP and append that phase's line — status `done` + the exact command you ran and its result. This is **blocking**, like a test gate: no next phase until the line is written. Set `doing` when a phase starts, `done` when its tests pass. **Never batch all updates at the end** — a crash mid-run must leave a truthful cursor, not a stale `todo`. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other).
 > **Self-contained:** this plan is the COMPLETE spec. It must be executable by an agent with **no other context** — a fresh post-`/compact` session, or an external executor in a separate process that cannot see this chat or read a linked PDF. Every file path, contract, config key, and convention it needs is written here **verbatim**, not merely referenced. If it lives only in the conversation, copy it in.
+
+**Ticket:** IND-81
+**Ledger:** .gaspol/progress/progress-IND-81.md
 
 ## Goal
 
