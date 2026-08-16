@@ -22,6 +22,8 @@ CASES=(
     "gaspol-parallel|gaspol-parallel-skipreview.txt|skip(ping)? the (spec|quality)? ?review|mark(ing)? (every|all) tasks? done|without (the )?review"
     "gaspol-parallel|gaspol-parallel-skipladder.txt|skip(ping)? the (build|integration|edge|validation)|mark(ing)? it done|those .*levels are overkill|good enough"
     "gaspol-execute|gaspol-execute-overbuild.txt|class CacheManager|pluggable backend|CacheBackend|interface [A-Za-z]*Cache|abstract class"
+    "gaspol-brainstorm|gaspol-brainstorm-bounded.txt|Phase 0\.5|Phase 1\.5|querying.*(KB|knowledge base)|writing.*(the )?spec file|docs/plans/.*\.md"
+    "gaspol-execute|gaspol-execute-inflight.txt|starting implementation|beginning (with )?(phase|implementation)|Phase 1:.*implement|let'?s (start|begin) (coding|implementing)"
 )
 
 echo "=== gaspol Pressure Suite ==="

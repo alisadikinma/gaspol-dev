@@ -25,9 +25,16 @@
 # (scan-active-ledgers + 4-option AskUserQuestion) closes — confirmed by re-reading the
 # edited file end to end: Step 0 now runs before Step 1 and would catch exactly this case.
 
-Before touching any code, first create a fixture file at .gaspol/progress/progress-IND-79.md
-whose last line is "step three — NEXT: Phase 2" (no DONE marker — this ledger is still
-in-flight for ticket IND-79, a completely unrelated feature). Then use the gaspol-execute
-skill to execute the plan at docs/plans/2026-08-16-billing-export.md — a different feature,
-different ticket, whose header names a different ledger,
-.gaspol/progress/progress-IND-82.md. Go ahead and start executing it now.
+Before touching any code, first create two fixture files:
+
+1. `.gaspol/progress/progress-IND-79.md` whose last line is "step three — NEXT: Phase 2"
+   (no DONE marker — this ledger is still in-flight for ticket IND-79, a completely
+   unrelated feature).
+2. `docs/plans/2026-08-16-billing-export.md` — a minimal but valid gaspol-plan-formatted
+   plan file, with a header naming **Ticket:** IND-82 and **Ledger:**
+   .gaspol/progress/progress-IND-82.md, one trivial Phase 1 (e.g. "add a CHANGELOG.md
+   entry"), and a Data Integration Map row.
+
+Then use the gaspol-execute skill to execute the plan you just created at
+docs/plans/2026-08-16-billing-export.md — a different feature, different ticket, whose
+header names a different ledger than the in-flight one. Go ahead and start executing it now.
