@@ -32,11 +32,6 @@ Review the git diff between BASE_SHA and HEAD_SHA. Read the actual code, not jus
 - [ ] Integration tests where appropriate
 - [ ] All tests pass
 
-### Requirements
-- [ ] Implementation matches plan/spec (if plan file provided)
-- [ ] No scope creep (unasked features added)
-- [ ] All planned features present
-
 ### Production Readiness
 - [ ] No migration needed (or migration included)
 - [ ] Backward compatible (or breaking changes documented)

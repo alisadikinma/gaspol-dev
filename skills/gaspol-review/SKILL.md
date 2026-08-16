@@ -41,12 +41,56 @@ git rev-parse HEAD         # head SHA
 git log --oneline main..HEAD  # all commits on this branch
 ```
 
-### Step 2: Dispatch Code Reviewer
+### Step 2: Dispatch Code Reviewer (Tiered, Not Flat Fan-Out)
 
-Use the `code-reviewer.md` template in this skill's directory. Provide:
+**Why tiered:** research cited in `docs/plans/2026-08-16-gaspol-workflow-hardening.md`'s
+"Token-Efficiency Validation" section found that flat multi-agent fan-out is the **most costly**
+pattern for code review specifically, and multi-agent systems generally run ~15x the tokens of a
+single-agent interaction. A single well-scoped agent already covers most review scenarios, so
+extra lanes are added only when the trigger actually warrants the cost — never as a flat 5-way
+split. See that section (and its "Item 7" section) for the full citation trail.
+
+**Cost table (state this explicitly — it's the whole point of tiering):**
+
+| Tier | Lanes dispatched | Agent calls | Trigger |
+|------|-------------------|--------------|---------|
+| **Tier 0** (default, every review) | `agents/code-reviewer.md` only | **1** (same as before this change) | Always |
+| **Tier 1** | Tier 0 + `plan-artifact-reviewer.md` | **2** | Called from `gaspol-finish`, OR the plan is architectural-path per `gaspol-brainstorm`'s three-path classification |
+| **Tier 2** (opt-in) | Tier 1 + `git-history-reviewer.md` + `code-comment-reviewer.md` | **up to 4** (+1 conditionally, see PR-comments lane below) | A Tier 1 finding is contested/ambiguous, OR the user explicitly asks for a deeper review |
+
+**Tier 0 (always):** dispatch the (now-trimmed — its old "Requirements" checklist subsection was
+removed, that's now owned by Tier 1) `agents/code-reviewer.md` template. Provide:
 - BASE_SHA and HEAD_SHA for the review range
 - Relevant project context from CLAUDE.md
 - Any specific areas of concern
+
+Exactly as today — this is the unchanged default cost floor.
+
+**Tier 1 (add `plan-artifact-reviewer.md`):** triggered when this review is called from
+`gaspol-finish`, OR the plan is architectural-path per `gaspol-brainstorm`'s three-path
+classification (spike / bounded / architectural). Dispatch Tier 0 + `plan-artifact-reviewer.md`
+**concurrently** — single message, multiple Agent calls, both agents given the same
+review-package path (plus the plan file path for the plan-artifact lane). This is exactly 2
+agent calls total, never a flat 5-way split.
+
+**Tier 2 (opt-in only):** triggered when a Tier 1 finding is contested/ambiguous, or the user
+explicitly asks for a deeper review. Additionally dispatch `git-history-reviewer.md` and
+`code-comment-reviewer.md` — concurrently with the Tier 0/1 lanes if Tier 1 hasn't run yet, or as
+a follow-up concurrent wave if Tier 1 already ran and returned.
+
+**PR-comments lane (`pr-comments-reviewer.md`):** before any tier's dispatch, run a plain bash
+`gh pr view` existence check. Only include this lane in the current tier's concurrent dispatch if
+it succeeds (exit 0 — a PR exists for the current branch). No PR → no agent call at all, not a
+dispatch-then-report-N/A. This is the "+1 conditionally" in the Tier 2 cost row above (it can
+also apply at Tier 1 if a PR already exists at that point).
+
+**Concurrency rule:** all lanes active within one tier-dispatch run **concurrently** — a single
+message, multiple Agent calls — mirroring `gaspol-parallel`'s dispatch convention (each wave is
+one batch of concurrent Agent calls). Never dispatch lanes for the same tier-run sequentially.
+
+**Merge before refutation:** findings from whichever lanes ran MERGE into one list before Step
+2.5's adversarial refutation runs. Step 2.5's own text and logic are completely unchanged — it
+now simply receives a merged multi-lane list instead of a single-agent list.
 
 ### Step 2.5: Adversarial Refutation (Critical / Important findings only)
 
@@ -137,8 +181,8 @@ Reviewers — human or AI — can be wrong. If you disagree:
 
 ```
 1. Get SHAs:  git merge-base main HEAD && git rev-parse HEAD
-2. Dispatch:  code-reviewer subagent with code-reviewer.md template
-2.5 Refute:   one refuter per Critical/Important finding (default REFUTED) → drop false positives
+2. Dispatch:  Tier 0 (1 call, always) → +plan-artifact-reviewer at Tier 1 (2 calls) → +git-history/code-comment at Tier 2 (up to 4) → +pr-comments if `gh pr view` succeeds. All lanes in one tier run concurrently.
+2.5 Refute:   one refuter per Critical/Important finding from the merged lane list (default REFUTED) → drop false positives
 3. Read:      Every SURVIVING issue, categorize severity
 4. Fix:       Critical → Important → Minor
 5. Verify:    tsc --noEmit && tests pass
