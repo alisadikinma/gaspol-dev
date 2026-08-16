@@ -101,6 +101,7 @@ Every plan document MUST start with this header:
 
 **Ticket:** IND-81
 **Ledger:** .gaspol/progress/progress-IND-81.md
+**Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- optional — present ONLY when the Execution Handoff artifact offer was accepted and rendered; omit entirely otherwise, never write "n/a" -->
 
 ## Goal
 
@@ -225,7 +226,51 @@ A phase without verification criteria is **INCOMPLETE**. The executor will not k
 
 ## Execution Handoff
 
-After the plan is written and saved, offer the user three options:
+**Step 0 — Pre-Execution Artifact Offer (architectural path only):**
+
+The originating brainstorm classified this work as spike, bounded, or architectural (see
+`gaspol-brainstorm`'s "Three Paths" classification in its Phase 1). If that classification
+is known and is **spike** or **bounded**, skip this step silently — no offer, no mention,
+proceed straight to the three options below. If it's **architectural**, or if there's no
+way to tell from context, run the offer below.
+
+**Why default-to-offer is safe:** a full written plan document only exists at all because
+the originating brainstorm was architectural — per Phase 4's design in `gaspol-brainstorm`,
+the spike path ends in an answer and the bounded path ends in a short in-chat design plus
+approval; neither ever produces a spec/plan file. So by the time a plan document exists for
+`gaspol-plan` to hand off, architectural is implied by construction. The gate above is still
+checked explicitly, defensively, in case that assumption is ever wrong (a future path
+variant, or a plan seeded outside the normal brainstorm flow) — this is why the offer is
+gated rather than assumed unconditional.
+
+Use **AskUserQuestion**:
+
+> "Before execution starts, want me to render a design artifact of this plan's flow so you
+> can see it rendered — not just read the plan text — before code starts?"
+> - **Yes, render it** — produce the artifact (see below), then continue to the options.
+> - **Skip** — proceed straight to the execution options, no artifact.
+
+**On "Yes, render it":**
+- If the plan has UI phases (per the "Design Deliverable Column" convention above), render
+  an HTML mockup with the `Artifact` tool. Follow the pattern already established in
+  `skills/gaspol-brainstorm/visual-companion.md` for how the mockup is built and iterated —
+  that file is the source of truth for the pattern; don't duplicate its content here.
+- If the plan is backend/data-flow-heavy instead, render a mermaid diagram (sequence, flow,
+  or state — whichever fits the plan) embedded in an HTML page via the `Artifact` tool.
+- Once rendered and the user has looked at it and approved, record the artifact's URL/path
+  in the plan file's header as a new `**Artifact:**` field, positioned alongside the
+  existing `**Ticket:**` / `**Ledger:**` fields.
+
+**On "Skip" (or the step was silently skipped per the path gate above):** proceed straight
+to the three options below, unchanged. Do NOT add an `**Artifact:**` field to the header —
+omit it entirely rather than writing an "n/a" placeholder; absence of the field already
+means "not rendered."
+
+**Respects the Laziness Gate:** this step is opt-in, not a new mandatory ceremony step — it
+surfaces the pruning question ("does a human need to see this rendered before code starts?")
+as a real choice instead of silently skipping or silently forcing it either way.
+
+After the plan is written and saved, and the artifact offer above is resolved, offer the user three options:
 
 **Option 1: Execute in this session**
 > "Ready to start Phase A? I'll use gaspol-execute to implement with per-phase checkpoints."
