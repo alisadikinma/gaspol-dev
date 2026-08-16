@@ -303,13 +303,31 @@ Before finalizing:
 |-----------|-----------|-----------|-------|
 ```
 
-## Phase 6: Documentation (Hybrid File)
+## Phase 6: Documentation (Spec File)
 
-- (architectural path only) Write to `docs/plans/YYYY-MM-DD-<topic>.md` (NO `-design`
-  suffix — hybrid file). Spike/bounded paths stop at in-chat approval and skip this
-  spec-file write entirely — see Phase 1's Three Paths classification.
-- Structure: start with `## Design` section (from this brainstorm)
-- `gaspol-plan` will APPEND `## Implementation Plan` section to the same file later
+- (architectural path only) Mint this feature's ticket before writing the file:
+  1. Run `skills/gaspol-execute/scripts/next-ticket <path to the target project's CLAUDE.md>`.
+  2. **Exit 0** — stdout is the new ticket id (e.g. `IND-85`). Use it below.
+  3. **Exit 2** — no `## gaspol Ticket Counter` section exists yet. Use **AskUserQuestion**
+     to ask the user for a ticket prefix (no default guess). With the answer `<PREFIX>`,
+     append this section to the project's CLAUDE.md:
+     ```markdown
+     ## gaspol Ticket Counter
+
+     Prefix: <PREFIX>
+     Last ticket: <PREFIX>-1
+     ```
+     Use `<PREFIX>-1` as this feature's ticket.
+  Spike/bounded paths stop at in-chat approval and skip ticket-minting and this file write
+  entirely — see Phase 1's Three Paths classification.
+- Write to `docs/plans/<TICKET>-<kebab-topic>-spec.md` — the `-spec.md` suffix marks this as
+  brainstorm output, distinct from the `-plan.md` file `gaspol-plan` writes next. The
+  `<TICKET>` prefix (not a date) makes both files self-identifying at a glance: which
+  ticket, which stage.
+- File starts with a `**Ticket:** <TICKET>` line, then the `## Design` section (from this
+  brainstorm).
+- `gaspol-plan` reads this file's `**Ticket:**` field and reuses it — it writes a SEPARATE
+  `<TICKET>-<kebab-topic>-plan.md` file; it does not append to this one.
 - **Spec self-review (before handing off):** scan the written design for placeholders,
   internal contradictions, ambiguity, and scope creep — fix inline. A spec that ships its
   own ambiguity guarantees a wrong implementation.
@@ -317,7 +335,8 @@ Before finalizing:
   ("I've written the design to `<path>` — take a look before we plan"). Revise on requested
   changes; only proceed to gaspol-plan once they approve the written spec.
 - Ask: "Ready to set up for implementation?"
-- If yes --> use gaspol-plan to create implementation plan (appends to this file)
+- If yes --> use gaspol-plan to create the implementation plan (separate `-plan.md` file,
+  same ticket)
 
 ## Key Principles
 
@@ -339,4 +358,4 @@ Before finalizing:
   - `gaspol-adr` (Phase 2 when user picks approach from 2+ options)
 - **Reads from KB:** `gaspol-knowledge/` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
 - **Writes to KB:** via `gaspol-adr` (decisions) and (after gaspol-finish) `gaspol-learn` (patterns)
-- **Leads to:** `gaspol-plan` (after design approved — appends to same file per hybrid file structure)
+- **Leads to:** `gaspol-plan` (after design approved — writes a separate `-plan.md` file, same ticket)

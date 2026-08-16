@@ -69,7 +69,9 @@ Triggered because (or skipped because):
 -> Waiting for approval before proceeding.
 ```
 
-**Then append the ledger line** to `.gaspol/progress.md` (see gaspol-execute Checkpoint Rule 6):
+**Then update the ledger** (the plan's resolved per-plan `.gaspol/progress/progress-<TICKET>.md`,
+see gaspol-execute Checkpoint Rule 6): flip this phase's `## Checklist` line to `- [x] Phase [X]: [name] — DONE`,
+then append the log line —
 `Phase [X] [name] — COMPLETE — <summary> — NEXT: <phase X+1 name, or "DONE">`. The `### Next Phase`
 value above IS the `NEXT:` cursor — carry it into the ledger so a resumed session knows where to pick up.
 

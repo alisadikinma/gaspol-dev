@@ -20,7 +20,7 @@ Every `FOUND` verdict MUST include a code quote with file:line reference. Verdic
 
 ## Input Required
 
-- **Plan file path** (e.g., `docs/plans/YYYY-MM-DD-<topic>.md`)
+- **Plan file path** (e.g., `docs/plans/<TICKET>-<topic>-plan.md`)
 - Base SHA and HEAD SHA (or "working tree" if uncommitted changes exist)
 
 ## Process

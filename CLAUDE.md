@@ -38,7 +38,7 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-design/rules/` | Anti-AI-slop hard rules + gaspol-specific reasoning |
 | `skills/gaspol-design/templates/` | Multi-framework component templates |
 | `skills/gaspol-design/integration/ui-ux-pro-max-bridge.py` | Optional v2.0 delegation bridge |
-| `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + hybrid file |
+| `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file |
 | `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking |
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
 | `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint with Auto-Review section |
@@ -169,7 +169,7 @@ When multiple skills apply:
 ```text
 brainstorm (Phase 0.5 KB + 1.5 novelty + 2.5 design gate + 3 design)
     ↓
-plan (hybrid file, TDD step 1 mandatory, design deliverable column)
+plan (ticket-prefixed `-plan.md` file, TDD step 1 mandatory, design deliverable column)
     ↓
 execute (TDD hard gate + tiered auto-review + plan-verifier BLOCKING)
     OR
@@ -446,9 +446,10 @@ When user wants to create, add, or modify anything:
 7. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — invokes `gaspol-design` power peer
 8. **Phase 4**: Implementation feasibility check (REAL data paths, existing backend)
 9. **Phase 5**: Present design in 200-300 word sections, AskUserQuestion confirm per section, include Data Integration Map
-10. **Phase 6**: Write to `docs/plans/YYYY-MM-DD-<topic>.md` (HYBRID file — no -design suffix);
+10. **Phase 6**: Mint ticket, write to `docs/plans/<TICKET>-<topic>-spec.md`;
     **spec self-review (v1.5)** (scan for placeholder/contradiction/ambiguity/scope) + **user
-    reviews the written spec** before offering to proceed to `gaspol-plan`
+    reviews the written spec** before offering to proceed to `gaspol-plan`, which writes a
+    separate `<TICKET>-<topic>-plan.md` (same ticket, reused — not re-minted)
 
 ### TDD Enforcement (gaspol-tdd) — Hard-Gated by execute in v1.2
 
@@ -515,7 +516,7 @@ Every plan MUST include:
 - Bite-sized tasks (2-5 minutes each, one action per step)
 - Plan header with gaspol-execute instruction
 
-Plans saved to: `docs/plans/YYYY-MM-DD-<feature-name>.md` (hybrid — brainstorm + plan same file; split only if >500 lines)
+Plans saved to: `docs/plans/<TICKET>-<feature-name>-plan.md` — ticket reused from the preceding `gaspol-brainstorm` spec file (`<TICKET>-<feature-name>-spec.md`) if one exists, else minted fresh. Spec and plan are always separate files; the suffix (`-spec.md` vs `-plan.md`) says which stage produced it.
 
 ### Parallel Execution (gaspol-parallel) — Mode Field in v1.2, Worktree + Continuous in v1.3, SDD harness in v1.6
 

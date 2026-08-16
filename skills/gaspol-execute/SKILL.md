@@ -111,6 +111,22 @@ from its `NEXT:` action rather than blindly restarting the phase. Absent a curso
 ledger), fall back to continuing from the first unfinished phase. TodoWrite is in-memory and
 is lost on compaction; the ledger is the source of truth for "where were we?".
 
+**Initialize on first write (new ledger only).** If the resolved ledger file does not exist
+yet, create it (and its parent dir) with a `## Checklist` section listing every phase from
+the plan, unchecked, before any phase starts:
+```markdown
+# Progress Ledger — <TICKET>
+
+## Checklist
+- [ ] Phase 1: <name>
+- [ ] Phase 2: <name>
+
+## Log
+```
+This checklist is the at-a-glance progress view (see Checkpoint Rule 6 below); the `## Log`
+section keeps the existing append-only history with handoff cursors. Skip this init step on
+resume — an existing ledger's checklist already reflects prior progress.
+
 Create a TodoWrite entry for EVERY phase in the plan. The mapping must be 1:1 — if the plan has 6 phases, the TodoWrite has 6 items. Do not combine phases. Do not add phases the plan doesn't have.
 
 ### Step 4: List Modified Files
@@ -221,16 +237,23 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 3. **Report deviations.** If anything differs from the plan, explain what and why.
 4. **Classify data sources.** Every component that handles data must list its source and whether it is real or placeholder.
 5. **List all file changes.** Every file created or modified in the phase.
-6. **Append to the durable ledger (with handoff cursor).** After presenting the checkpoint, append one line to
-   the plan's resolved ledger (per-plan `.gaspol/progress/<slug>.md`, else the shared `.gaspol/progress.md`; create the file, and its parent dir, if absent):
-   `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <phase X+1 name, or "DONE" if last phase>`.
-   If a phase is left **unfinished** (a blocker, an approaching `/compact`, or you pause mid-phase), append instead:
-   `Phase [X] [name] — WIP — <what's done so far> — BLOCKER: <what's stuck / why paused> — NEXT: <the exact action to resume>`.
-   The trailing `NEXT:`/`BLOCKER:` fields are the **handoff cursor** — a resumed session reads the LAST line to
+6. **Update the durable ledger (checklist toggle + log line with handoff cursor).** After
+   presenting the checkpoint, update the plan's resolved ledger (per-plan
+   `.gaspol/progress/<slug>.md`, else the shared `.gaspol/progress.md`; create the file, and
+   its parent dir, if absent) in two places:
+   - **Checklist (in-place edit):** flip this phase's `## Checklist` line from
+     `- [ ] Phase [X]: [name]` to `- [x] Phase [X]: [name] — DONE` on completion, or to
+     `- [~] Phase [X]: [name] — WIP` if left unfinished. This is the at-a-glance progress
+     view — open the file, see what's done, without reading the whole log.
+   - **Log (append-only):** append one line —
+     `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <phase X+1 name, or "DONE" if last phase>`.
+     If a phase is left **unfinished** (a blocker, an approaching `/compact`, or you pause mid-phase), append instead:
+     `Phase [X] [name] — WIP — <what's done so far> — BLOCKER: <what's stuck / why paused> — NEXT: <the exact action to resume>`.
+   The trailing `NEXT:`/`BLOCKER:` fields are the **handoff cursor** — a resumed session reads the LAST log line to
    know precisely where to continue and what's blocking, instead of inferring "first unfinished phase". Older
    lines without the suffix still parse (backward-compatible; NEXT/BLOCKER are additive).
    This survives `/compact` and session restart, so a resumed session knows exactly which
-   phases are done (see Step 3 resume read). **Never** write the ledger under `.git/` —
+   phases are done (see Step 3 resume read + checklist state). **Never** write the ledger under `.git/` —
    Claude Code treats `.git/` as a protected path and blocks agent writes there. Ensure the
    project `.gitignore` contains `.gaspol/` (it is working-tree scratch, never committed).
    Caveat: `git clean -fdx` deletes it — recover phase state from `git log` if that happens.

@@ -53,7 +53,7 @@ Dispatch the upgraded `plan-verifier` agent (step-level, evidence-based) to audi
 **This step is BLOCKING.** You CANNOT present merge/PR options until the verdict is `CLEAN`.
 
 Input:
-- Plan file path (from `docs/plans/YYYY-MM-DD-<topic>.md`)
+- Plan file path (from `docs/plans/<TICKET>-<topic>-plan.md`)
 - Base SHA and HEAD SHA (diff scope)
 
 Output — if verdict is:

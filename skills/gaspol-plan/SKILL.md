@@ -40,40 +40,32 @@ Before writing a single line of the plan, you MUST:
 
 If you skip this step, the plan will inevitably reinvent existing abstractions.
 
-## Save Plans To (Hybrid File Structure)
+## Save Plans To (Ticket-Prefixed, Spec/Plan Split)
 
-Single file default — brainstorm + plan live in the same document:
+Every plan is its own file, always separate from the spec:
 
 ```
-docs/plans/YYYY-MM-DD-<feature-name>.md
+docs/plans/<TICKET>-<kebab-topic>-plan.md
 ```
 
-**Append behavior:** If a file with this name already exists (e.g., brainstorm already produced the design section), APPEND a new `## Implementation Plan` section to the same file. Do NOT create a separate `-plan.md` file.
+The `<TICKET>` prefix and `-plan.md` suffix make the file self-identifying at a glance —
+which ticket, and that this is the plan stage (not `-spec.md`, brainstorm's output). No
+date prefix, no hybrid append, no line-count split logic — one plan, one file, always.
 
-**Split conditions** (create separate `-plan.md` file only when):
-- Existing file would exceed 500 lines after appending
-- User explicitly requests `--split` flag
-- Design approved by stakeholder independently of plan (e.g., client sign-off)
-
-Check file existence before writing:
-```bash
-# Pseudo-logic:
-if [ -f "docs/plans/YYYY-MM-DD-<topic>.md" ]; then
-  if [ $(wc -l < "docs/plans/YYYY-MM-DD-<topic>.md") -gt 500 ]; then
-    # Split: write to YYYY-MM-DD-<topic>-plan.md
-  else
-    # Append ## Implementation Plan section
-  fi
-else
-  # Create new file with full plan
-fi
-```
+**Ticket resolution (before writing anything):**
+- If a matching `docs/plans/<TICKET>-<kebab-topic>-spec.md` exists (this plan follows a
+  `gaspol-brainstorm` architectural-path session) — read its `**Ticket:**` header field and
+  reuse that ticket. Do not mint a new one.
+- Otherwise (standalone plan, no preceding spec) — mint a fresh ticket per the header step
+  below.
 
 ## Plan Document Header (MANDATORY)
 
-**Mint this plan's ticket before the header is finalized and written:**
+**Resolve this plan's ticket before the header is finalized and written** (see Ticket
+resolution above — reuse the spec file's ticket if one exists):
 
-1. Run `skills/gaspol-execute/scripts/next-ticket <path to the target project's CLAUDE.md>`.
+1. If no spec file ticket was found, run
+   `skills/gaspol-execute/scripts/next-ticket <path to the target project's CLAUDE.md>`.
 2. **Exit 0** — stdout is the new ticket id (e.g. `IND-81`). Use it as this plan's ticket.
 3. **Exit 2** — no `## gaspol Ticket Counter` section exists in that CLAUDE.md yet. Use
    **AskUserQuestion** to ask the user for a ticket prefix (no default guess — never invent
@@ -87,7 +79,9 @@ fi
    Use `<PREFIX>-1` as this plan's ticket (the counter now points at it — no need to
    re-run `next-ticket`).
 4. Derive this plan's ledger path from the ticket: `.gaspol/progress/progress-<TICKET>.md`.
-5. Write both into the header below as `**Ticket:**` and `**Ledger:**` fields.
+5. Derive the plan filename from the ticket: `docs/plans/<TICKET>-<kebab-topic>-plan.md`.
+6. Write the ticket, ledger, and (if a spec preceded this plan) spec path into the header
+   below as `**Ticket:**`, `**Ledger:**`, and `**Spec:**` fields.
 
 Every plan document MUST start with this header:
 
@@ -96,11 +90,12 @@ Every plan document MUST start with this header:
 > **CRITICAL:** This plan specifies real integrations. During execution,
 > NEVER substitute placeholders for real data sources without explicit
 > user approval. If a data source doesn't exist yet, STOP and ask.
-> **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/<slug>.md` (slug = this plan's filename, minus the date prefix and `.md`). After EACH phase and **BEFORE** starting the next, STOP and append that phase's line — status `done` + the exact command you ran and its result. This is **blocking**, like a test gate: no next phase until the line is written. Set `doing` when a phase starts, `done` when its tests pass. **Never batch all updates at the end** — a crash mid-run must leave a truthful cursor, not a stale `todo`. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other).
+> **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/progress-<TICKET>.md` (TICKET = this plan's ticket, from the header below). After EACH phase and **BEFORE** starting the next, STOP and append that phase's line — status `done` + the exact command you ran and its result. This is **blocking**, like a test gate: no next phase until the line is written. Set `doing` when a phase starts, `done` when its tests pass. **Never batch all updates at the end** — a crash mid-run must leave a truthful cursor, not a stale `todo`. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other).
 > **Self-contained:** this plan is the COMPLETE spec. It must be executable by an agent with **no other context** — a fresh post-`/compact` session, or an external executor in a separate process that cannot see this chat or read a linked PDF. Every file path, contract, config key, and convention it needs is written here **verbatim**, not merely referenced. If it lives only in the conversation, copy it in.
 
 **Ticket:** IND-81
 **Ledger:** .gaspol/progress/progress-IND-81.md
+**Spec:** docs/plans/IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
 **Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- optional — present ONLY when the Execution Handoff artifact offer was accepted and rendered; omit entirely otherwise, never write "n/a" -->
 
 ## Goal
@@ -226,22 +221,13 @@ A phase without verification criteria is **INCOMPLETE**. The executor will not k
 
 ## Execution Handoff
 
-**Step 0 — Pre-Execution Artifact Offer (architectural path only):**
+**Step 0 — Post-Plan Artifact Offer (always, every plan file, unconditional):**
 
-The originating brainstorm classified this work as spike, bounded, or architectural (see
-`gaspol-brainstorm`'s "Three Paths" classification in its Phase 1). If that classification
-is known and is **spike** or **bounded**, skip this step silently — no offer, no mention,
-proceed straight to the three options below. If it's **architectural**, or if there's no
-way to tell from context, run the offer below.
-
-**Why default-to-offer is safe:** a full written plan document only exists at all because
-the originating brainstorm was architectural — per Phase 4's design in `gaspol-brainstorm`,
-the spike path ends in an answer and the bounded path ends in a short in-chat design plus
-approval; neither ever produces a spec/plan file. So by the time a plan document exists for
-`gaspol-plan` to hand off, architectural is implied by construction. The gate above is still
-checked explicitly, defensively, in case that assumption is ever wrong (a future path
-variant, or a plan seeded outside the normal brainstorm flow) — this is why the offer is
-gated rather than assumed unconditional.
+Every time a plan file finishes being written, offer to render it as a visual artifact —
+no path gate, no silent skip. A written plan document only exists because the work already
+cleared the spike/bounded/architectural funnel (see `gaspol-brainstorm`'s "Three Paths"
+classification in its Phase 1), so there is no case where this offer should be skipped
+without asking.
 
 Use **AskUserQuestion**:
 
