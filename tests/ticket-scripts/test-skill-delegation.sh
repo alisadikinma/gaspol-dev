@@ -247,12 +247,62 @@ test_review_confidence() {
 }
 
 # ---------------------------------------------------------------------------
+# Phase D — the documentation must agree with the filesystem
+# ---------------------------------------------------------------------------
+# A skill count is the cheapest thing in this repo to get wrong and the easiest
+# to leave wrong: nothing breaks, it just quietly lies to every reader. Derive
+# it from `ls`, never from memory.
+test_docs_consistent() {
+  local n
+  n="$(ls skills | grep -v '^_shared$' | wc -l | tr -d ' ')"
+
+  if grep -q "\*\*${n} development skills" CLAUDE.md; then
+    pass "CLAUDE.md skill count matches the filesystem (${n})"
+  else
+    fail "CLAUDE.md skill count matches the filesystem (${n})" \
+      "$(grep -o '\*\*[0-9]* development skills' CLAUDE.md || echo 'no count line found')"
+  fi
+
+  if grep -q "^## The ${n} skills" README.md; then
+    pass "README.md skill count matches the filesystem (${n})"
+  else
+    fail "README.md skill count matches the filesystem (${n})" \
+      "$(grep -o '^## The [0-9]* skills' README.md || echo 'no count heading found')"
+  fi
+
+  # Two files carry the version; a release where they disagree is a release
+  # where `claude plugin update` and the marketplace listing tell different
+  # stories about what a user just installed.
+  local pv mv
+  pv="$(grep -m1 '"version"' .claude-plugin/plugin.json | tr -dc '0-9.')"
+  mv="$(grep -m1 '"version"' .claude-plugin/marketplace.json | tr -dc '0-9.')"
+  if [[ -n "$pv" && "$pv" == "$mv" ]]; then
+    pass "plugin.json and marketplace.json agree on version ($pv)"
+  else
+    fail "plugin.json and marketplace.json agree on version" "plugin=$pv marketplace=$mv"
+  fi
+
+  if grep -q "^\*\*Version:\*\* ${pv}$" CLAUDE.md; then
+    pass "CLAUDE.md footer version matches ($pv)"
+  else
+    fail "CLAUDE.md footer version matches ($pv)" \
+      "$(grep '^\*\*Version:\*\*' CLAUDE.md || echo 'no footer version')"
+  fi
+
+  # The anti-slop rules are now single-source. If CLAUDE.md ever stops naming
+  # them, the only pointer to the surviving taste layer is gone.
+  assert_grep "CLAUDE.md still carries the anti-AI-slop rules" \
+    "Anti-AI-slop" CLAUDE.md
+}
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 self_check_sweep
 test_design_delegation
 test_security_delegation
 test_review_confidence
+test_docs_consistent
 
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-skill-delegation: $FAILURES assertion(s) failed" >&2

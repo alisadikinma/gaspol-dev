@@ -1,5 +1,61 @@
 # Changelog
 
+## [1.14.0] - 2026-08-21
+
+### Changed — two skills deleted in favour of tooling every user already has (IDS-2)
+
+gaspol carried a 1.7MB fork of the ui-ux-pro-max design database and a 12KB security checklist.
+Both duplicated something already installed: the ui-ux-pro-max plugin itself, and
+`/security-review`, which is compiled into the Claude Code CLI binary. Forks drift; the
+originals do not. Both were deleted, and the parts with no equivalent upstream were kept.
+
+- **`gaspol-design` deleted.** Design intelligence now comes from the `ui-ux-pro-max` plugin,
+  referenced **softly** — there is deliberately no `dependencies` key in `plugin.json`, because
+  that field is all-or-nothing and a yanked third-party marketplace entry would disable every
+  remaining gaspol skill. If the plugin is missing, say so, point at
+  `claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill`, and carry on.
+- **Three parts survived the deletion**, each because ui-ux-pro-max has no equivalent:
+  `design_audit.py` (a stdlib-only STATIC source lint; the upstream audit needs Playwright and a
+  running URL, so it cannot serve `gaspol-verify` Layer 4, which runs offline and pre-merge),
+  `anti-ai-slop.md`, and `reasoning-gaspol.md`. All three now live under `skills/gaspol-verify/`.
+  The plan had claimed CLAUDE.md already duplicated the anti-slop rules; it holds a two-line
+  summary against 119 lines of source, so execution paused and the premise was corrected rather
+  than followed.
+- **`gaspol-security-review` deleted.** `gaspol-finish` Step 4 and `gaspol-execute` Step 3.6 now
+  run the built-in `/security-review`. The gate is unchanged: Step 4 still ALWAYS runs on every
+  branch and still blocks merge options on any finding, and Step 3.6 keeps its full trigger list.
+  New clause: if `/security-review` is unavailable, walk the same ground by hand and never record
+  the step as passed when it did not run.
+- **The security pressure test was kept, not deleted.** It tests whether the agent refuses to
+  bless string-concatenated SQL and a JWT in `localStorage` under time pressure — discipline that
+  did not move to the built-in, which only fires when explicitly invoked. Retargeted at
+  `gaspol-execute`; fixture renamed `security-ship-pressure.txt`.
+
+### Added — gaspol-review absorbs the two mechanics it was missing
+
+`gaspol-review` was measured against Anthropic's official `code-review` plugin and **kept**. That
+plugin is PR-only (all its tools are `gh pr ...`, it posts to a GitHub comment) so it cannot gate
+a local branch before merge, and gaspol-review already runs all five of its review lanes plus
+tiering and an adversarial refutation pass it lacks. Two things it did better are now absorbed:
+
+- **Confidence rubric.** Each refuter returns `CONFIDENCE: 0-100` against a written five-point
+  scale; below 80 a finding is recorded as noise rather than fixed.
+- **False-positive catalogue.** Seven score-0 categories, including anything a linter or
+  typechecker catches — with an explicit instruction not to run builds during review.
+- **The verdict outranks the score.** REFUTED drops a finding at any score; an UNVERIFIABLE
+  Critical still blocks regardless of score. The threshold can only demote a CONFIRMED finding to
+  noise, never promote a REFUTED one or rescue a blocked one. Two Red Flags rows guard each
+  direction.
+- `/code-review ultra` documented as the deeper pass — user-triggered and billed, with an
+  explicit "Claude cannot launch it".
+
+### Fixed
+
+- CLAUDE.md documented the finish chain as five steps; it has been six since v1.8. `gaspol-review`
+  (Step 3) and the security review (Step 4) were missing from the documented chain entirely.
+- Skill count corrected to 20 across CLAUDE.md, README.md, and marketplace.json, and the new
+  `test-skill-delegation.sh` derives it from `ls` so it cannot silently drift again.
+
 ## [1.13.0] - 2026-08-20
 
 ### Added — output naming standard: dated spec/plan files, PROGRESS-<TICKET>.md ledger, detect-stack (IDS-1)

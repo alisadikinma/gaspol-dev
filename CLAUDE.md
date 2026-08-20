@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **22 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
+Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
 
 ## Architecture
 
@@ -575,15 +575,22 @@ Response pattern: READ → UNDERSTAND → VERIFY → EVALUATE → RESPOND → IM
 
 When feedback is unclear: STOP. Do not guess. Ask for clarification with specific interpretation options.
 
-### Finishing Work (gaspol-finish) — Plan-Verifier Blocking in v1.2
+### Finishing Work (gaspol-finish) — six-step chain, three of them BLOCKING
 
-Pre-finish verification chain (MANDATORY):
+Pre-finish verification chain (MANDATORY — all six, in order, none conditional on the diff):
 
 1. Run `gaspol-verify` (all 4 layers)
-2. Run `plan-verifier` agent **BLOCKING** (step-level, evidence-based, spot-check 3 random FOUND items)
-3. If plan-verifier = BLOCKING → return to execute, fix issues, re-run
-4. Run `gaspol-sync-docs` (update CLAUDE.md)
-5. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
+2. Run `plan-verifier` agent **BLOCKING** (step-level, evidence-based, spot-check 3 random FOUND items).
+   If BLOCKING → return to execute, fix, re-run. Do not waste a review pass on code about to change.
+3. Run `gaspol-review` at **Tier 1** — **BLOCKING** on any Critical finding that survives the
+   Step 2.5 refutation pass. Fix and re-run before proceeding.
+4. Run the built-in **`/security-review`** — **ALWAYS**, on every branch, regardless of whether
+   the diff looks security-sensitive. A finding BLOCKS: resolve via AskUserQuestion
+   (`[Fix now]` / `[Accept risk with documented reason]`) before any merge option is offered.
+   If the command is unavailable, say so and walk the same ground by hand — never record it as
+   passed when it did not run.
+5. Run `gaspol-sync-docs` (update CLAUDE.md)
+6. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
 
 Then present exactly 4 options via AskUserQuestion:
 
@@ -709,5 +716,5 @@ Last ticket: IDS-2
 
 ---
 
-**Version:** 1.13.0
+**Version:** 1.14.0
 **Last Updated:** August 2026

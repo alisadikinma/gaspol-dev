@@ -18,7 +18,7 @@ You plan a feature carefully. Claude executes it. And then you find:
 - A new hook created, when an identical one already exists in the codebase
 - No memory of decisions made last month — same debates every session
 
-**gaspol-dev fixes this.** 22 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, isolate parallel work in git worktrees, auto-trigger the right skill at the right moment, and build a cross-project knowledge base that **compounds over time**.
+**gaspol-dev fixes this.** 20 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, isolate parallel work in git worktrees, auto-trigger the right skill at the right moment, and build a cross-project knowledge base that **compounds over time**.
 
 ---
 
@@ -55,7 +55,7 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 
 ---
 
-## The 22 skills (organized by workflow)
+## The 20 skills (organized by workflow)
 
 ### Planning & Design
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + design gate (Phase 2.5)
