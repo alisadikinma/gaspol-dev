@@ -258,8 +258,8 @@ Design deliverable is produced by invoking the `ui-ux-pro-max` skill during plan
 user input or file uploads, a new API endpoint, payment, or sensitive data**, the
 phase's Verification block MUST include a security line (e.g. "inputs validated,
 queries parameterized, authz server-side, no secrets in source"). `gaspol-execute`
-auto-invokes `gaspol-security-review` for these phases (Step 3.6), and
-`gaspol-finish` runs the Pre-Deployment Security Checklist before merge.
+auto-runs the built-in `/security-review` for these phases (Step 3.6), and
+`gaspol-finish` runs it again on the whole branch before merge.
 
 **Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior
 (classification, extraction, generation, RAG, routing), define evals at plan time via

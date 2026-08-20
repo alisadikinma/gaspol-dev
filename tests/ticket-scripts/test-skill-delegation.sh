@@ -164,10 +164,49 @@ test_design_delegation() {
 }
 
 # ---------------------------------------------------------------------------
+# Phase B — security review delegated to the CLI built-in
+# ---------------------------------------------------------------------------
+# /security-review is compiled into the Claude Code binary itself: version
+# 2.1.206 registers {name:"security-review", description:"Complete a security
+# review of the pending changes on the current branch"} with a built-in prompt
+# body. No plugin, no marketplace, no install -- which is why the local
+# 12KB checklist fork could go without leaving a hole.
+#
+# What must NOT change: the gate. gaspol-finish Step 4 still runs on EVERY
+# branch regardless of how security-sensitive the diff looks, and still BLOCKS
+# on a finding. This phase changes who performs the check, never whether it
+# happens.
+test_security_delegation() {
+  assert_absent_path "gaspol-security-review skill directory is gone" \
+    "skills/gaspol-security-review"
+
+  assert_grep "gaspol-finish invokes the built-in /security-review" \
+    "/security-review" skills/gaspol-finish/SKILL.md
+
+  assert_grep "gaspol-execute invokes the built-in /security-review" \
+    "/security-review" skills/gaspol-execute/SKILL.md
+
+  # The three properties of the gate, asserted individually so a reword that
+  # quietly drops one cannot pass.
+  assert_grep "gaspol-finish Step 4 still ALWAYS runs from the chain" \
+    "ALWAYS runs" skills/gaspol-finish/SKILL.md
+
+  assert_grep "gaspol-finish Step 4 still blocks merge options on a finding" \
+    "Never present merge options with an unresolved security" skills/gaspol-finish/SKILL.md
+
+  assert_grep "gaspol-execute Step 3.6 keeps its full trigger list" \
+    "payment" skills/gaspol-execute/SKILL.md
+
+  assert_no_live_reference "no live reference to gaspol-security-review" \
+    "gaspol-security-review"
+}
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 self_check_sweep
 test_design_delegation
+test_security_delegation
 
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-skill-delegation: $FAILURES assertion(s) failed" >&2

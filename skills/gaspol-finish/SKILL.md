@@ -93,19 +93,26 @@ finding STOPS the chain here.
 - If gaspol-review (this step) is BLOCKING, fix and re-run gaspol-review before proceeding. Do
   not proceed to Step 4 until it is clean.
 
-### Step 4: Run gaspol-security-review -- ALWAYS runs from this chain
+### Step 4: Run the built-in `/security-review` -- ALWAYS runs from this chain
 
-Run the Pre-Deployment Security Checklist from `gaspol-security-review`. Its own SKILL.md
-description gates most call sites on a conditional trigger (auth, secrets, user input, file
-uploads, API endpoints, payment, or sensitive data) — but **from this finish chain the checklist
-ALWAYS runs**, on every branch, regardless of whether the diff appears security-sensitive. This
-is not conditional-trigger-only here. Its checklist result gets attached to the finish report.
+Run the **`/security-review`** slash command. It is a Claude Code built-in — compiled into the
+CLI itself, no plugin and no install — and it reviews the pending changes on the current branch.
+gaspol used to ship its own forked checklist here; the built-in supersedes it, so the fork was
+deleted in v1.14.0 rather than left to drift.
 
-- If a checklist item fails on an insecure pattern (string-concatenated SQL, JWT in
-  `localStorage`, secrets in source, missing server-side authz), treat it like a
-  BLOCKING finding: STOP and use AskUserQuestion — `[Fix now]` / `[Accept risk with
-  documented reason]`. Never present merge options with an unresolved security FAIL.
-- Report the result even when every item passes, e.g. "Security checklist: PASSED (N/N items)."
+**From this finish chain it ALWAYS runs**, on every branch, regardless of whether the diff appears
+security-sensitive. It is not conditional-trigger-only here. Its result gets attached to the
+finish report.
+
+- If it reports an insecure pattern (string-concatenated SQL, JWT in `localStorage`, secrets in
+  source, missing server-side authz), treat it like a BLOCKING finding: STOP and use
+  AskUserQuestion — `[Fix now]` / `[Accept risk with documented reason]`.
+  Never present merge options with an unresolved security finding.
+- Report the result even when it is clean, e.g. "Security review: PASSED (`/security-review`, no
+  findings)."
+- If `/security-review` is unavailable in this environment, say so explicitly and walk the same
+  ground by hand — secrets in source, unparameterized queries, missing server-side authz, XSS
+  sinks, CSRF, rate limiting. **Never record the step as passed when it did not run.**
 
 ### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- unchanged
 
@@ -132,7 +139,7 @@ Verification Chain Status:
 [x] Step 1 gaspol-verify: PASSED (or: passed earlier this session)
 [x] Step 2 Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
 [x] Step 3 gaspol-review (Tier 1): CLEAN (BLOCKING gate passed, 0 surviving Critical findings)
-[x] Step 4 Security checklist (gaspol-security-review): PASSED
+[x] Step 4 Security review (built-in /security-review): PASSED
 [x] Step 5 gaspol-sync-docs: COMPLETED
 [x] Step 6 gaspol-learn: COMPLETED (or: user declined capture)
 ```
@@ -279,7 +286,7 @@ Changes:
 | `gaspol-verify` | Step 1 of verification chain |
 | `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
 | `gaspol-review` | Tier 1 dispatch, BLOCKING on surviving Critical findings (Step 3 of chain) |
-| `gaspol-security-review` | Always runs from this call site, gates on checklist FAIL (Step 4 of chain) |
+| `/security-review` (CLI built-in) | Always runs from this call site, gates on any finding (Step 4 of chain) |
 | `gaspol-sync-docs` | Step 5 of verification chain |
 | `gaspol-learn` | Step 6 of verification chain (pattern capture) |
 | `gaspol-execute` | Finish is the final step of execute workflow |

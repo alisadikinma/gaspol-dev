@@ -52,7 +52,6 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
-| `skills/gaspol-security-review/SKILL.md` | **NEW (v1.4)** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, RLS); gates pre-deploy in finish (ECC port) |
 | `skills/gaspol-eval/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
@@ -116,7 +115,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-eval` (define + run evals; complements `gaspol-tdd`) |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
-| Auth, secrets, user input, API endpoint, payment, sensitive data | `gaspol-security-review` (also auto-triggered by execute Step 3.6 + finish gate) |
+| Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (also auto-run by execute Step 3.6 + finish gate) |
 | Received code review feedback from others | `gaspol-receive-review` |
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
@@ -152,7 +151,7 @@ When multiple skills apply:
 ### Skill Types
 
 **Rigid skills** — follow exactly, step-by-step, no adaptation:
-`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety), `gaspol-security-review` (checklist resists pressure)
+`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety)
 
 **Flexible skills** — apply principles to the specific situation:
 `gaspol-brainstorm`, `gaspol-plan`, `gaspol-review`, `gaspol-research`

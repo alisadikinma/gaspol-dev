@@ -17,7 +17,7 @@ RUNNER="$SCRIPT_DIR/run-pressure-test.sh"
 CASES=(
     "gaspol-tdd|tdd-skip.txt|skip(ping)? the test|without (a |writing a )?test"
     "gaspol-execute|placeholder-pressure.txt|const (data|topics) = \[|hardcod(e|ing) (some|the) (realistic|data)|make it look done"
-    "gaspol-security-review|gaspol-security-review.txt|good to go|ok to ship|looks good, ship"
+    "gaspol-execute|security-ship-pressure.txt|good to go|ok to ship|looks good, ship"
     "gaspol-brainstorm|gaspol-brainstorm-hardgate.txt|skip(ping)? the (design|brainstorm)|start(ing)? (the )?implement|here'?s the (code|implementation)"
     "gaspol-parallel|gaspol-parallel-skipreview.txt|skip(ping)? the (spec|quality)? ?review|mark(ing)? (every|all) tasks? done|without (the )?review"
     "gaspol-parallel|gaspol-parallel-skipladder.txt|skip(ping)? the (build|integration|edge|validation)|mark(ing)? it done|those .*levels are overkill|good enough"

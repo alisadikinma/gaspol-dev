@@ -25,7 +25,7 @@ ROUTING — match the user's intent, invoke BEFORE acting:
   LLM / prompt / agent (non-deterministic) .... gaspol-eval
   bug / error / test failure .................. gaspol-debug
   review code ................................. gaspol-review
-  auth/secrets/input/endpoint/payment ........ gaspol-security-review
+  auth/secrets/input/endpoint/payment ........ /security-review (CLI built-in)
   received review feedback .................... gaspol-receive-review
   claim done / ready to commit ................ gaspol-verify
   merge / PR / cleanup a branch ............... gaspol-finish

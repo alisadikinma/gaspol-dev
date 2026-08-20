@@ -398,8 +398,8 @@ Skip Step 3.5 entirely for non-UI phases (backend, config, docs).
 
 If the phase touched **auth/authorization, secrets/credentials, user input or file
 uploads, a new API endpoint, payment, or sensitive data** (detected from the phase
-description or changed files), invoke `gaspol-security-review` and run the relevant
-checklist sections against the phase's changes.
+description or changed files), run the built-in **`/security-review`** slash command against
+the phase's changes. It ships with the Claude Code CLI — no plugin, no install.
 
 Include a Security Review section in the checkpoint:
 ```markdown

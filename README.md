@@ -75,7 +75,6 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 ### Verification & Closure
 - **gaspol-verify** — 4-layer verification (technical, plan fidelity BLOCKING, placeholder scan, integration + design compliance)
 - **gaspol-review** — Code review dispatch with code-reviewer subagent + **adversarial refutation** (v1.8, one refuter per Critical/Important finding kills false positives before a wrong fix)
-- **gaspol-security-review** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, Supabase RLS); auto-triggered on security-sensitive phases, gates pre-deploy in finish
 - **gaspol-receive-review** — Technical response (no performative agreement)
 - **gaspol-finish** — BLOCKING plan-verifier pre-chain + merge/PR/cleanup options
 

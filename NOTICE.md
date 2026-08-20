@@ -25,5 +25,5 @@ drifts. The attribution stands for the versions that shipped the fork.
 
 ## ECC skill ports (v1.4)
 
-`gaspol-security-review` and `gaspol-eval` are adapted from the **Everything Claude Code**
+`gaspol-eval` is adapted from the **Everything Claude Code**
 (ECC) `security-review` and `eval-harness` skills (MIT, Affaan Mustafa).
