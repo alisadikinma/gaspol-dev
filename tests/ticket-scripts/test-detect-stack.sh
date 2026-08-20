@@ -192,8 +192,12 @@ if ! grep -qx "node/unit: npm test" <<<"$OUTPUT"; then
     printf '%s\n' "$OUTPUT" >&2
     exit 1
 fi
-if ! grep -qx "php/unit: php artisan test" <<<"$OUTPUT"; then
-    echo "FAIL: case 6 expected 'php/unit: php artisan test' prefixed line, got:" >&2
+# This fixture has composer.json and NO artisan file, so PHP's unit level is
+# correctly UNKNOWN. (Until the case-13 fix this asserted 'php artisan test' —
+# the test had codified the bug, which is worse than no test: it made the lie
+# look verified.) What case 6 actually proves is the monorepo PREFIXING.
+if ! grep -qx "php/unit: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: case 6 expected 'php/unit: UNKNOWN' prefixed line, got:" >&2
     printf '%s\n' "$OUTPUT" >&2
     exit 1
 fi
@@ -335,6 +339,55 @@ if ! grep -qx "unit: cargo test" <<<"$OUTPUT"; then
 fi
 if ! grep -qx "build: cargo build" <<<"$OUTPUT"; then
     echo "FAIL: case 12 expected 'build: cargo build' with fake cargo on PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+# --- case 13: plain PHP project, no artisan, no php on PATH -> unit: UNKNOWN --
+# composer.json proves PHP, not Laravel. A plain library must never be told to
+# run `php artisan test`. PATH is stripped to a fake bin dir so the result does
+# not depend on whether php happens to be installed on this machine.
+echo "test-detect-stack: running case 13 (plain PHP, no artisan, no php -> unit: UNKNOWN)..."
+PHP_PLAIN_DIR="$TMP_DIR/php-plain"
+mkdir -p "$PHP_PLAIN_DIR"
+echo '{}' >"$PHP_PLAIN_DIR/composer.json"
+OUTPUT="$(PATH=/nonexistent "$BASH_BIN" "$DETECT_STACK" "$PHP_PLAIN_DIR")"
+if ! grep -qx "unit: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: case 13 expected 'unit: UNKNOWN' for a plain PHP project, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if grep -q "php artisan" <<<"$OUTPUT"; then
+    echo "FAIL: case 13 emitted 'php artisan' for a project with no artisan file:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+# --- case 14: PHP project with vendor/bin/phpunit -> unit: ./vendor/bin/phpunit
+echo "test-detect-stack: running case 14 (PHP with phpunit binary -> phpunit)..."
+PHP_UNIT_DIR="$TMP_DIR/php-phpunit"
+mkdir -p "$PHP_UNIT_DIR/vendor/bin"
+echo '{}' >"$PHP_UNIT_DIR/composer.json"
+printf '#!/bin/sh\nexit 0\n' >"$PHP_UNIT_DIR/vendor/bin/phpunit"
+chmod +x "$PHP_UNIT_DIR/vendor/bin/phpunit"
+OUTPUT="$(PATH=/nonexistent "$BASH_BIN" "$DETECT_STACK" "$PHP_UNIT_DIR")"
+if ! grep -qx "unit: ./vendor/bin/phpunit" <<<"$OUTPUT"; then
+    echo "FAIL: case 14 expected 'unit: ./vendor/bin/phpunit', got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+# --- case 15: real Laravel (artisan present) + php on PATH -> artisan runner --
+echo "test-detect-stack: running case 15 (Laravel artisan + php on PATH -> artisan)..."
+PHP_LARAVEL_DIR="$TMP_DIR/php-laravel"
+PHP_FAKE_BIN="$TMP_DIR/php-fake-bin"
+mkdir -p "$PHP_LARAVEL_DIR"
+echo '{}' >"$PHP_LARAVEL_DIR/composer.json"
+touch "$PHP_LARAVEL_DIR/artisan"
+fake_bin "$PHP_FAKE_BIN" php
+OUTPUT="$(PATH="$PHP_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$PHP_LARAVEL_DIR")"
+if ! grep -qx "unit: php artisan test" <<<"$OUTPUT"; then
+    echo "FAIL: case 15 expected 'unit: php artisan test' for a Laravel project, got:" >&2
     printf '%s\n' "$OUTPUT" >&2
     exit 1
 fi

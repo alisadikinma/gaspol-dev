@@ -117,7 +117,19 @@ lines_php() {
     else
         echo "lint: UNKNOWN"
     fi
-    echo "unit: php artisan test"
+    # composer.json proves PHP; it does NOT prove Laravel. `artisan` in the
+    # project root is what proves Laravel — a plain PHP library with PHPUnit
+    # has composer.json and no artisan, and telling it to run
+    # `php artisan test` is the exact lie this script exists to prevent.
+    # Prefer Laravel's runner when the artisan file is really there AND php
+    # resolves; fall back to the phpunit binary; otherwise admit UNKNOWN.
+    if [[ -f "$root/artisan" ]] && command -v php >/dev/null 2>&1; then
+        echo "unit: php artisan test"
+    elif [[ -f "$root/vendor/bin/phpunit" ]]; then
+        echo "unit: ./vendor/bin/phpunit"
+    else
+        echo "unit: UNKNOWN"
+    fi
 }
 
 lines_python() {

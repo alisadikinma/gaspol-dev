@@ -225,11 +225,16 @@ Each phase MUST follow this exact structure:
 5. Commit: "feat: add SegmentCard with workspace integration"
 
 **Verification:**
-- [ ] tsc --noEmit passes
+- [ ] `npx tsc --noEmit` passes            <!-- the static: line detect-stack printed for THIS project -->
+- [ ] `npm test` passes                    <!-- the unit: line detect-stack printed for THIS project -->
 - [ ] SegmentCard renders with real data from WorkspaceContext
 - [ ] No placeholder/TODO comments in new code
-- [ ] Test suite passes
 ```
+
+The two command lines above are what `detect-stack` happens to print for a Node/TypeScript
+project. They are **filled in from its output**, never typed from memory — on a Laravel repo the
+same block reads `php artisan test`, on a Python repo `pytest`, and where `detect-stack` prints
+`UNKNOWN` the plan must STOP and ask rather than guess.
 
 **TDD Step 1 Hard Gate (MANDATORY):** Every phase MUST have step 1 in this exact format:
 ```
