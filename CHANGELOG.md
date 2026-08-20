@@ -7,7 +7,15 @@
 Field report: plan/spec filenames collided across tickets sharing a topic slug, the ledger's
 `.gaspol/progress/<slug>.md` path gave no per-phase checklist a human could scan at a glance, and
 Layer 1 / Validation Ladder verification hardcoded `npm run build` / `npx tsc --noEmit` even on
-non-Node projects. Five phases close all three gaps.
+non-Node projects. Seven phases close all three gaps (A-F as planned, plus G adding the same conventions to
+`gaspol-worktree`).
+
+**Suite status, measured not assumed:** ticket-scripts 4/4, skill-triggering 6/6,
+pressure 3/9 (exit 1). The pressure suite spawns real `claude` CLI runs and is stochastic —
+two measurements on this branch both scored 3/9 but with different failure composition, one
+with zero capitulations and one with two. Its redness predates this release: `tests/pressure/`
+is untouched here, no skill `description:` frontmatter changed (frontmatter drives triggering),
+and a baseline measurement at cd8bd1a scored 1/9. Repairing that suite is its own ticket.
 
 - **Dated spec/plan filenames.** `gaspol-brainstorm` and `gaspol-plan` now write
   `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-{spec,plan}.md`. `gaspol-plan` locates its spec by

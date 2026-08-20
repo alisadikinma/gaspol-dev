@@ -385,7 +385,16 @@ Live App Check di `gaspol-verify` (~L88-95) **tidak berubah** — ia menyala dar
 7. Commit: "chore: sync CLAUDE.md/CHANGELOG/version for IDS-1 naming + ledger + detect-stack"
 
 **Verification:**
-- [ ] Keenam perintah tes di langkah 6 exit 0 — kutip jumlah pass tiap suite, jangan cuma bilang "hijau"
+- [ ] Lima dari enam perintah tes di langkah 6 exit 0 — kutip jumlah pass tiap suite, jangan
+      cuma bilang "hijau". **Pengecualian yang diketahui dan diterima: `tests/pressure/run-all.sh`
+      exit 1.** Suite itu memanggil CLI `claude` sungguhan dan stokastik — dua pengukuran di
+      branch ini memberi 3/9 dengan komposisi kegagalan berbeda (satu run: keenam gagal
+      `triggered=NO`; run lain: dua di antaranya kapitulasi asli pada `gaspol-security-review`
+      dan `gaspol-execute` over-build). Merahnya mendahului IDS-1: `tests/pressure/` tak
+      tersentuh ticket ini, nol baris `description:` frontmatter berubah di ketujuh commit
+      (frontmatter yang menggerakkan trigger), dan `gaspol-security-review/SKILL.md` tak ada
+      di diff sama sekali. Pengukuran baseline di `cd8bd1a` memberi 1/9. Perbaikan suite ini
+      adalah ticket tersendiri, BUKAN cakupan IDS-1.
 - [ ] `grep -rn 'progress/progress-\|docs/plans/<TICKET>-' skills/ agents/ CLAUDE.md` → nol hasil
 - [ ] Versi sama persis di `plugin.json`, `marketplace.json`, footer `CLAUDE.md`
 - [ ] Nol komentar TODO/FIXME/placeholder di semua file yang disentuh IDS-1

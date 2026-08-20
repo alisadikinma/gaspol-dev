@@ -268,11 +268,16 @@ Every phase MUST end with a Verification block. At minimum, include:
 
 ```markdown
 **Verification:**
-- [ ] tsc --noEmit passes
+- [ ] [static: command from detect-stack — e.g. `npx tsc --noEmit`, `mypy .`, `go vet ./...`] passes
+- [ ] [unit: command from detect-stack] passes
 - [ ] Component renders with real data from [specific source]
 - [ ] No placeholder/TODO comments in new code
 - [ ] [specific functional check for this phase]
 ```
+
+The bracketed command slots above are placeholders **in the template only** — fill them from
+`detect-stack` output when writing the plan, never ship a plan with the brackets intact and
+never hardcode `tsc`/`npm` on a project that does not use them.
 
 **Fill the technical-check line from `detect-stack`, not a guessed command.** Before writing
 each phase's Verification block, run `skills/gaspol-execute/scripts/detect-stack
