@@ -219,6 +219,24 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
+echo "test-naming-convention: checking gaspol-worktree carries ticket-document conventions (Phase G)..."
+
+if grep -q -- 'PROGRESS-<TICKET>.md' skills/gaspol-worktree/SKILL.md 2>/dev/null && \
+   grep -q -- 'docs/plans/YYYY-MM-DD-<TICKET>-' skills/gaspol-worktree/SKILL.md 2>/dev/null; then
+  echo "PASS: gaspol-worktree documents PROGRESS-<TICKET>.md and docs/plans/YYYY-MM-DD-<TICKET>- ticket-document conventions"
+else
+  echo "FAIL: gaspol-worktree carries no ticket-document conventions"
+  FAILURES=$((FAILURES + 1))
+fi
+
+assert_grep "gaspol-worktree states spec/plan stay on the branch and copying blocks the merge" \
+  'blocks the merge' \
+  skills/gaspol-worktree/SKILL.md
+
+assert_grep "gaspol-worktree states the ledger is gitignored working-tree scratch" \
+  'gitignored working-tree scratch' \
+  skills/gaspol-worktree/SKILL.md
+
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-naming-convention: $FAILURES assertion(s) failed" >&2
   exit 1
