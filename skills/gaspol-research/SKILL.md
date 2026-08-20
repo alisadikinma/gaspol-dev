@@ -77,6 +77,12 @@ Dispatch 3-5 parallel subagents (model: sonnet) to gather from different source 
 3. Comparables / benchmarks (search for "X vs Y", existing comparisons)
 4. Anti-pattern check (search for "problems with X", "X deprecated", "X alternatives")
 5. Real-world usage (search for case studies, migration stories)
+6. **Agent-skill marketplace** — `npx skills find "<topic>"` (skills.sh). "Somebody
+   already packaged this as an agent skill" is a research finding like any other,
+   and the cheapest recommendation available. Report it as a candidate with its
+   source and install count; never install it as part of research (install rules:
+   `gaspol-write-skill` Step 0). If the CLI is unavailable, say so — an unrun
+   lane is reported as unrun, never as empty.
 
 Each subagent returns structured findings with URL citations.
 
@@ -186,6 +192,7 @@ Mini-research (AMBER path):
 | Fabricated benchmark numbers | WebFetch actual comparison pages |
 | Training-data citation ("in 2024 React Hooks were popular") | Replace with current-year WebSearch |
 | Skipping quality gate check | All gates must pass before caching |
+| Recommending a build when a packaged skill already does it | Run the marketplace lane before recommending; report the candidate |
 
 ---
 

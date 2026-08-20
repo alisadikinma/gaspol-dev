@@ -27,7 +27,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`, `test-skill-delegation.sh`, `test-finish-gates.sh`). Fast, no API calls — run these first |
+| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`, `test-skill-delegation.sh`, `test-finish-gates.sh`, `test-prior-art-gate.sh`). Fast, no API calls — run these first |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -58,7 +58,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
 | `skills/gaspol-finish/SKILL.md` | Branch completion with BLOCKING plan-verifier + merge/PR/cleanup |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
-| `skills/gaspol-write-skill/SKILL.md` | Skill creation with TDD (RED-GREEN-REFACTOR for skills) |
+| `skills/gaspol-write-skill/SKILL.md` | Skill creation with TDD (RED-GREEN-REFACTOR for skills) + **BLOCKING Step 0 Prior-Art Search (v1.15)** — three lookups before any skill is written |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
 | `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
@@ -390,6 +390,46 @@ Invoked BLOCKING from:
 - `gaspol-execute` Step 7 (after completion gate) — cannot claim done until CLEAN
 - `gaspol-finish` Step 2 (pre-chain) — cannot present merge/PR options until CLEAN
 
+### Prior-Art Gate (NEW in v1.15)
+
+**Nothing gets built in-house before somebody looks whether it already exists.**
+Canonical source: `gaspol-write-skill` **Step 0: Prior-Art Search (BLOCKING)**.
+
+The v1.14 deletions below are the baseline failure this gate exists to prevent: two
+skills built, two skills deleted, zero prior-art searches. Three lookups, because each
+is blind where the others see — "is it installed?" cannot find a built-in slash command
+(`/security-review` was in no skill listing), and neither can find the marketplace
+(`ui-ux-pro-max` was one `npx skills find` away):
+
+1. **Installed already?** — the session's skill/plugin listing and `skills/`
+2. **Built into the harness?** — a matching built-in `/command`
+3. **On the marketplace?** — `npx skills find "<domain> <task>"` (vercel-labs `skills`
+   CLI, browse at https://skills.sh)
+
+Verdict recorded before any SKILL.md is written: `NONE` (build it) / `EXISTS` (route to
+it, soft-referenced) / `DELTA` (build ONLY the delta, and **name** the delta). `DELTA`
+is the usual verdict and the one most often faked — `anti-ai-slop.md` earned it because
+someone checked that `ui-ux-pro-max` ships no anti-slop layer at all.
+
+**Install is never automatic.** A skill is a prompt that runs inside your agent, so
+installing one from an unknown repo is a supply-chain and prompt-injection decision:
+never `npx skills add ... -y`, always `AskUserQuestion`, always read the candidate's
+SKILL.md first (install count is popularity, not an audit), and weigh the standing cost
+— every installed skill's description loads into **every** session.
+
+Wired into three places, all soft-referenced (a missing CLI degrades the search, it
+never blocks the skill; an unrun search is reported as unrun, never as empty):
+
+| Where | Trigger |
+|---|---|
+| `gaspol-write-skill` Step 0 | any new skill — **BLOCKING** |
+| `gaspol-brainstorm` Phase 1.5, `NEW` branch only | no KB hit AND no project pattern — probe before deep research |
+| `gaspol-research` gather lane 6 | reported as a research candidate, never installed by research |
+
+Deliberately **not** in brainstorm Phase 0.5: that phase asks whether this *codebase*
+has precedent, while the marketplace holds *agent* capabilities. Probing on every
+feature request would buy an npx round-trip and noise.
+
 ### Design Intelligence — Delegated (CHANGED in v1.14, was a forked power peer)
 
 `gaspol-design` is **gone**. Design intelligence now comes from the **`ui-ux-pro-max` plugin**
@@ -669,6 +709,8 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | "No need to query KB — I know this" | KB has project patterns you forgot. Query it. |
 | "Training data is fresh enough" | Cutoff Jan 2026. Industry moves fast. Use gaspol-research. |
 | "Plan-verifier is optional" | BLOCKING in v1.2. Cannot claim done without CLEAN verdict. |
+| "I'd remember if a skill for this existed" | Two skills were built and deleted in one release on exactly that memory. Run Step 0. |
+| "Ours needs to be different, so build it" | That argues for `DELTA` — build the difference, not the other 95%. |
 
 ## Debugging (Plugin Development)
 
@@ -724,9 +766,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-3
+Last ticket: IDS-5
 
 ---
 
-**Version:** 1.14.0
+**Version:** 1.15.0
 **Last Updated:** August 2026
