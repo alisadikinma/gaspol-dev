@@ -2,7 +2,7 @@
 
 **Process discipline for Claude Code — so AI writes real code, not fake placeholders.**
 
-![gaspol-dev v1.14.0 — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero-1.14.0.png)
+![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
 [![Version](https://img.shields.io/badge/version-1.14.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-20-orange)](#the-20-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Gates](https://img.shields.io/badge/blocking%20gates-3-red)](#the-finish-chain-six-steps-three-of-them-block)
 
