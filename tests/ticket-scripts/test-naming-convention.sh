@@ -144,6 +144,53 @@ else
   echo "PASS: no leftover lowercase progress/progress-<TICKET> derivation anywhere"
 fi
 
+echo "test-naming-convention: checking detect-stack wiring into verification gates (Phase E)..."
+
+assert_grep "gaspol-verify Layer 1 invokes detect-stack" \
+  'detect-stack' \
+  skills/gaspol-verify/SKILL.md
+
+assert_grep "gaspol-parallel Validation Ladder references detect-stack" \
+  'detect-stack' \
+  skills/gaspol-parallel/SKILL.md
+
+assert_grep "gaspol-plan documents running detect-stack at plan-write time" \
+  'detect-stack' \
+  skills/gaspol-plan/SKILL.md
+
+assert_grep "gaspol-verify documents the '<level>: <command>' run-it-exit-0 case" \
+  '<level>: <command>' \
+  skills/gaspol-verify/SKILL.md
+
+assert_grep "gaspol-verify documents the UNKNOWN -> STOP and ask the user case" \
+  'STOP and ask the user' \
+  skills/gaspol-verify/SKILL.md
+
+assert_grep "gaspol-verify documents the zero-lines -> plan-declared commands case" \
+  'no stack markers, using plan-declared commands' \
+  skills/gaspol-verify/SKILL.md
+
+assert_grep "gaspol-verify Live App Check subsection still intact" \
+  'Live App Check' \
+  skills/gaspol-verify/SKILL.md
+
+assert_grep "implementer-prompt carries the ladder commands verbatim (static: line)" \
+  'static:.*detect-stack' \
+  skills/gaspol-execute/implementer-prompt.md
+
+# Regression: verify Layer 1 must no longer hardcode the four npm command
+# blocks as REQUIRED checks — npm run build / npx tsc --noEmit / npm test /
+# npm run lint may still appear as EXAMPLE detect-stack output, but not as
+# their own mandatory "### Build Check" / "### Type Check" / "### Test
+# Suite" / "### Lint Check" subsections.
+assert_not_grep "verify Layer 1 no longer has a standalone '### Build Check' npm subsection" \
+  '### Build Check' \
+  skills/gaspol-verify/SKILL.md
+
+assert_not_grep "verify Layer 1 no longer has a standalone '### Type Check' npm subsection" \
+  '### Type Check' \
+  skills/gaspol-verify/SKILL.md
+
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-naming-convention: $FAILURES assertion(s) failed" >&2
   exit 1

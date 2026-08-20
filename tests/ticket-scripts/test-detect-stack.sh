@@ -4,15 +4,36 @@
 # Covers: happy path (npm test key present), tsconfig.json absence (static
 # line omitted, not UNKNOWN), missing backing key (UNKNOWN), empty dir
 # (zero lines), a non-node stack (go.mod), a polyglot monorepo (prefixed
-# lines), and the usage error (missing directory arg).
+# lines), the usage error (missing directory arg), and (Phase E) the
+# python/go/rust `command -v` backing gate — proven deterministic on ANY
+# machine by controlling PATH directly (a stripped PATH for "tool absent",
+# a temp dir with a fake shim script for "tool present") instead of relying
+# on what happens to be installed on the machine running the suite.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DETECT_STACK="$REPO_ROOT/skills/gaspol-execute/scripts/detect-stack"
+BASH_BIN="$(command -v bash)"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+
+# fake_bin DIR NAME... — creates DIR (if absent) and drops an executable
+# no-op shim named NAME (one per arg) inside it, so a test can put exactly
+# the tools it wants "installed" on PATH, deterministically.
+fake_bin() {
+    local dir="$1"; shift
+    mkdir -p "$dir"
+    local name
+    for name in "$@"; do
+        cat >"$dir/$name" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+        chmod +x "$dir/$name"
+    done
+}
 
 echo "test-detect-stack: running case 1 (npm test key present)..."
 
@@ -111,7 +132,7 @@ if [[ -n "$OUTPUT" ]]; then
     exit 1
 fi
 
-echo "test-detect-stack: running case 5 (go.mod fixture -> exactly 3 lines)..."
+echo "test-detect-stack: running case 5 (go.mod fixture, fake go on PATH -> exactly 3 lines)..."
 
 GO_DIR="$TMP_DIR/go-proj"
 mkdir -p "$GO_DIR"
@@ -121,7 +142,10 @@ module example.com/x
 go 1.22
 EOF
 
-OUTPUT="$("$DETECT_STACK" "$GO_DIR")"
+GO_FAKE_BIN="$TMP_DIR/bin-go-present"
+fake_bin "$GO_FAKE_BIN" go
+
+OUTPUT="$(PATH="$GO_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$GO_DIR")"
 LINE_COUNT="$(grep -c . <<<"$OUTPUT" || true)"
 if [[ "$LINE_COUNT" -ne 3 ]]; then
     echo "FAIL: case 5 expected exactly 3 lines, got $LINE_COUNT:" >&2
@@ -187,6 +211,131 @@ if "$DETECT_STACK" "$TMP_DIR/does-not-exist" >/dev/null 2>"$TMP_DIR/err7"; then
 fi
 if ! grep -q "not found" "$TMP_DIR/err7"; then
     echo "FAIL: case 7 stderr message unexpected: $(cat "$TMP_DIR/err7")" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 8 (pyproject.toml, PATH stripped -> unit: UNKNOWN, python backing checked)..."
+
+PY_DIR="$TMP_DIR/py-proj"
+mkdir -p "$PY_DIR"
+cat >"$PY_DIR/pyproject.toml" <<'EOF'
+[project]
+name = "x"
+EOF
+
+OUTPUT="$(PATH=/nonexistent "$BASH_BIN" "$DETECT_STACK" "$PY_DIR")"
+if ! grep -qx "unit: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: python backing not checked — expected 'unit: UNKNOWN' with pytest absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "static: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: python backing not checked — expected 'static: UNKNOWN' with mypy absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "lint: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: python backing not checked — expected 'lint: UNKNOWN' with ruff absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 9 (pyproject.toml, fake pytest only on PATH -> unit: pytest)..."
+
+PY_FAKE_BIN="$TMP_DIR/bin-pytest-present"
+fake_bin "$PY_FAKE_BIN" pytest
+
+OUTPUT="$(PATH="$PY_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$PY_DIR")"
+if ! grep -qx "unit: pytest" <<<"$OUTPUT"; then
+    echo "FAIL: case 9 expected 'unit: pytest' with fake pytest on PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "static: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: case 9 expected 'static: UNKNOWN' (mypy still absent), got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "lint: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: case 9 expected 'lint: UNKNOWN' (ruff still absent), got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 10 (go.mod fixture, PATH stripped -> all UNKNOWN)..."
+
+OUTPUT="$(PATH=/nonexistent "$BASH_BIN" "$DETECT_STACK" "$GO_DIR")"
+if ! grep -qx "static: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: go backing not checked — expected 'static: UNKNOWN' with go absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "unit: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: go backing not checked — expected 'unit: UNKNOWN' with go absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "build: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: go backing not checked — expected 'build: UNKNOWN' with go absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 11 (Cargo.toml, PATH stripped -> all UNKNOWN)..."
+
+RUST_DIR="$TMP_DIR/rust-proj"
+mkdir -p "$RUST_DIR"
+cat >"$RUST_DIR/Cargo.toml" <<'EOF'
+[package]
+name = "x"
+EOF
+
+OUTPUT="$(PATH=/nonexistent "$BASH_BIN" "$DETECT_STACK" "$RUST_DIR")"
+if ! grep -qx "static: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: rust backing not checked — expected 'static: UNKNOWN' with cargo absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "lint: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: rust backing not checked — expected 'lint: UNKNOWN' with cargo absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "unit: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: rust backing not checked — expected 'unit: UNKNOWN' with cargo absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "build: UNKNOWN" <<<"$OUTPUT"; then
+    echo "FAIL: rust backing not checked — expected 'build: UNKNOWN' with cargo absent from PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 12 (Cargo.toml, fake cargo on PATH -> all resolved)..."
+
+RUST_FAKE_BIN="$TMP_DIR/bin-cargo-present"
+fake_bin "$RUST_FAKE_BIN" cargo
+
+OUTPUT="$(PATH="$RUST_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$RUST_DIR")"
+if ! grep -qx "static: cargo check" <<<"$OUTPUT"; then
+    echo "FAIL: case 12 expected 'static: cargo check' with fake cargo on PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "lint: cargo clippy" <<<"$OUTPUT"; then
+    echo "FAIL: case 12 expected 'lint: cargo clippy' with fake cargo on PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "unit: cargo test" <<<"$OUTPUT"; then
+    echo "FAIL: case 12 expected 'unit: cargo test' with fake cargo on PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+if ! grep -qx "build: cargo build" <<<"$OUTPUT"; then
+    echo "FAIL: case 12 expected 'build: cargo build' with fake cargo on PATH, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
     exit 1
 fi
 

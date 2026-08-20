@@ -274,6 +274,24 @@ Every phase MUST end with a Verification block. At minimum, include:
 - [ ] [specific functional check for this phase]
 ```
 
+**Fill the technical-check line from `detect-stack`, not a guessed command.** Before writing
+each phase's Verification block, run `skills/gaspol-execute/scripts/detect-stack
+<project-root>` (once per plan is enough — the stack doesn't change phase to phase) and copy
+the resulting `static:`/`lint:`/`unit:`/`build:` lines **verbatim** into that phase's block
+(e.g. `- [ ] static: npx tsc --noEmit passes`). Rationale: the plan must be self-contained for
+an executor with **no other context** — a fresh post-`/compact` session or an external
+executor in a separate process can't run `detect-stack` itself or read this skill file, so the
+resolved commands have to live in the plan text, not only in the script.
+- `detect-stack` prints `<level>: UNKNOWN` for a level → do not write that command into the
+  plan. Instead write the verification line as an explicit open question: `- [ ]
+  <level> command: UNKNOWN — ask user before Verification can run`, and resolve it with
+  AskUserQuestion before the plan is presented as final.
+- `detect-stack` prints zero lines (no stack markers, e.g. a docs-only or pure-markdown
+  project) → the Verification block has no automated technical check to derive; write the
+  phase's own functional/manual checks and note `- [ ] detect-stack: no stack markers for
+  this project — verification is plan-declared only` so the executor doesn't go looking for
+  a script that will never fire.
+
 A phase without verification criteria is **INCOMPLETE**. The executor will not know when the phase is done.
 
 ## Execution Handoff

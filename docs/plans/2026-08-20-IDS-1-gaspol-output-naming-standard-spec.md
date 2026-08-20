@@ -167,7 +167,10 @@ exit 1   usage error (arg hilang / direktori tak ada)
 
 **Aturan anti-karang (inti dari perubahan ini):** sebuah perintah hanya dicetak kalau
 penopangnya benar-benar ada — key `"build"` ada di `scripts` package.json, binary ada di
-`vendor/bin/`, `tsconfig.json` ada. Kalau penanda stack ketemu tapi penopang perintahnya
+`vendor/bin/`, `tsconfig.json` ada, dan untuk python/go/rust/flutter binary-nya lolos
+`command -v` (ditambahkan 2026-08-20 setelah implementasi Phase A memperlihatkan
+`pytest`/`go test`/`cargo test` dicetak hanya berbekal keberadaan file penanda — lubang
+yang sama, bergeser satu tingkat). Kalau penanda stack ketemu tapi penopang perintahnya
 tidak, cetak:
 
 ```text

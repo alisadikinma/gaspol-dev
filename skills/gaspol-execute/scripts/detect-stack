@@ -53,8 +53,24 @@ has_npm_script() {
 #     — if absent, "<level>: UNKNOWN"
 #   - php static/lint require the vendor/bin binary to exist — if absent,
 #     "<level>: UNKNOWN"
-#   - every other level has no backing check: always emitted once the
-#     stack's own marker file is present
+#   - python/go/rust/flutter have no scripts-key or vendor-binary signal to
+#     check, so each level is gated on `command -v <binary>` (the command's
+#     first word) actually resolving on PATH — if not, "<level>: UNKNOWN".
+#     A marker file (pyproject.toml, go.mod, ...) proves the PROJECT is that
+#     stack; it does not prove the TOOL is installed on this machine — the
+#     same lie this whole script exists to prevent, one level down.
+
+# emit_gated LEVEL CMD
+# Prints "<level>: <cmd>" if CMD's first word (its binary) resolves via
+# `command -v`, else "<level>: UNKNOWN".
+emit_gated() {
+    local level="$1" cmd="$2" bin="${2%% *}"
+    if command -v "$bin" >/dev/null 2>&1; then
+        echo "${level}: ${cmd}"
+    else
+        echo "${level}: UNKNOWN"
+    fi
+}
 
 lines_node() {
     local root="$1" pkg="$root/package.json"
@@ -94,28 +110,28 @@ lines_php() {
 }
 
 lines_python() {
-    echo "static: mypy ."
-    echo "lint: ruff check ."
-    echo "unit: pytest"
+    emit_gated "static" "mypy ."
+    emit_gated "lint" "ruff check ."
+    emit_gated "unit" "pytest"
 }
 
 lines_go() {
-    echo "static: go vet ./..."
-    echo "unit: go test ./..."
-    echo "build: go build ./..."
+    emit_gated "static" "go vet ./..."
+    emit_gated "unit" "go test ./..."
+    emit_gated "build" "go build ./..."
 }
 
 lines_rust() {
-    echo "static: cargo check"
-    echo "lint: cargo clippy"
-    echo "unit: cargo test"
-    echo "build: cargo build"
+    emit_gated "static" "cargo check"
+    emit_gated "lint" "cargo clippy"
+    emit_gated "unit" "cargo test"
+    emit_gated "build" "cargo build"
 }
 
 lines_flutter() {
-    echo "static: dart analyze"
-    echo "unit: flutter test"
-    echo "build: flutter build"
+    emit_gated "static" "dart analyze"
+    emit_gated "unit" "flutter test"
+    emit_gated "build" "flutter build"
 }
 
 # stack_marker_present STACK ROOT

@@ -191,13 +191,17 @@ The implementer:
 A passing unit test proves nothing if the types don't compile, and a green build proves
 nothing if the edge cases were never exercised. Run these levels **in order, stopping at the
 first failure** — cheap fast checks gate the expensive slow ones, so a typo never costs a full
-integration run:
+integration run.
+
+**L1–L3 commands come from `skills/gaspol-execute/scripts/detect-stack <project-root>`, not a
+literal `tsc --noEmit`** — that's one stack's command, hardcoding it silently skips L1 on every
+non-node project. Run `detect-stack` once for the project, then map its output onto the ladder:
 
 | # | Level | Gate (what must pass) |
 |---|-------|-----------------------|
-| 1 | **Static** | `tsc --noEmit` clean + linter clean on changed files. No type errors, no lint errors. |
-| 2 | **Unit** | Unit tests covering the changed units pass (the TDD tests written for this task). |
-| 3 | **Build** | The project builds (`build` script / bundler) if it has a build step. |
+| 1 | **Static** | The `static:` command `detect-stack` prints, clean on changed files. `<level>: UNKNOWN` → STOP and ask the user for the correct command, don't guess. No stack markers at all → use the plan-declared command for this phase. |
+| 2 | **Unit** | The `unit:` command `detect-stack` prints — tests covering the changed units pass (the TDD tests written for this task). Same `UNKNOWN`/no-markers handling as L1. |
+| 3 | **Build** | The `build:` command `detect-stack` prints, if it has a build step. `detect-stack` prints no `build:` line for that stack → explicit **N/A**, not a silent skip. |
 | 4 | **Integration** | Integration/e2e tests exercising the changed code path pass, if any exist. |
 | 5 | **Edge** | The non-happy paths are actually run — null/empty/boundary/error branch, not just the success case. This is the anti-"green on happy path only" gate. |
 
@@ -208,6 +212,10 @@ Rules:
 - **A level that genuinely doesn't apply is skipped explicitly, not silently** — e.g. "L3 Build:
   N/A, no build step" / "L4 Integration: N/A, no integration suite". A silent skip reads as
   "passed" when it didn't (same failure mode as placeholder data).
+- **An implementer subagent cannot run `detect-stack` itself** (it may not have repo access to
+  the script, or any context beyond the dispatched prompt) — the orchestrator resolves the L1–L3
+  commands before dispatch and pastes them verbatim into the task prompt (see
+  `implementer-prompt.md`).
 - The ladder is per-task verification depth; it does not replace Steps 5–6 (independent spec +
   quality review by a *different* subagent). Self-validation and independent review are different
   guarantees.

@@ -23,6 +23,17 @@ Agent({
 
 Phase step 1 MUST be writing a failing test. No production code before failing test exists and runs for the expected reason. If phase description doesn't specify test step 1, dispatch is refused — fix the plan first.
 
+## Validation Ladder Commands (fill in from `detect-stack` before dispatch)
+
+The implementer subagent cannot read `skills/gaspol-execute/scripts/detect-stack` or the
+surrounding conversation — it only sees this filled template. Before dispatching, the
+orchestrator runs `skills/gaspol-execute/scripts/detect-stack <project-root>` once and pastes
+the resulting `static:` / `unit:` / `build:` lines **verbatim** into the `## Validation
+Ladder` block of the template below (not left as a placeholder, not summarized as "run the
+usual checks"). `<level>: UNKNOWN` → resolve with the user before dispatch, don't hand the
+subagent a command that doesn't exist. Zero lines (no stack markers) → write the plan's
+declared verification commands for this phase instead and say so explicitly.
+
 ---
 
 ## Template
@@ -134,6 +145,23 @@ No unrequested abstractions (no interface with one impl, no factory for one prod
 
 **Boundary:** lazy cuts SCOPE, never FIDELITY. This NEVER overrides the 3 Iron Laws above — a required real integration stays real (a lazy `const data = []` is still a PLACEHOLDER = Law 1 violation), and you never skip validation, security, or the failing-test-first step to "be lazy."
 
+## Validation Ladder (run before reporting DONE)
+
+`DONE` is not allowed until this passes, in order, stopping at the first failure. Commands
+below were resolved by the orchestrator from `detect-stack` before dispatch — you cannot run
+`detect-stack` yourself, so these are filled in verbatim, not placeholders to guess at:
+
+| # | Level | Command | Gate |
+|---|-------|---------|------|
+| 1 | Static | `[static: command from detect-stack, or N/A]` | Exit 0, no type/lint errors on changed files |
+| 2 | Unit | `[unit: command from detect-stack, or N/A]` | The TDD tests written for this task pass |
+| 3 | Build | `[build: command from detect-stack, or N/A — explicit N/A if detect-stack printed no build line]` | Exit 0 if this stack has a build step |
+| 4 | Integration | Integration/e2e tests exercising the changed path, if any exist | Pass, or explicit N/A |
+| 5 | Edge | Non-happy paths actually run (null/empty/boundary/error branches) | Not just the success case |
+
+Fail at level N → fix, then restart from L1 (a fix can re-break an earlier level). A level
+that doesn't apply is skipped explicitly ("L3 Build: N/A, no build step"), never silently.
+
 ## Files You May Create or Modify
 [List the specific files this subagent is authorized to work on. Be explicit.]
 
@@ -239,6 +267,7 @@ When using this template, the executor must fill in:
 4. **Database Tables** — List only those the subagent will query or write to.
 5. **Files You May Create or Modify** — Be specific. Restrict the blast radius.
 6. **Dependencies** — List what must exist before this phase can execute.
+7. **Validation Ladder commands** — Run `skills/gaspol-execute/scripts/detect-stack <project-root>` and paste the `static:`/`unit:`/`build:` lines verbatim into the ladder table. `UNKNOWN` → resolve with the user before dispatch.
 
 ### Over-Context vs. Under-Context
 

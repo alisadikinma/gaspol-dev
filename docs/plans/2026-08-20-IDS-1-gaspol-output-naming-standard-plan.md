@@ -308,6 +308,15 @@ dibaca kalau plan menyebutnya; hanya penulisan baru yang pakai `PROGRESS-<TICKET
 - Modify: `skills/gaspol-execute/implementer-prompt.md`
 - Test: extend `tests/ticket-scripts/test-naming-convention.sh`
 
+**Perluasan cakupan disetujui user 2026-08-20 (hard-stop `gaspol-auto`, bukan perubahan diam-diam):**
+Phase A menyelesaikan cek penopang hanya untuk node (key di `.scripts` package.json) dan php
+(binary di `vendor/bin/`), sesuai tabel yang ditulis plan ini. Akibatnya `pytest`, `mypy`,
+`ruff`, `go test`, `cargo test`, `flutter test` selalu dicetak begitu file penandanya ada —
+tanpa bukti tool-nya terpasang. Itu kelas masalah yang sama dengan yang IDS-1 bunuh, cuma
+bergeser satu tingkat. Phase E karena itu JUGA menambahkan ke `detect-stack`: cek
+`command -v <binary>` untuk level python/go/rust/flutter; tidak ditemukan → cetak
+`<level>: UNKNOWN`. Tambah kasus tes untuk itu di `tests/ticket-scripts/test-detect-stack.sh`.
+
 **Yang berubah:**
 
 `gaspol-verify` Layer 1 sekarang memuat blok perintah npm hardcoded (`npm run build` L56,
