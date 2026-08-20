@@ -93,23 +93,47 @@ finding STOPS the chain here.
 - If gaspol-review (this step) is BLOCKING, fix and re-run gaspol-review before proceeding. Do
   not proceed to Step 4 until it is clean.
 
-### Step 4: Run gaspol-security-review -- ALWAYS runs from this chain
+### Step 4: Run the built-in `/security-review` -- ALWAYS runs from this chain
 
-Run the Pre-Deployment Security Checklist from `gaspol-security-review`. Its own SKILL.md
-description gates most call sites on a conditional trigger (auth, secrets, user input, file
-uploads, API endpoints, payment, or sensitive data) — but **from this finish chain the checklist
-ALWAYS runs**, on every branch, regardless of whether the diff appears security-sensitive. This
-is not conditional-trigger-only here. Its checklist result gets attached to the finish report.
+Run the **`/security-review`** slash command. It is a Claude Code built-in — compiled into the
+CLI itself, no plugin and no install — and it reviews the pending changes on the current branch.
+gaspol used to ship its own forked checklist here; the built-in supersedes it, so the fork was
+deleted in v1.14.0 rather than left to drift.
 
-- If a checklist item fails on an insecure pattern (string-concatenated SQL, JWT in
-  `localStorage`, secrets in source, missing server-side authz), treat it like a
-  BLOCKING finding: STOP and use AskUserQuestion — `[Fix now]` / `[Accept risk with
-  documented reason]`. Never present merge options with an unresolved security FAIL.
-- Report the result even when every item passes, e.g. "Security checklist: PASSED (N/N items)."
+**From this finish chain it ALWAYS runs**, on every branch, regardless of whether the diff appears
+security-sensitive. It is not conditional-trigger-only here. Its result gets attached to the
+finish report.
 
-### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- unchanged
+- If it reports an insecure pattern (string-concatenated SQL, JWT in `localStorage`, secrets in
+  source, missing server-side authz), treat it like a BLOCKING finding: STOP and use
+  AskUserQuestion — `[Fix now]` / `[Accept risk with documented reason]`.
+  Never present merge options with an unresolved security finding.
+- Report the result even when it is clean, e.g. "Security review: PASSED (`/security-review`, no
+  findings)."
+- If `/security-review` is unavailable in this environment, say so explicitly and walk the same
+  ground by hand — secrets in source, unparameterized queries, missing server-side authz, XSS
+  sinks, CSRF, rate limiting. **Never record the step as passed when it did not run.**
+
+### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- now evidence-gated
 
 Update CLAUDE.md and any other documentation with changes from this work.
+
+**Evidence required — this step used to be a self-reported checkbox.** Nothing verified
+that CLAUDE.md had actually changed, so `[x] Step 5: COMPLETED` could be written over a
+branch that never touched it. That is a completion claim without evidence, which Iron
+Law 3 forbids everywhere else in this plugin.
+
+If the branch made a **structural change** — added, removed, or renamed anything under
+`skills/`, `agents/`, `hooks/`, or `scripts/`, or altered a routing table, a chain step,
+or a documented command — then **CLAUDE.md must appear in the branch diff**:
+
+```bash
+git diff --name-only <BASE>..HEAD | grep -q '^CLAUDE.md$'
+```
+
+If that check fails on a structural change, Step 5 is NOT complete: run `gaspol-sync-docs`
+for real, then re-check. Only a branch with no structural change may record Step 5 as
+"no doc-visible change", and it must say which — never a bare COMPLETED.
 
 This ensures:
 - New tables, functions, routes, or components are documented
@@ -132,7 +156,7 @@ Verification Chain Status:
 [x] Step 1 gaspol-verify: PASSED (or: passed earlier this session)
 [x] Step 2 Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
 [x] Step 3 gaspol-review (Tier 1): CLEAN (BLOCKING gate passed, 0 surviving Critical findings)
-[x] Step 4 Security checklist (gaspol-security-review): PASSED
+[x] Step 4 Security review (built-in /security-review): PASSED
 [x] Step 5 gaspol-sync-docs: COMPLETED
 [x] Step 6 gaspol-learn: COMPLETED (or: user declined capture)
 ```
@@ -180,8 +204,11 @@ git checkout main
 # Merge feature branch
 git merge feature/my-feature --no-ff
 
-# Verify tests still pass after merge
-npm test  # or project-specific test command
+# Verify tests still pass after merge. DERIVE the command -- never assume npm.
+# detect-stack prints "<level>: <command>" lines for whatever this project
+# actually is; run the unit line. No stack markers -> use the commands the plan
+# declared, and say so explicitly rather than skipping the run.
+skills/gaspol-execute/scripts/detect-stack .
 
 # Delete feature branch
 git branch -d feature/my-feature
@@ -191,6 +218,26 @@ git worktree remove .worktrees/my-feature 2>/dev/null || true
 ```
 
 **Use when:** Small changes, sole developer, no review needed.
+
+**Merging is not publishing.** A local merge leaves the work on this machine only.
+Before reporting the branch as shipped:
+
+```bash
+git push origin main
+```
+
+If this repository is a Claude Code **plugin**, pushing still is not enough -- the
+installed copy is a cached version, not the checkout:
+
+```bash
+claude plugin marketplace update <marketplace>
+claude plugin update <plugin>@<marketplace>   # the full id; the bare name fails
+                                              # with: Plugin "<name>" not found
+```
+
+Restart Claude Code afterwards; an updated plugin does not take effect in the
+running session. Skipping this is how a merged, tagged, correct version sits inert
+while the repo claims it shipped.
 
 ### Option 2: Push and Create PR
 
@@ -239,6 +286,34 @@ git worktree remove .worktrees/my-feature --force
 
 ---
 
+## Close the Ledger (after the chosen option is executed)
+
+The per-ticket ledger `.gaspol/progress/PROGRESS-<TICKET>.md` is created by
+`gaspol-plan` and ticked by `gaspol-execute` / `gaspol-parallel` after every phase.
+**Nothing closed it.** It is gitignored, so a stale one never shows up in
+`git status` and never gets noticed -- ledgers from finished tickets pile up
+carrying a cursor that still claims work is in flight.
+
+Finish owns the end of that lifecycle:
+
+1. Append a final `## Log` line recording the outcome, ending with the cursor
+   `— NEXT: DONE`. State which option was taken and the merge/PR reference, e.g.
+   `— merged to main as <sha> — NEXT: DONE`. If the branch was kept or discarded,
+   say that instead -- a truthful cursor beats a tidy one.
+2. Confirm every `## Checklist` line is `[x]` or `[~]`. A `[ ]` or `[>]` left at
+   finish time means the work is not actually done, or the ledger lied during
+   execution. Either way, resolve it before claiming completion -- do not tick it
+   silently to make the file look finished.
+3. Surface any OTHER ledger still open, so the pile is visible rather than growing:
+
+```bash
+skills/gaspol-execute/scripts/scan-active-ledgers .gaspol/progress
+```
+
+   It prints one basename per ledger whose last `NEXT:` marker is not `DONE`.
+   Empty output means nothing else is in flight. Report what it prints; do not
+   act on other tickets' ledgers from here.
+
 ## Post-Finish Summary
 
 After executing the chosen option, provide a summary:
@@ -279,7 +354,7 @@ Changes:
 | `gaspol-verify` | Step 1 of verification chain |
 | `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
 | `gaspol-review` | Tier 1 dispatch, BLOCKING on surviving Critical findings (Step 3 of chain) |
-| `gaspol-security-review` | Always runs from this call site, gates on checklist FAIL (Step 4 of chain) |
+| `/security-review` (CLI built-in) | Always runs from this call site, gates on any finding (Step 4 of chain) |
 | `gaspol-sync-docs` | Step 5 of verification chain |
 | `gaspol-learn` | Step 6 of verification chain (pattern capture) |
 | `gaspol-execute` | Finish is the final step of execute workflow |

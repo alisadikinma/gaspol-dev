@@ -368,7 +368,7 @@ If result = `SKIP`:
 If the phase involves UI work (detected by: file extensions changed include `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss`, OR phase description mentions UI component/layout/design):
 
 ```bash
-python3 skills/gaspol-design/scripts/design_audit.py <project-root> --json
+python3 skills/gaspol-verify/scripts/design_audit.py <project-root> --json
 ```
 
 Output analyzed for:
@@ -398,8 +398,8 @@ Skip Step 3.5 entirely for non-UI phases (backend, config, docs).
 
 If the phase touched **auth/authorization, secrets/credentials, user input or file
 uploads, a new API endpoint, payment, or sensitive data** (detected from the phase
-description or changed files), invoke `gaspol-security-review` and run the relevant
-checklist sections against the phase's changes.
+description or changed files), run the built-in **`/security-review`** slash command against
+the phase's changes. It ships with the Claude Code CLI — no plugin, no install.
 
 Include a Security Review section in the checkpoint:
 ```markdown

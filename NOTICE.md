@@ -18,10 +18,12 @@ Upstream: https://github.com/obra/superpowers (MIT, Jesse Vincent / Prime Radian
 
 ## UI/UX design data (v1.2)
 
-`skills/gaspol-design/data/` is forked from **ui-ux-pro-max** (MIT). Attribution per the
-gaspol-design skill and CLAUDE.md.
+gaspol-dev previously vendored a fork of the **ui-ux-pro-max** design data (MIT) inside its
+own design skill. **That fork was removed in v1.14.0 (IDS-2)** — gaspol now delegates design
+intelligence to the upstream `ui-ux-pro-max` plugin directly rather than carrying a copy that
+drifts. The attribution stands for the versions that shipped the fork.
 
 ## ECC skill ports (v1.4)
 
-`gaspol-security-review` and `gaspol-eval` are adapted from the **Everything Claude Code**
+`gaspol-llm-test` (shipped as `gaspol-eval` from v1.4.0 to v1.14.0) is adapted from the **Everything Claude Code**
 (ECC) `security-review` and `eval-harness` skills (MIT, Affaan Mustafa).

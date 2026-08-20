@@ -110,7 +110,7 @@ and state the classification to the user.
   sentences to a short paragraph — architecture, files touched, testing approach), then
   STOP and wait for explicit approval. No spec file, no implementation plan document.
   Phase 0.5 (KB query), Phase 1.5 (novelty assessment), and Phase 2.5/3 (design gate /
-  `gaspol-design` invocation) do NOT run for this path.
+  design-skill invocation) do NOT run for this path.
 - **Architectural** — new subsystems, interface changes other code depends on, or
   anything that doesn't cleanly fit spike/bounded. Full EXISTING pipeline, unchanged:
   Phase 0.5 through Phase 6 all run as they do today, including the spec-file write.
@@ -229,26 +229,32 @@ Design triggers (Phase 3 fires if any match):
 
 ## Phase 3: Design Intelligence (AUTO-TRIGGERED for UI work)
 
-**Detection:** Phase 2.5 gate determined UI work needed → invoke `gaspol-design` skill.
+**Detection:** Phase 2.5 gate determined UI work needed → invoke the **`ui-ux-pro-max`** skill.
 
-`gaspol-design` is now a power peer (Phase 6.2 of v1.2 spec) — self-sufficient with forked data (67+ styles, 161+ palettes, 57+ fonts, 25+ charts, 162+ reasoning rules, 99+ UX guidelines), integrated across plan/execute/verify/learn chain.
+Design intelligence is delegated to the `ui-ux-pro-max` plugin (84 styles, 192 palettes, 74 font pairings, 98 UX guidelines, 25 chart types across 22 stacks). gaspol no longer forks that data.
+
+**If it is not installed:** tell the user to run `claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill`, then continue the brainstorm without it — design quality degrades, nothing breaks. gaspol declares **no** hard dependency on it, deliberately: `plugin.json`'s `dependencies` field is all-or-nothing, and a yanked third-party entry would disable every other gaspol skill.
+
+**Two gaspol-specific layers survive the delegation** and still apply on top of whatever `ui-ux-pro-max` returns — `ui-ux-pro-max` has no equivalent for either:
+- `skills/gaspol-verify/rules/anti-ai-slop.md` — banned-vs-use-instead tables for typography, colour, layout, motion
+- `skills/gaspol-verify/rules/reasoning-gaspol.md` — respect the target project's CLAUDE.md tokens, query the KB for precedent
 
 **Skip Phase 3 for:** backend/API logic, database schema, Edge Functions, business logic without UI (determined by Phase 2.5 gate).
 
 Invocation:
 
 ```
-Invoke gaspol-design with:
+Invoke ui-ux-pro-max with:
   - Task description (from Phase 1-2 understanding)
   - Project CLAUDE.md path
   - Stack (detected from package.json or CLAUDE.md)
   - User constraints (from Phase 1 questions)
 ```
 
-gaspol-design returns:
-1. Aesthetic direction (with sources from data/styles.csv)
+Expected back:
+1. Aesthetic direction (with sources from its style database)
 2. Color palette (respecting CLAUDE.md tokens)
-3. Typography (from data/typography.csv or CLAUDE.md)
+3. Typography (from its font-pairing database or CLAUDE.md)
 4. Component examples (code in detected stack)
 5. Layout blueprint (ASCII or spec)
 6. Motion plan
@@ -276,7 +282,7 @@ brainstorming/design. It is a **tool, not a mode** — see
 - **Per-question decision** (even after acceptance): use the browser only when the content IS
   visual (mockups, wireframes, layout/style comparisons, diagrams); use the terminal for
   conceptual/tradeoff/requirements questions. "A UI topic" ≠ "a visual question".
-- **gaspol-design fusion:** feed `gaspol-design`'s output (aesthetic direction, palette,
+- **Design fusion:** feed `ui-ux-pro-max`'s output (aesthetic direction, palette,
   layout blueprint, 162+ rules) into the mockup HTML you write to the screen dir — gaspol has
   both the design *knowledge* and the interactive *loop*.
 
@@ -355,7 +361,7 @@ Before finalizing:
 - **Triggered by:** User message indicating creative work (replaces old kickstart — skill removed in v1.2)
 - **Auto-triggers:** 
   - `gaspol-research` (Phase 1.5 when novelty = NEW)
-  - `gaspol-design` (Phase 2.5/3 for UI work)
+  - `ui-ux-pro-max` plugin skill (Phase 2.5/3 for UI work)
   - `gaspol-adr` (Phase 2 when user picks approach from 2+ options)
 - **Reads from KB:** `gaspol-knowledge/` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
 - **Writes to KB:** via `gaspol-adr` (decisions) and (after gaspol-finish) `gaspol-learn` (patterns)

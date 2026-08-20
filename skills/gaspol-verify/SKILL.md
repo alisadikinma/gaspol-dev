@@ -117,7 +117,7 @@ TECHNICAL VERIFICATION (detect-stack: no stack markers, using plan-declared comm
 ### Evals (for non-deterministic / LLM features)
 
 If the work includes an LLM/prompt/agent feature, deterministic tests are not
-sufficient evidence. Run the evals defined for it (`gaspol-eval`, `docs/evals/<feature>.md`)
+sufficient evidence. Run the evals defined for it (`gaspol-llm-test`, `docs/evals/<feature>.md`)
 and report pass@k — a single successful demo is not verification.
 
 ```
@@ -294,7 +294,7 @@ INTEGRATION VERIFICATION:
 If the changeset includes any file matching UI extensions (`.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), run design compliance audit:
 
 ```bash
-python3 skills/gaspol-design/scripts/design_audit.py <project-root> --json
+python3 skills/gaspol-verify/scripts/design_audit.py <project-root> --json
 ```
 
 Validates per file:

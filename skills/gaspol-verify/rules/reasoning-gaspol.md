@@ -1,13 +1,15 @@
 # Gaspol-Specific Reasoning Rules
 
-Extensions to the base 161+ reasoning rules from `data/ui-reasoning.csv` (ui-ux-pro-max). These rules add project-context awareness and KB integration not present in the base library.
+Extensions to the reasoning rules the `ui-ux-pro-max` plugin provides. These add project-context
+awareness and KB integration that are **not present** in that plugin — which is why they survived
+the deletion of `gaspol-design` in IDS-2 and live here instead.
 
 ## Project Context Rules
 
 ### Rule G1: Respect Existing Design Tokens
 
 **IF** target project has `CLAUDE.md` with documented design system tokens
-**THEN** gaspol-design MUST propose designs using those exact tokens
+**THEN** the design output MUST use those exact tokens
 **UNLESS** user explicitly requests new design system (captured as ADR)
 
 Example:
@@ -18,7 +20,7 @@ Example:
 ### Rule G2: Stack-Specific Templates
 
 **IF** target project stack detected from CLAUDE.md or package.json
-**THEN** gaspol-design outputs code using that specific stack
+**THEN** the design output uses that specific stack
 - React + TypeScript → `templates/platforms/react-tsx/`
 - Vue 3 → `templates/platforms/vue/`
 - Next.js App Router → `templates/platforms/next/`
@@ -41,7 +43,7 @@ Never output React code for a Vue project.
 ### Rule G4: Performance Budget Awareness
 
 **IF** CLAUDE.md documents bundle size or performance budget
-**THEN** gaspol-design prefer:
+**THEN** prefer:
 - Tailwind over large CSS-in-JS libraries
 - Lucide over full Material Icons
 - CSS animations over Framer Motion for simple transitions
@@ -51,7 +53,7 @@ Never output React code for a Vue project.
 
 ### Rule G5: Query KB Before Proposing
 
-**BEFORE** proposing any UI pattern, gaspol-design MUST query `~/.claude/gaspol-knowledge/ui-patterns/` for similar past patterns:
+**BEFORE** proposing any UI pattern, query `~/.claude/gaspol-knowledge/ui-patterns/` for similar past patterns:
 
 ```bash
 cd ~/.claude/gaspol-knowledge/
@@ -74,7 +76,7 @@ When querying KB, filter by `status`:
 
 ### Rule G7: Learn After Ship
 
-After gaspol-design produces final output that ships via gaspol-finish, gaspol-learn captures pattern to `ui-patterns/` with:
+After the design output ships via gaspol-finish, gaspol-learn captures the pattern to `ui-patterns/` with:
 - Tags extracted from decision context
 - Status: `proposed` (until validated in future project)
 - Source: current project name + component path
@@ -98,7 +100,7 @@ Silent override = rejection.
 
 ### Rule G10: Plan Deliverable Shape
 
-When invoked by gaspol-plan for a UI phase, gaspol-design outputs:
+When invoked by gaspol-plan for a UI phase, the design output is:
 
 ```markdown
 ### Design Deliverable for Phase [X]

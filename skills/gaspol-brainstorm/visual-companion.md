@@ -50,7 +50,7 @@ when its owner process dies, or after 4h idle). Re-run `start-server.sh` with th
    serves the newest file and pushes it to the browser over WebSocket. Write a **content
    fragment** by default — the server wraps it in the frame (header, theme, click
    infrastructure); only write a full `<!DOCTYPE>`/`<html>` doc when you need full control.
-   Feed `gaspol-design` output (palette, layout blueprint, 162+ rules) into the markup.
+   Feed `ui-ux-pro-max` output (palette, layout blueprint, UX rules) into the markup.
 2. **Tell the user what's on screen, remind them of the URL, end your turn.** Ask them to look
    and respond in the terminal (they can click to select).
 3. **Next turn:** read `$STATE_DIR/events` (JSON lines) for their clicks/selections.

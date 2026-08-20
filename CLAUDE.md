@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **22 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
+Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
 
 ## Architecture
 
@@ -27,18 +27,14 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`). Fast, no API calls — run these first |
+| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`, `test-skill-delegation.sh`, `test-finish-gates.sh`). Fast, no API calls — run these first |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
 | `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
 | `skills/gaspol-parallel/scripts/dag-lanes` | **NEW (v1.8)** — deterministic DAG scheduler (stdlib `graphlib`, zero deps): task graph → dependency waves + file-isolated lanes. Replaces binary conflict-check; has `--self-test` |
-| `skills/gaspol-design/SKILL.md` | Frontend design intelligence — power peer ui-ux-pro-max v2.0 |
-| `skills/gaspol-design/data/` | Forked 15 CSV files (85+ styles, 162+ reasoning rules, 99+ UX guidelines, 74+ fonts, etc.) |
-| `skills/gaspol-design/scripts/` | Search engine + design audit Python scripts |
-| `skills/gaspol-design/rules/` | Anti-AI-slop hard rules + gaspol-specific reasoning |
-| `skills/gaspol-design/templates/` | Multi-framework component templates |
-| `skills/gaspol-design/integration/ui-ux-pro-max-bridge.py` | Optional v2.0 delegation bridge |
+| `skills/gaspol-verify/scripts/design_audit.py` | **MOVED (v1.14)** — offline static design-compliance lint (hardcoded colours/fonts, missing breakpoints, missing states, a11y gaps). Stdlib-only. Kept when `gaspol-design` was deleted because `ui-ux-pro-max`'s audit needs Playwright + a running URL and cannot run pre-merge |
+| `skills/gaspol-verify/rules/` | **MOVED (v1.14)** — anti-AI-slop tables + gaspol reasoning rules (project tokens, KB precedent). Kept for the same reason: `ui-ux-pro-max` ships no anti-slop opinion layer |
 | `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file |
 | `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking |
 | `skills/gaspol-execute/scripts/detect-stack` | **NEW (v1.13)** — reads stack marker files at a project root, prints `<level>: <command>` lines (static/lint/unit/build); prints `UNKNOWN` when a marker exists but its backing command doesn't; prints nothing when there are no markers. Feeds `gaspol-verify` Layer 1, `gaspol-parallel`'s Validation Ladder L1-L3, and `gaspol-plan`'s per-phase Verification block — no more hardcoded npm |
@@ -56,8 +52,7 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
-| `skills/gaspol-security-review/SKILL.md` | **NEW (v1.4)** — Security checklist (secrets, input, SQLi, authz, XSS, CSRF, rate-limit, RLS); gates pre-deploy in finish (ECC port) |
-| `skills/gaspol-eval/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
+| `skills/gaspol-llm-test/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
@@ -108,7 +103,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | User Intent | Skill to Invoke |
 |-------------|-----------------|
 | Create feature, add component, build something new | `gaspol-brainstorm` |
-| Design UI, pick colors, layout, styling | `gaspol-design` (also auto-triggered by brainstorm Phase 2.5/3) |
+| Design UI, pick colors, layout, styling | `ui-ux-pro-max` plugin skill (also auto-triggered by brainstorm Phase 2.5/3) |
 | Plan implementation, break down a task | `gaspol-plan` |
 | Execute an existing plan from `docs/plans/` | `gaspol-execute` (per-phase checkpoints) |
 | Execute plan with full autonomy + hard-stop guardrails | `gaspol-auto` |
@@ -117,10 +112,10 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Need isolated workspace / protect current branch | `gaspol-worktree` (auto-invoked by parallel Phase 0) |
 | Session start / "which skill applies?" / enforce auto-trigger | `using-gaspol` (loaded by session-start bootstrap) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
-| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-eval` (define + run evals; complements `gaspol-tdd`) |
+| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-llm-test` (define + run evals; complements `gaspol-tdd`) |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
-| Auth, secrets, user input, API endpoint, payment, sensitive data | `gaspol-security-review` (also auto-triggered by execute Step 3.6 + finish gate) |
+| Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (also auto-run by execute Step 3.6 + finish gate) |
 | Received code review feedback from others | `gaspol-receive-review` |
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
@@ -135,7 +130,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 
 | User Says | Actually Means |
 |-----------|---------------|
-| "Add a button" | invoke `gaspol-brainstorm` → (Phase 2.5 UI gate) → `gaspol-design` → `gaspol-plan` → `gaspol-tdd` |
+| "Add a button" | invoke `gaspol-brainstorm` → (Phase 2.5 UI gate) → `ui-ux-pro-max` → `gaspol-plan` → `gaspol-tdd` |
 | "Fix this bug" | invoke `gaspol-debug` |
 | "Plan this feature" | invoke `gaspol-brainstorm` or `gaspol-plan` |
 | "Review this code" | invoke `gaspol-review` |
@@ -156,10 +151,10 @@ When multiple skills apply:
 ### Skill Types
 
 **Rigid skills** — follow exactly, step-by-step, no adaptation:
-`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety), `gaspol-security-review` (checklist resists pressure)
+`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto` (hard-stop conditions), `gaspol-worktree` (Step 0 detection + gitignore safety)
 
 **Flexible skills** — apply principles to the specific situation:
-`gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
+`gaspol-brainstorm`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
 
 **Meta-skills** — apply to plugin ecosystem:
 `gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`, `using-gaspol` (auto-trigger bootstrap)
@@ -395,22 +390,31 @@ Invoked BLOCKING from:
 - `gaspol-execute` Step 7 (after completion gate) — cannot claim done until CLEAN
 - `gaspol-finish` Step 2 (pre-chain) — cannot present merge/PR options until CLEAN
 
-### Design Intelligence Power Peer (NEW in v1.2)
+### Design Intelligence — Delegated (CHANGED in v1.14, was a forked power peer)
 
-`gaspol-design` is now self-sufficient with forked data from ui-ux-pro-max v2.0 (MIT, see NOTICE.md):
+`gaspol-design` is **gone**. Design intelligence now comes from the **`ui-ux-pro-max` plugin**
+(84 styles, 192 palettes, 74 font pairings, 98 UX guidelines, 25 chart types, 22 stacks), invoked
+as a skill from brainstorm Phase 3 and from `gaspol-plan`'s per-UI-phase Design Deliverable column.
+gaspol carried a 1.4MB fork of that data; the fork drifted, the upstream did not, so the fork went.
 
-- 85+ UI styles, 74+ font pairings, 162+ reasoning rules, 99+ UX guidelines, color palettes, chart types, icons
-- 3 Python scripts (search, design_system, design_audit) + optional v2.0 bridge
-- Multi-framework templates (React, Vue, Next, Laravel, SwiftUI, Flutter, HTML+Tailwind, shadcn/ui, Astro, Svelte)
+**The reference is SOFT — there is deliberately no `dependencies` key in `plugin.json`.** That
+field is all-or-nothing: if `ui-ux-pro-max-skill` were renamed, yanked, or broken, the whole of
+gaspol-dev would disable with `dependency-unsatisfied`, taking down the twenty skills that have
+nothing to do with design. If the plugin is missing, say so, point at
+`claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill`, and continue — design quality degrades,
+nothing breaks.
 
-Gaspol-specific layers BEYOND v2.0:
-1. Project context integration (reads CLAUDE.md tokens)
-2. KB cross-project learning (queries `ui-patterns/`)
-3. Anti-AI-slop hard enforcement (`rules/anti-ai-slop.md`)
-4. Planning integration (per-UI-phase Design Deliverable column)
-5. Execute fidelity check (`scripts/design_audit.py` scans codebase vs spec)
-6. Verify Layer 4 compliance (design system sub-check)
-7. Learn integration (UI patterns auto-captured)
+**Three parts did NOT delegate**, because `ui-ux-pro-max` has no equivalent for any of them:
+
+| Kept | Where | Why it could not be delegated |
+|------|-------|-------------------------------|
+| Offline compliance lint | `skills/gaspol-verify/scripts/design_audit.py` | 205 lines, stdlib-only, scans **source**. The upstream audit drives Chromium via Playwright against a **running URL** and lives in a scaffold template — it cannot run in `gaspol-verify` Layer 4, which is offline and pre-merge |
+| Anti-AI-slop tables | `skills/gaspol-verify/rules/anti-ai-slop.md` | `ui-ux-pro-max` ships **no** anti-slop opinion layer — zero "never use" lists. Deleting this would have been a net loss |
+| gaspol reasoning rules | `skills/gaspol-verify/rules/reasoning-gaspol.md` | Project-CLAUDE.md-token respect and KB precedent lookup; the file's own header calls these "not present in the base library" |
+
+Integration points that survive unchanged: planning (Design Deliverable column), execute Step 3.5
+fidelity check, verify Layer 4 compliance (still FAILS below score 60), and learn capture of UI
+patterns to the KB.
 
 Anti-AI-slop enforcement rules:
 
@@ -449,7 +453,7 @@ When user wants to create, add, or modify anything:
 4. **Phase 1.5**: Novelty assessment (PRECEDENT / SEMI-NEW / NEW → decide research depth)
 5. **Phase 2**: Propose 2-3 approaches with trade-offs + MANDATORY source citations (from research cache or live research)
 6. **Phase 2.5**: Design gate (explicit AskUserQuestion if UI detection ambiguous)
-7. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — invokes `gaspol-design` power peer
+7. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — invokes the `ui-ux-pro-max` plugin skill
 8. **Phase 4**: Implementation feasibility check (REAL data paths, existing backend)
 9. **Phase 5**: Present design in 200-300 word sections, AskUserQuestion confirm per section, include Data Integration Map
 10. **Phase 6**: Mint ticket, write to `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-spec.md`;
@@ -571,15 +575,34 @@ Response pattern: READ → UNDERSTAND → VERIFY → EVALUATE → RESPOND → IM
 
 When feedback is unclear: STOP. Do not guess. Ask for clarification with specific interpretation options.
 
-### Finishing Work (gaspol-finish) — Plan-Verifier Blocking in v1.2
+### Finishing Work (gaspol-finish) — six-step chain, three of them BLOCKING
 
-Pre-finish verification chain (MANDATORY):
+Pre-finish verification chain (MANDATORY — all six, in order, none conditional on the diff):
 
 1. Run `gaspol-verify` (all 4 layers)
-2. Run `plan-verifier` agent **BLOCKING** (step-level, evidence-based, spot-check 3 random FOUND items)
-3. If plan-verifier = BLOCKING → return to execute, fix issues, re-run
-4. Run `gaspol-sync-docs` (update CLAUDE.md)
-5. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
+2. Run `plan-verifier` agent **BLOCKING** (step-level, evidence-based, spot-check 3 random FOUND items).
+   If BLOCKING → return to execute, fix, re-run. Do not waste a review pass on code about to change.
+3. Run `gaspol-review` at **Tier 1** — **BLOCKING** on any Critical finding that survives the
+   Step 2.5 refutation pass. Fix and re-run before proceeding.
+4. Run the built-in **`/security-review`** — **ALWAYS**, on every branch, regardless of whether
+   the diff looks security-sensitive. A finding BLOCKS: resolve via AskUserQuestion
+   (`[Fix now]` / `[Accept risk with documented reason]`) before any merge option is offered.
+   If the command is unavailable, say so and walk the same ground by hand — never record it as
+   passed when it did not run.
+5. Run `gaspol-sync-docs` (update CLAUDE.md)
+6. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
+
+**After the chosen option executes (IDS-3):** close the ledger. Append a final `## Log` line
+to `.gaspol/progress/PROGRESS-<TICKET>.md` ending `— NEXT: DONE`, confirm no `[ ]`/`[>]` is left
+in the Checklist, and run `skills/gaspol-execute/scripts/scan-active-ledgers .gaspol/progress` to
+surface any other ticket still in flight. The ledger is gitignored, so a stale one is invisible to
+`git status` — nothing else closes it.
+
+**Merging is not publishing (IDS-3).** A local merge leaves the work on one machine. Push, and for
+a plugin repo also run `claude plugin marketplace update <marketplace>` +
+`claude plugin update <plugin>@<marketplace>` (the full id — the bare name fails with
+`Plugin "<name>" not found`), then restart Claude Code. The post-merge test command is derived from
+`skills/gaspol-execute/scripts/detect-stack`, never hardcoded to npm.
 
 Then present exactly 4 options via AskUserQuestion:
 
@@ -667,7 +690,7 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | KB not surfacing precedent | Phase 0.5 skipped, OR KB still empty (nothing captured yet via adr/learn). Local-only auto-inits `~/.claude/gaspol-knowledge/` — check `"kb_mode":"off"` isn't set; see [docs/kb-setup.md](docs/kb-setup.md) |
 | Research claims without citations | `gaspol-research` quality gates not enforced — every claim needs URL |
 | Cache stale but used as-is | Freshness tier not checked — research entries need age filter |
-| Generic "Inter font" recommendation | `gaspol-design` anti-AI-slop rules bypassed — check `rules/anti-ai-slop.md` |
+| Generic "Inter font" recommendation | anti-AI-slop rules bypassed — check `skills/gaspol-verify/rules/anti-ai-slop.md` |
 | Design not integrated in plan | Phase 2.5 gate skipped — UI detection may need explicit AskUserQuestion |
 | KB growing with junk | `gaspol-learn` quality gate not enforced — require min 200 words, tags, no duplicates |
 | Old ADRs surfacing as precedent | `gaspol-kb-audit` overdue — run quarterly |
@@ -701,9 +724,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-2
+Last ticket: IDS-3
 
 ---
 
-**Version:** 1.13.0
+**Version:** 1.14.0
 **Last Updated:** August 2026

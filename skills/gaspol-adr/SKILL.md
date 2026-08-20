@@ -30,7 +30,7 @@ Architectural decisions live longer than memory. Consistency across projects req
 
 - Trivial implementation choice (which variable name, formatting)
 - Single-option obvious path (not really a "decision")
-- Pure styling pick (use gaspol-design for design decisions, not ADR)
+- Pure styling pick (use the ui-ux-pro-max skill for design decisions, not ADR)
 
 ---
 

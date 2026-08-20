@@ -1,4 +1,8 @@
-# Anti-AI-Slop Hard Rules (gaspol-design)
+# Anti-AI-Slop Hard Rules (gaspol)
+
+> Relocated here from the deleted `gaspol-design` skill (IDS-2). Design *data* now comes
+> from the `ui-ux-pro-max` plugin; this taste layer does not, because `ui-ux-pro-max`
+> ships no anti-slop opinion at all. Apply these on top of whatever it returns.
 
 These are NON-NEGOTIABLE enforcement rules. Apply to ALL design outputs. Override-able only with explicit project-specific justification documented in CLAUDE.md.
 
@@ -94,7 +98,7 @@ Exception: dashboards + data tables legitimately need structured grids. Use when
 
 ## Self-Check Before Output
 
-Before gaspol-design returns design recommendations to caller (brainstorm/plan/execute):
+Before any design recommendation is returned to the caller (brainstorm/plan/execute):
 
 - [ ] No banned typography defaults
 - [ ] No purple gradient on white

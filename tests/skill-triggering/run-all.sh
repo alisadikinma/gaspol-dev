@@ -16,11 +16,13 @@ SKILLS=(
     "gaspol-review"
     "gaspol-worktree"
 )
-# NOTE: gaspol-security-review and gaspol-eval are SECOND-ORDER skills
-# (auto-triggered downstream by execute/finish/plan/verify), like gaspol-design,
-# gaspol-adr, and gaspol-learn. A cold naive build-prompt correctly routes to
-# gaspol-brainstorm first, so they are intentionally NOT cold-prompt triggering-tested.
-# gaspol-security-review's discipline is validated via tests/pressure/ instead.
+# NOTE: gaspol-llm-test, gaspol-adr, and gaspol-learn are SECOND-ORDER skills
+# (auto-triggered downstream by execute/finish/plan/verify). A cold naive
+# build-prompt correctly routes to gaspol-brainstorm first, so they are
+# intentionally NOT cold-prompt triggering-tested.
+# Security discipline is validated via tests/pressure/ instead -- the checklist
+# skill was deleted in v1.14.0 in favour of the CLI built-in /security-review,
+# but the pressure case survives, retargeted at gaspol-execute Step 3.6.
 
 echo "=== gaspol Skill-Triggering Suite ==="
 echo ""

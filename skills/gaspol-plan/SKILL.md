@@ -252,18 +252,18 @@ same block reads `php artisan test`, on a Python repo `pytest`, and where `detec
 | 2 | LoginForm component | Design spec (tokens, layout, motion, states) | Design system compliance |
 ```
 
-Design deliverable is produced by invoking `gaspol-design` during plan creation for each UI phase.
+Design deliverable is produced by invoking the `ui-ux-pro-max` skill during plan creation for each UI phase.
 
 **Security-Sensitive Phases:** When a phase touches **auth/authorization, secrets,
 user input or file uploads, a new API endpoint, payment, or sensitive data**, the
 phase's Verification block MUST include a security line (e.g. "inputs validated,
 queries parameterized, authz server-side, no secrets in source"). `gaspol-execute`
-auto-invokes `gaspol-security-review` for these phases (Step 3.6), and
-`gaspol-finish` runs the Pre-Deployment Security Checklist before merge.
+auto-runs the built-in `/security-review` for these phases (Step 3.6), and
+`gaspol-finish` runs it again on the whole branch before merge.
 
 **Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior
 (classification, extraction, generation, RAG, routing), define evals at plan time via
-`gaspol-eval` — write `docs/evals/<feature>.md` (capability + regression + real
+`gaspol-llm-test` — write `docs/evals/<feature>.md` (capability + regression + real
 fixtures) as the phase's success contract. Deterministic unit tests alone do not
 verify non-deterministic output; `gaspol-verify` runs these evals and reports pass@k.
 
@@ -388,7 +388,7 @@ Before presenting the plan, verify none of these red flags are present:
 | Trigger | Skill | Relationship |
 |---------|-------|-------------|
 | Before this skill | `gaspol-brainstorm` | Brainstorm produces the design section in same file; plan appends |
-| During this skill | `gaspol-design` | Invoked for each UI phase to produce design deliverable |
+| During this skill | `ui-ux-pro-max` (plugin) | Invoked for each UI phase to produce design deliverable |
 | During this skill | `gaspol-adr` | Capture architectural decisions at fork points in the plan |
 | After this skill | `gaspol-execute` | Execute the plan with per-phase checkpoints + TDD hard gate |
 | After this skill | `gaspol-parallel` | Execute independent phases in parallel (mode: plan-phases) |
