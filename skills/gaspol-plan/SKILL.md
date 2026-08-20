@@ -45,19 +45,32 @@ If you skip this step, the plan will inevitably reinvent existing abstractions.
 Every plan is its own file, always separate from the spec:
 
 ```
-docs/plans/<TICKET>-<kebab-topic>-plan.md
+docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md
 ```
 
-The `<TICKET>` prefix and `-plan.md` suffix make the file self-identifying at a glance —
-which ticket, and that this is the plan stage (not `-spec.md`, brainstorm's output). No
-date prefix, no hybrid append, no line-count split logic — one plan, one file, always.
+`YYYY-MM-DD` is the date this file is created — not the date the ticket was minted; a plan
+can be written days after its spec. Date + `<TICKET>` prefix + `-plan.md` suffix make the
+file self-identifying at a glance — when it was written, which ticket, and that this is the
+plan stage (not `-spec.md`, brainstorm's output). No hybrid append, no line-count split
+logic — one plan, one file, always.
 
-**Ticket resolution (before writing anything):**
-- If a matching `docs/plans/<TICKET>-<kebab-topic>-spec.md` exists (this plan follows a
-  `gaspol-brainstorm` architectural-path session) — read its `**Ticket:**` header field and
-  reuse that ticket. Do not mint a new one.
-- Otherwise (standalone plan, no preceding spec) — mint a fresh ticket per the header step
-  below.
+**Ticket resolution (before writing anything) — find the spec by GLOB, never by
+reconstructing a filename from a date:**
+- Glob `docs/plans/*-<TICKET>-*-spec.md`. Zero matches → standalone plan, no preceding
+  spec; mint a fresh ticket per the header step below.
+- Exactly one match (this plan follows a `gaspol-brainstorm` architectural-path session) —
+  read its `**Ticket:**` header field and reuse that ticket. Do not mint a new one.
+- **More than one match → STOP and ask the user which spec this plan continues. Never pick
+  one silently** — a wrong guess ties the plan to the wrong ticket/spec permanently.
+
+**Migration note:** seven files in `docs/plans/` predate ticket-minting and are NOT
+renamed to this convention — `2026-04-17-gaspol-improvements.md`,
+`2026-06-09-ecc-adoption-p0-security-eval.md`, `2026-06-30-superpowers-adoption.md`,
+`2026-06-30-v1.6-sdd-review-harness.md`, `2026-06-30-v1.7-visual-companion.md`,
+`2026-08-16-gaspol-workflow-hardening.md`, `2026-08-16-gaspol-workflow-hardening-plan.md`.
+They have no ticket to insert into the new form; inventing one would put false data in a
+filename. The `*-<TICKET>-*-spec.md` glob above is automatically safe against them — no
+ticket in the name means it never matches.
 
 ## Plan Document Header (MANDATORY)
 
@@ -79,7 +92,7 @@ resolution above — reuse the spec file's ticket if one exists):
    Use `<PREFIX>-1` as this plan's ticket (the counter now points at it — no need to
    re-run `next-ticket`).
 4. Derive this plan's ledger path from the ticket: `.gaspol/progress/progress-<TICKET>.md`.
-5. Derive the plan filename from the ticket: `docs/plans/<TICKET>-<kebab-topic>-plan.md`.
+5. Derive the plan filename from the ticket and today's date: `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md`.
 6. Write the ticket, ledger, and (if a spec preceded this plan) spec path into the header
    below as `**Ticket:**`, `**Ledger:**`, and `**Spec:**` fields.
 
@@ -95,7 +108,7 @@ Every plan document MUST start with this header:
 
 **Ticket:** IND-81
 **Ledger:** .gaspol/progress/progress-IND-81.md
-**Spec:** docs/plans/IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
+**Spec:** docs/plans/2026-08-20-IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
 **Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- optional — present ONLY when the Execution Handoff artifact offer was accepted and rendered; omit entirely otherwise, never write "n/a" -->
 
 ## Goal

@@ -148,7 +148,7 @@ This is the layer most verification systems skip. It answers: "Did we build what
 
 ### Evidence Format
 ```
-PLAN FIDELITY CHECK (plan: docs/plans/2026-02-10-feature-x.md)
+PLAN FIDELITY CHECK (plan: docs/plans/2026-02-10-IND-42-feature-x-plan.md)
   Phase 1: Component scaffolding ........... DONE (3/3 files)
   Phase 2: Hook integration ................ DONE (2/2 hooks)
   Phase 3: API connection .................. PARTIAL (missing error handler)

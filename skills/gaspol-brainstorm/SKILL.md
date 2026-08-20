@@ -320,10 +320,11 @@ Before finalizing:
      Use `<PREFIX>-1` as this feature's ticket.
   Spike/bounded paths stop at in-chat approval and skip ticket-minting and this file write
   entirely — see Phase 1's Three Paths classification.
-- Write to `docs/plans/<TICKET>-<kebab-topic>-spec.md` — the `-spec.md` suffix marks this as
-  brainstorm output, distinct from the `-plan.md` file `gaspol-plan` writes next. The
-  `<TICKET>` prefix (not a date) makes both files self-identifying at a glance: which
-  ticket, which stage.
+- Write to `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-spec.md`, where `YYYY-MM-DD` is
+  today's date (the day this file is created, not the day the ticket was minted) — the
+  `-spec.md` suffix marks this as brainstorm output, distinct from the `-plan.md` file
+  `gaspol-plan` writes next. Date + `<TICKET>` + suffix make the file self-identifying at a
+  glance: when it was written, which ticket, which stage.
 - File starts with a `**Ticket:** <TICKET>` line, then the `## Design` section (from this
   brainstorm).
 - `gaspol-plan` reads this file's `**Ticket:**` field and reuses it — it writes a SEPARATE
