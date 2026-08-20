@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+# detect-stack — scan a project root for stack marker files (package.json,
+# composer.json, pyproject.toml/requirements.txt, go.mod, Cargo.toml,
+# pubspec.yaml) and print the verification commands actually backed by
+# what's present (npm scripts, vendor binaries, tsconfig.json) — never
+# invents a command the project can't actually run.
+#
+# Usage:  detect-stack <project-root>
+#         detect-stack --self-test
+#
+# Contract:
+#   $1        path to a project root directory
+#   stdout    zero or more lines "<level>: <command>" (level is one of
+#             static|lint|unit|build); with a single stack detected, no
+#             prefix; with 2+ stacks detected (monorepo/polyglot), each
+#             line is prefixed "<stack>/<level>: <command>"
+#   exit 0    always, on a normal scan (zero markers found is NOT an error)
+#   exit 1    usage error (missing arg / directory not found)
+set -euo pipefail
+
+usage() {
+    echo "usage: detect-stack <project-root>" >&2
+    echo "       detect-stack --self-test" >&2
+}
+
+# --- package.json .scripts parsing (no jq — it may not be installed) ------
+# Pragmatic approach: an npm-formatted package.json puts the "scripts"
+# object's closing brace alone on its own line (e.g. "  },"). We slice the
+# region from the "scripts": { line down to that closing-brace line with
+# sed, then grep for a quoted key followed by ':' WITHIN that slice only —
+# this avoids matching a same-named key living outside scripts (e.g. a
+# dependency literally named "build").
+# Limitation (accepted): a script VALUE containing a literal standalone
+# "{"/"}" line, or a hand-minified package.json with "scripts" on one
+# line, defeats this. Both are unusual for a project-root sniff.
+node_scripts_block() {
+    local pkg="$1"
+    sed -n '/"scripts"[[:space:]]*:[[:space:]]*{/,/^[[:space:]]*}/p' "$pkg"
+}
+
+has_npm_script() {
+    local pkg="$1" key="$2"
+    [[ -f "$pkg" ]] || return 1
+    node_scripts_block "$pkg" | grep -qE "\"${key}\"[[:space:]]*:"
+}
+
+# --- per-stack line builders ------------------------------------------------
+# Each echoes zero or more UNPREFIXED "<level>: <command>" lines for ONE
+# stack. Backing rules:
+#   - node static requires tsconfig.json — if absent, the line is OMITTED
+#     entirely (it's a sub-marker for that level, not a missing script)
+#   - node lint/unit/build require the matching package.json .scripts key
+#     — if absent, "<level>: UNKNOWN"
+#   - php static/lint require the vendor/bin binary to exist — if absent,
+#     "<level>: UNKNOWN"
+#   - every other level has no backing check: always emitted once the
+#     stack's own marker file is present
+
+lines_node() {
+    local root="$1" pkg="$root/package.json"
+    if [[ -f "$root/tsconfig.json" ]]; then
+        echo "static: npx tsc --noEmit"
+    fi
+    if has_npm_script "$pkg" "lint"; then
+        echo "lint: npm run lint"
+    else
+        echo "lint: UNKNOWN"
+    fi
+    if has_npm_script "$pkg" "test"; then
+        echo "unit: npm test"
+    else
+        echo "unit: UNKNOWN"
+    fi
+    if has_npm_script "$pkg" "build"; then
+        echo "build: npm run build"
+    else
+        echo "build: UNKNOWN"
+    fi
+}
+
+lines_php() {
+    local root="$1"
+    if [[ -f "$root/vendor/bin/phpstan" ]]; then
+        echo "static: ./vendor/bin/phpstan analyse"
+    else
+        echo "static: UNKNOWN"
+    fi
+    if [[ -f "$root/vendor/bin/pint" ]]; then
+        echo "lint: ./vendor/bin/pint --test"
+    else
+        echo "lint: UNKNOWN"
+    fi
+    echo "unit: php artisan test"
+}
+
+lines_python() {
+    echo "static: mypy ."
+    echo "lint: ruff check ."
+    echo "unit: pytest"
+}
+
+lines_go() {
+    echo "static: go vet ./..."
+    echo "unit: go test ./..."
+    echo "build: go build ./..."
+}
+
+lines_rust() {
+    echo "static: cargo check"
+    echo "lint: cargo clippy"
+    echo "unit: cargo test"
+    echo "build: cargo build"
+}
+
+lines_flutter() {
+    echo "static: dart analyze"
+    echo "unit: flutter test"
+    echo "build: flutter build"
+}
+
+# stack_marker_present STACK ROOT
+stack_marker_present() {
+    local stack="$1" root="$2"
+    case "$stack" in
+        node) [[ -f "$root/package.json" ]] ;;
+        php) [[ -f "$root/composer.json" ]] ;;
+        python) [[ -f "$root/pyproject.toml" || -f "$root/requirements.txt" ]] ;;
+        go) [[ -f "$root/go.mod" ]] ;;
+        rust) [[ -f "$root/Cargo.toml" ]] ;;
+        flutter) [[ -f "$root/pubspec.yaml" ]] ;;
+    esac
+}
+
+scan_root() {
+    local root="$1"
+    local all_stacks=(node php python go rust flutter)
+    local present=()
+    local stack
+
+    for stack in "${all_stacks[@]}"; do
+        if stack_marker_present "$stack" "$root"; then
+            present+=("$stack")
+        fi
+    done
+
+    # ${#present[@]} -eq 0 shortcut avoids expanding an empty "${present[@]}"
+    # under `set -u` — that throws "unbound variable" on bash 3.2 (macOS
+    # system bash), which has no special-case for empty-array expansion.
+    [[ "${#present[@]}" -eq 0 ]] && return 0
+
+    local prefix=0
+    [[ "${#present[@]}" -gt 1 ]] && prefix=1
+
+    for stack in "${present[@]}"; do
+        local line
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            if [[ "$prefix" -eq 1 ]]; then
+                echo "${stack}/${line}"
+            else
+                echo "$line"
+            fi
+        done < <("lines_${stack}" "$root")
+    done
+}
+
+_self_test() {
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' RETURN
+
+    # Case 1: empty dir → zero lines, exit 0 (proof it invents nothing)
+    local empty_dir="$tmp_dir/empty"
+    mkdir -p "$empty_dir"
+    local out1
+    out1="$(scan_root "$empty_dir")"
+    if [[ -n "$out1" ]]; then
+        echo "self-test FAIL: case 1 (empty dir) expected no output, got:" >&2
+        printf '%s\n' "$out1" >&2
+        return 1
+    fi
+
+    # Case 2: package.json with only a "test" script → build/lint UNKNOWN,
+    # no static line (no tsconfig.json), unit resolved to the real command.
+    local node_dir="$tmp_dir/node"
+    mkdir -p "$node_dir"
+    cat >"$node_dir/package.json" <<'EOF'
+{
+  "name": "x",
+  "scripts": {
+    "test": "jest"
+  }
+}
+EOF
+    local out2
+    out2="$(scan_root "$node_dir")"
+    if ! grep -qx "build: UNKNOWN" <<<"$out2"; then
+        echo "self-test FAIL: case 2 expected 'build: UNKNOWN', got:" >&2
+        printf '%s\n' "$out2" >&2
+        return 1
+    fi
+    if ! grep -qx "lint: UNKNOWN" <<<"$out2"; then
+        echo "self-test FAIL: case 2 expected 'lint: UNKNOWN', got:" >&2
+        printf '%s\n' "$out2" >&2
+        return 1
+    fi
+    if grep -q "^static:" <<<"$out2"; then
+        echo "self-test FAIL: case 2 expected NO static: line, got:" >&2
+        printf '%s\n' "$out2" >&2
+        return 1
+    fi
+    if ! grep -qx "unit: npm test" <<<"$out2"; then
+        echo "self-test FAIL: case 2 expected 'unit: npm test', got:" >&2
+        printf '%s\n' "$out2" >&2
+        return 1
+    fi
+
+    echo "detect-stack self-test: PASS"
+    return 0
+}
+
+main() {
+    if [[ "${1:-}" == "--self-test" ]]; then
+        _self_test
+        exit $?
+    fi
+
+    if [[ $# -ne 1 ]]; then
+        usage
+        exit 1
+    fi
+
+    local root="$1"
+    if [[ ! -d "$root" ]]; then
+        echo "detect-stack: directory not found: $root" >&2
+        exit 1
+    fi
+
+    scan_root "$root"
+}
+
+main "$@"
