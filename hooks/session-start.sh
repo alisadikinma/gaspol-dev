@@ -22,7 +22,7 @@ ROUTING — match the user's intent, invoke BEFORE acting:
   parallel / independent work ................. gaspol-worktree → gaspol-parallel
   isolate workspace / protect branch .......... gaspol-worktree
   implement or fix (before code) .............. gaspol-tdd
-  LLM / prompt / agent (non-deterministic) .... gaspol-eval
+  LLM / prompt / agent (non-deterministic) .... gaspol-llm-test
   bug / error / test failure .................. gaspol-debug
   review code ................................. gaspol-review
   auth/secrets/input/endpoint/payment ........ /security-review (CLI built-in)

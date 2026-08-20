@@ -114,9 +114,26 @@ finish report.
   ground by hand — secrets in source, unparameterized queries, missing server-side authz, XSS
   sinks, CSRF, rate limiting. **Never record the step as passed when it did not run.**
 
-### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- unchanged
+### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- now evidence-gated
 
 Update CLAUDE.md and any other documentation with changes from this work.
+
+**Evidence required — this step used to be a self-reported checkbox.** Nothing verified
+that CLAUDE.md had actually changed, so `[x] Step 5: COMPLETED` could be written over a
+branch that never touched it. That is a completion claim without evidence, which Iron
+Law 3 forbids everywhere else in this plugin.
+
+If the branch made a **structural change** — added, removed, or renamed anything under
+`skills/`, `agents/`, `hooks/`, or `scripts/`, or altered a routing table, a chain step,
+or a documented command — then **CLAUDE.md must appear in the branch diff**:
+
+```bash
+git diff --name-only <BASE>..HEAD | grep -q '^CLAUDE.md$'
+```
+
+If that check fails on a structural change, Step 5 is NOT complete: run `gaspol-sync-docs`
+for real, then re-check. Only a branch with no structural change may record Step 5 as
+"no doc-visible change", and it must say which — never a bare COMPLETED.
 
 This ensures:
 - New tables, functions, routes, or components are documented

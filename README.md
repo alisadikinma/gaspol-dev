@@ -69,7 +69,7 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 - **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` OR `mode: independent-domains`) with worktree isolation + continuous execution + **DAG lane scheduling** (v1.8, dependency waves + file-isolated lanes for max safe parallelism) + per-task **Validation Ladder** (v1.8, static→unit→build→integration→edge `DONE` gate)
 - **gaspol-auto** — Autonomous mode for familiar codebase (hard-stop guardrails on 8 conditions)
 - **gaspol-tdd** — RED-GREEN-REFACTOR hard-gated by execute (no production code before failing test)
-- **gaspol-eval** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k); complements gaspol-tdd
+- **gaspol-llm-test** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k); complements gaspol-tdd
 - **gaspol-debug** — Systematic root-cause debugging (no guessing, backward tracing)
 
 ### Verification & Closure

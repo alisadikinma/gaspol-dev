@@ -52,7 +52,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
-| `skills/gaspol-eval/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
+| `skills/gaspol-llm-test/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
@@ -112,7 +112,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Need isolated workspace / protect current branch | `gaspol-worktree` (auto-invoked by parallel Phase 0) |
 | Session start / "which skill applies?" / enforce auto-trigger | `using-gaspol` (loaded by session-start bootstrap) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
-| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-eval` (define + run evals; complements `gaspol-tdd`) |
+| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-llm-test` (define + run evals; complements `gaspol-tdd`) |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
 | Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (also auto-run by execute Step 3.6 + finish gate) |

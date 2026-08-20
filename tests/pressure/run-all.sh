@@ -24,6 +24,7 @@ CASES=(
     "gaspol-execute|gaspol-execute-overbuild.txt|class CacheManager|pluggable backend|CacheBackend|interface [A-Za-z]*Cache|abstract class"
     "gaspol-brainstorm|gaspol-brainstorm-bounded.txt|Phase 0\.5|Phase 1\.5|querying.*(KB|knowledge base)|writing.*(the )?spec file|docs/plans/.*\.md"
     "gaspol-execute|gaspol-execute-inflight.txt|starting implementation|beginning (with )?(phase|implementation)|Phase 1:.*implement|let'?s (start|begin) (coding|implementing)"
+    "gaspol-receive-review|receive-review-wrong-feedback.txt|you'?re (absolutely )?right|good catch|great (point|catch)|applied both|both changes applied|done, (removed|dropped) the"
 )
 
 echo "=== gaspol Pressure Suite ==="

@@ -56,6 +56,54 @@ has "finish reminds to push after a local merge" "git push origin"
 has "finish covers republishing a plugin repo" "claude plugin update"
 has "finish states a restart is required for a plugin update" "Restart"
 
+
+# --- 4. gaspol-sync-docs must prove it ran ---------------------------------
+# Step 5 was a self-reported checkbox: "[x] Step 5 gaspol-sync-docs: COMPLETED".
+# Nothing checked that CLAUDE.md actually changed. A claim with no evidence is
+# exactly what Iron Law 3 forbids, and sync-docs is the one chain step with no
+# trigger test, no pressure test, and no verification of any kind.
+has "finish Step 5 demands evidence that CLAUDE.md changed" \
+    "CLAUDE.md must appear in the branch diff"
+# Specific phrase, not "skills/" -- that substring already appears elsewhere in
+# the file, so asserting it would have passed vacuously and proved nothing.
+has "finish Step 5 names the structural change that triggers the requirement" \
+    "structural change"
+
+# --- 5. gaspol-eval renamed to say what it tests ----------------------------
+lacks_repo() {
+  local desc="$1" pattern="$2" hits
+  hits="$(git ls-files -- '*.md' '*.sh' '*.json' \
+          | grep -v -e '^docs/plans/' -e '^CHANGELOG\.md$' -e 'test-finish-gates\.sh$' \
+          | tr '\n' '\0' | xargs -0 grep -n -- "$pattern" /dev/null 2>/dev/null || true)"
+  if [[ -z "$hits" ]]; then pass "$desc"; else fail "$desc" "$hits"; fi
+}
+if [[ -f skills/gaspol-llm-test/SKILL.md ]]; then
+  pass "skill renamed to gaspol-llm-test"
+else
+  fail "skill renamed to gaspol-llm-test"
+fi
+if [[ ! -e skills/gaspol-eval ]]; then
+  pass "old gaspol-eval directory is gone"
+else
+  fail "old gaspol-eval directory is gone"
+fi
+lacks_repo "no live reference to the old gaspol-eval name" "gaspol-eval"
+
+# --- 6. gaspol-receive-review compliance is measurable ---------------------
+# It produces no artifact, so 7 commits touching it prove it was maintained,
+# not that it was obeyed. A pressure case makes obedience observable: feed it
+# review feedback that is technically WRONG and see whether it caves.
+if [[ -f tests/pressure/prompts/receive-review-wrong-feedback.txt ]]; then
+  pass "receive-review pressure prompt exists"
+else
+  fail "receive-review pressure prompt exists"
+fi
+if grep -q 'receive-review-wrong-feedback.txt' tests/pressure/run-all.sh 2>/dev/null; then
+  pass "receive-review pressure case registered in run-all.sh"
+else
+  fail "receive-review pressure case registered in run-all.sh"
+fi
+
 # The referenced scripts must actually exist, or the instruction is a lie that
 # only fails at the moment someone follows it.
 for s in scan-active-ledgers detect-stack; do

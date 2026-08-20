@@ -1,12 +1,12 @@
 ---
-name: gaspol-eval
+name: gaspol-llm-test
 description: Use when implementing AI/LLM/prompt-driven features (classification, extraction, generation, agents, RAG, summarization) where behavior is non-deterministic and ordinary unit tests miss regressions. Defines capability + regression evals with pass@k metrics. Complements gaspol-tdd — it does not replace it.
 ---
 
-# gaspol-eval
+# gaspol-llm-test
 
 Eval-driven development (EDD) for non-deterministic features. Where `gaspol-tdd`
-gives RED-GREEN-REFACTOR for deterministic code, `gaspol-eval` gives capability and
+gives RED-GREEN-REFACTOR for deterministic code, `gaspol-llm-test` gives capability and
 regression **evals** for behavior you cannot assert with a single `expect(...)`.
 
 > Ported and adapted from the ECC `eval-harness` skill (MIT, Affaan Mustafa).
@@ -25,7 +25,7 @@ track regressions per change, and measure reliability with pass@k. A feature tha
 
 ## Announce at Start
 
-> "I'm using the gaspol-eval skill to define and run evals for this non-deterministic feature."
+> "I'm using the gaspol-llm-test skill to define and run evals for this non-deterministic feature."
 
 ## When to Activate
 
@@ -39,10 +39,10 @@ track regressions per change, and measure reliability with pass@k. A feature tha
 | Situation | Skill |
 |---|---|
 | Deterministic logic, pure functions, API contracts, DB queries | `gaspol-tdd` (RED-GREEN-REFACTOR) |
-| Non-deterministic LLM/prompt output, agent behavior, ranking quality | `gaspol-eval` (capability + regression evals) |
+| Non-deterministic LLM/prompt output, agent behavior, ranking quality | `gaspol-llm-test` (capability + regression evals) |
 | A feature with BOTH (e.g. an endpoint that calls an LLM) | **both** — tdd for the deterministic shell, eval for the LLM behavior |
 
-`gaspol-eval` does NOT replace `gaspol-tdd`. Pure-logic code still goes through TDD.
+`gaspol-llm-test` does NOT replace `gaspol-tdd`. Pure-logic code still goes through TDD.
 
 ## Eval Types
 

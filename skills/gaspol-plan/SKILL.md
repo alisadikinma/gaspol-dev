@@ -263,7 +263,7 @@ auto-runs the built-in `/security-review` for these phases (Step 3.6), and
 
 **Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior
 (classification, extraction, generation, RAG, routing), define evals at plan time via
-`gaspol-eval` — write `docs/evals/<feature>.md` (capability + regression + real
+`gaspol-llm-test` — write `docs/evals/<feature>.md` (capability + regression + real
 fixtures) as the phase's success contract. Deterministic unit tests alone do not
 verify non-deterministic output; `gaspol-verify` runs these evals and reports pass@k.
 
