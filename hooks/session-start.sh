@@ -15,7 +15,7 @@ responding — before clarifying questions, before reading files, before
 
 ROUTING — match the user's intent, invoke BEFORE acting:
   build / add feature / new component ......... gaspol-brainstorm
-  design UI / colors / layout ................. gaspol-design
+  design UI / colors / layout ................. ui-ux-pro-max (plugin)
   plan / break down a task .................... gaspol-plan
   execute a plan (checkpoints) ................ gaspol-execute
   execute fully autonomously .................. gaspol-auto

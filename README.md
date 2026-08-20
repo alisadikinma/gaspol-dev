@@ -59,7 +59,6 @@ Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes 
 
 ### Planning & Design
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + design gate (Phase 2.5)
-- **gaspol-design** — Power-peer design intelligence (85+ styles, 162+ reasoning rules, 99+ UX guidelines, multi-framework)
 - **gaspol-plan** — Implementation plan with Data Integration Map + TDD step 1 mandatory + design deliverable column
 - **gaspol-research** — Deep-dive external libs/APIs with freshness-aware cache, quality gates, anti-hallucination spot-check
 - **gaspol-adr** — Architecture Decision Records auto-captured at forks (MADR format, supersession + divergence support)
@@ -160,10 +159,10 @@ Target Project
      gate    template sonnet
        ↓             (rubric)
      Phase3
-     gaspol-design
-     (power peer)
+     ui-ux-pro-max
+     (plugin, soft ref)
        ↓
-     CSV data + scripts + rules + templates
+     + gaspol anti-slop rules
      + optional ui-ux-pro-max v2.0 bridge
 ```
 
@@ -199,21 +198,28 @@ Skill-specific Iron Laws extend these with context (see individual SKILL.md file
 
 ## Anti-AI-slop design rules
 
-gaspol-design **never** produces:
+gaspol design output **never** contains:
 - Inter/Roboto/Arial as primary font
 - Purple gradient on white background
 - Predictable symmetric card grid
 - Cookie-cutter SaaS hero layout
 - Emoji as functional icons
 
-gaspol-design **always** chooses:
+gaspol design output **always** chooses:
 - Distinctive display fonts (Instrument Serif, Fraunces, General Sans, etc.)
 - Sharp accent contrast
 - Asymmetric or data-driven layouts
 - Intentional motion (150-300ms)
 - Layered backgrounds with depth
 
-Full rules: `skills/gaspol-design/rules/anti-ai-slop.md`.
+Full rules: `skills/gaspol-verify/rules/anti-ai-slop.md`.
+
+These are gaspol's own taste layer. Design *data* (styles, palettes, font pairings, UX
+guidelines) comes from the [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+plugin — install it with `claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill`. gaspol
+declares **no** hard dependency on it: `plugin.json`'s `dependencies` field is all-or-nothing,
+and a yanked third-party entry would disable every other gaspol skill. If it is missing,
+design quality degrades and nothing else breaks.
 
 ---
 
@@ -223,7 +229,7 @@ Full rules: `skills/gaspol-design/rules/anti-ai-slop.md`.
 - ✅ v1.1 — Better docs, improved brainstorm flow
 - ✅ v1.2 — Cross-project KB, power-peer design, tiered review, hard gates, research grounding, step-level closure, KB lifecycle, 5 new skills (research/adr/learn/kb-audit/auto)
 - ✅ v1.3 — Workflow-discipline hardening: `gaspol-worktree` (isolated parallel work), `using-gaspol` bootstrap + forceful session-start directive (reliable auto-trigger), continuous-execution mode in gaspol-parallel, and a `tests/` harness (skill-triggering + pressure tests)
-- ✅ v1.7 — Visual brainstorm companion (browser mockup loop wired to gaspol-design's anti-AI-slop knowledge)
+- ✅ v1.7 — Visual brainstorm companion (browser mockup loop wired to the anti-AI-slop rules)
 - ✅ v1.8 — DAG lane scheduling (`scripts/dag-lanes`, stdlib `graphlib`, zero deps), adversarial refutation in gaspol-review (false-positive killer), per-task Validation Ladder (static→unit→build→integration→edge `DONE` gate)
 - ✅ v1.9 — Laziness Ladder (YAGNI→stdlib→native→existing-dep→one-line scope governor, always-on)
 - ✅ v1.10 (current) — Two-lane execution: self-contained plans + per-plan progress ledger + pluggable external executor
@@ -238,7 +244,7 @@ Full rules: `skills/gaspol-design/rules/anti-ai-slop.md`.
 
 - Claude Code (CLI, Desktop, or IDE extension)
 - Git + GitHub CLI (`gh`) installed (for KB sync)
-- Python 3.8+ (for gaspol-design scripts)
+- Python 3.8+ (for `skills/gaspol-verify/scripts/design_audit.py`)
 
 ### Plugin Install
 
@@ -312,7 +318,7 @@ Key rules:
 
 ## Credits
 
-- **Design intelligence data** partially forked from [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) by Next Level Builder (MIT). See [NOTICE.md](skills/gaspol-design/NOTICE.md).
+- **Design intelligence** is delegated to [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) by Next Level Builder (MIT). Earlier versions vendored a fork of its data; v1.14.0 removed the fork in favour of the upstream plugin. See [NOTICE.md](NOTICE.md).
 - **Workflow patterns** inspired by [superpowers](https://github.com/obra/superpowers) by Jesse Vincent (obra). The v1.3 `gaspol-worktree`, `using-gaspol` bootstrap, and `tests/` skill-triggering harness adapt patterns from superpowers' `using-git-worktrees`, `using-superpowers`, and `tests/skill-triggering` (MIT).
 - **Iron Law discipline** influenced by Kent Beck's XP practices.
 

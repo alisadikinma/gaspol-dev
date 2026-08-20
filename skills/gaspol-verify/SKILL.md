@@ -294,7 +294,7 @@ INTEGRATION VERIFICATION:
 If the changeset includes any file matching UI extensions (`.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), run design compliance audit:
 
 ```bash
-python3 skills/gaspol-design/scripts/design_audit.py <project-root> --json
+python3 skills/gaspol-verify/scripts/design_audit.py <project-root> --json
 ```
 
 Validates per file:

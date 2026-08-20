@@ -237,7 +237,7 @@ production deployment:
 
 - **Triggered by:** `gaspol-plan` / `gaspol-execute` when a phase touches auth, secrets,
   user input, file upload, API endpoint, or payment (same keyword/intent mechanism as
-  `gaspol-design`'s auto-trigger).
+  the design skill's auto-trigger).
 - **Gates:** `gaspol-finish` — the Pre-Deployment Security Checklist runs in the
   pre-finish verification chain before merge/PR options are presented.
 - **Complements:** `gaspol-verify` Layer 3 (placeholder scan) and `gaspol-review`

@@ -66,11 +66,17 @@ Pulled from this repo's `CLAUDE.md` — the executor does not need to re-read it
    marketplace entry is renamed, yanked, or broken, **all of gaspol-dev** disables with
    `dependency-unsatisfied` — including the 20 skills that have nothing to do with design. The
    reference is **soft**: prose points at the skill and tells the user how to install it if missing.
-7. **The anti-AI-slop rules are not lost.** `skills/gaspol-design/rules/anti-ai-slop.md` is being
-   deleted, but its content is already duplicated verbatim in this repo's `CLAUDE.md` under
-   "Anti-AI-slop enforcement rules" (never Inter/Roboto/Arial as primary, no purple gradients on
-   white, no predictable symmetric layouts, no cookie-cutter card grids, no emojis as icons).
-   Phase A must **verify that duplication still exists** before deleting the file.
+7. **CORRECTED 2026-08-21 mid-execution — the taste layer moves, it does not die.** This premise
+   originally claimed `skills/gaspol-design/rules/anti-ai-slop.md` could be deleted because
+   `CLAUDE.md` already duplicated it. **That was wrong.** `CLAUDE.md:415-419` holds a **two-line
+   summary**; the file itself is **119 lines** of banned-vs-use-instead tables (typography, colour,
+   layout, motion). `rules/reasoning-gaspol.md` is a further **167 lines** of project-context and
+   KB-integration rules whose own header states they are "not present in the base library".
+   Verified the same day: `ui-ux-pro-max` 2.13.0 carries **no** anti-slop opinion layer at all —
+   zero "never use" lists in its SKILL.md. Deleting these would be a net loss with no replacement.
+   **Both files therefore relocate to `skills/gaspol-verify/rules/`**, alongside `design_audit.py`,
+   for the same reason: they are the parts of `gaspol-design` that nothing else provides. 16KB
+   stays; the 1.68MB of forked CSV data that `ui-ux-pro-max` genuinely supersedes still goes.
 
 ## Tech Stack
 

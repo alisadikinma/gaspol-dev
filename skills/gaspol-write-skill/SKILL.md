@@ -43,7 +43,7 @@ Concrete, step-by-step procedures. The agent follows these exactly.
 ### Pattern Skills
 Ways of thinking applied to varying situations. The agent adapts these.
 
-**Examples:** gaspol-brainstorm, gaspol-design, gaspol-review
+**Examples:** gaspol-brainstorm, gaspol-plan, gaspol-review
 **Characteristics:** Principles, heuristics, examples, anti-patterns
 **Voice:** Descriptive ("When X occurs, consider Y because Z.")
 

@@ -59,7 +59,7 @@ Use the **Skill** tool. When you invoke a skill, its full content is loaded — 
 | User intent | Invoke |
 |-------------|--------|
 | Create a feature, add a component, build something new | `gaspol-brainstorm` |
-| Design UI, colors, layout, styling | `gaspol-design` (also auto-triggered by brainstorm) |
+| Design UI, colors, layout, styling | `ui-ux-pro-max` (third-party plugin; if absent, tell the user to run `claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill` and continue without it — gaspol declares no hard dependency on it) — also auto-triggered by brainstorm |
 | Plan an implementation, break down a task | `gaspol-plan` |
 | Execute a plan (per-phase checkpoints) | `gaspol-execute` |
 | Execute a plan fully autonomously | `gaspol-auto` |
@@ -105,7 +105,7 @@ Use the **Skill** tool. When you invoke a skill, its full content is loaded — 
 ## Skill Types
 
 - **Rigid** (`gaspol-tdd`, `gaspol-debug`, `gaspol-verify`, `gaspol-finish`, `gaspol-auto`, `gaspol-worktree`, `gaspol-security-review`): follow exactly, do not adapt away the discipline.
-- **Flexible** (`gaspol-brainstorm`, `gaspol-design`, `gaspol-plan`, `gaspol-review`, `gaspol-research`, `gaspol-eval`): adapt the principles to the situation.
+- **Flexible** (`gaspol-brainstorm`, `gaspol-plan`, `gaspol-review`, `gaspol-research`, `gaspol-eval`): adapt the principles to the situation.
 - **Meta** (`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`, `using-gaspol`): apply to the plugin/process itself.
 
 The skill states which type it is.

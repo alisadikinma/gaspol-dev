@@ -22,7 +22,7 @@ A test PASSES when the Skill tool fires the named skill within `max-turns`.
 Add a case by dropping `prompts/<skill-name>.txt` (a naive intent prompt that
 never mentions the skill) and listing the skill in `run-all.sh`.
 
-**Second-order (auto-triggered) skills are NOT in this suite.** `gaspol-design`,
+**Second-order (auto-triggered) skills are NOT in this suite.**
 `gaspol-adr`, `gaspol-learn`, `gaspol-security-review`, and `gaspol-eval` are
 triggered *downstream* by another skill (brainstorm/plan/execute/finish/verify), not
 by a cold naive prompt. A build-framed prompt like "add a login endpoint, let's build

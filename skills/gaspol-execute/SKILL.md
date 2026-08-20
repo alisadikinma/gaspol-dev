@@ -368,7 +368,7 @@ If result = `SKIP`:
 If the phase involves UI work (detected by: file extensions changed include `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss`, OR phase description mentions UI component/layout/design):
 
 ```bash
-python3 skills/gaspol-design/scripts/design_audit.py <project-root> --json
+python3 skills/gaspol-verify/scripts/design_audit.py <project-root> --json
 ```
 
 Output analyzed for:
