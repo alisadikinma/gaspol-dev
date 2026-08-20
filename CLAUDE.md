@@ -692,6 +692,11 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 - Reference files: lowercase, kebab-case (e.g., `anti-placeholder-rules.md`)
 - Agent files: `<kebab-case-name>.md` in `agents/`
 
+## gaspol Ticket Counter
+
+Prefix: IDS
+Last ticket: IDS-1
+
 ---
 
 **Version:** 1.12.0
