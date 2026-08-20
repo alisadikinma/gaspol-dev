@@ -70,10 +70,15 @@ has "finish Step 5 names the structural change that triggers the requirement" \
     "structural change"
 
 # --- 5. gaspol-eval renamed to say what it tests ----------------------------
+# NOTICE.md is excluded for the same reason as CHANGELOG.md: it is an
+# attribution record, so naming the skill's former identity is its JOB, not
+# stale drift. The first version of this helper excluded CHANGELOG but not
+# NOTICE, then the rename immediately wrote history into NOTICE -- the test was
+# inconsistent with its own stated principle, and caught it.
 lacks_repo() {
   local desc="$1" pattern="$2" hits
   hits="$(git ls-files -- '*.md' '*.sh' '*.json' \
-          | grep -v -e '^docs/plans/' -e '^CHANGELOG\.md$' -e 'test-finish-gates\.sh$' \
+          | grep -v -e '^docs/plans/' -e '^CHANGELOG\.md$' -e '^NOTICE\.md$' -e 'test-finish-gates\.sh$' \
           | tr '\n' '\0' | xargs -0 grep -n -- "$pattern" /dev/null 2>/dev/null || true)"
   if [[ -z "$hits" ]]; then pass "$desc"; else fail "$desc" "$hits"; fi
 }
