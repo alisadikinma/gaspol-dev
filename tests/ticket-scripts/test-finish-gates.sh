@@ -76,10 +76,19 @@ has "finish Step 5 names the structural change that triggers the requirement" \
 # NOTICE, then the rename immediately wrote history into NOTICE -- the test was
 # inconsistent with its own stated principle, and caught it.
 lacks_repo() {
-  local desc="$1" pattern="$2" hits
-  hits="$(git ls-files -- '*.md' '*.sh' '*.json' \
-          | grep -v -e '^docs/plans/' -e '^CHANGELOG\.md$' -e '^NOTICE\.md$' -e 'test-finish-gates\.sh$' \
-          | tr '\n' '\0' | xargs -0 grep -n -- "$pattern" /dev/null 2>/dev/null || true)"
+  local desc="$1" pattern="$2" files hits
+  files="$(git ls-files -- '*.md' '*.sh' '*.json' \
+           | grep -v -e '^docs/plans/' -e '^CHANGELOG\.md$' -e '^NOTICE\.md$' -e 'test-finish-gates\.sh$' || true)"
+  # An empty file list would make the grep below return nothing, and "nothing"
+  # is indistinguishable from "no stale references" -- the assertion would pass
+  # while checking zero files. That vacuous pass is the exact defect class this
+  # ticket exists to remove, so treat an empty list as a failure, not a clean bill.
+  if [[ -z "$files" ]]; then
+    fail "$desc" "file list came back empty -- this assertion checked nothing"
+    return
+  fi
+  hits="$(printf '%s\n' "$files" | tr '\n' '\0' \
+          | xargs -0 grep -n -- "$pattern" /dev/null 2>/dev/null || true)"
   if [[ -z "$hits" ]]; then pass "$desc"; else fail "$desc" "$hits"; fi
 }
 if [[ -f skills/gaspol-llm-test/SKILL.md ]]; then

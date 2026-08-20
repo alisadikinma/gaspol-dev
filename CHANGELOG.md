@@ -49,6 +49,38 @@ tiering and an adversarial refutation pass it lacks. Two things it did better ar
 - `/code-review ultra` documented as the deeper pass — user-triggered and billed, with an
   explicit "Claude cannot launch it".
 
+### Changed — gaspol-finish gains three gates, gaspol-eval renamed (IDS-3)
+
+Shipped in the same unreleased version as IDS-2.
+
+- **`gaspol-eval` renamed to `gaspol-llm-test`.** "eval" reads as a shell builtin or a generic
+  word outside ML; the skill tests LLM, prompt, and agent features whose output varies run to
+  run. Ten files updated. Nothing downstream breaks — the old name survives only in historical
+  plan documents. Deletion was proposed and withdrawn on evidence: it looked unused because
+  usage was measured in THIS repo, which has no LLM feature; three other projects carry 1,080
+  lines of real eval specs under `docs/evals/`.
+- **The ledger lifecycle now ends.** `gaspol-plan` created `PROGRESS-<TICKET>.md` and
+  `gaspol-execute` ticked it, but `gaspol-finish` mentioned it zero times against 23 mentions in
+  execute. Being gitignored, a finished ticket's ledger never showed up in `git status` and just
+  accumulated with a cursor still claiming work in flight. Finish now writes the closing
+  `— NEXT: DONE` line, refuses to silently tick a `[ ]`/`[>]` entry, and runs
+  `scan-active-ledgers` to surface any other open ledger.
+- **`npm test` no longer hardcoded in finish.** IDS-1 added `detect-stack` to stop assuming npm;
+  verify, parallel, plan, and execute all used it and finish was the last holdout, printing a
+  command a Laravel or Go project cannot run.
+- **Merging is not publishing.** "Merge locally" ended at `git branch -d`. Finish now requires
+  `git push`, and for a plugin repo `claude plugin marketplace update` +
+  `claude plugin update <plugin>@<marketplace>` (the full id — the bare name fails with
+  `Plugin "<name>" not found`) plus a restart. This is how v1.13.0 sat inert on one machine
+  while the repo claimed it had shipped.
+- **Step 5 is evidence-gated.** `[x] Step 5 gaspol-sync-docs: COMPLETED` was self-reported and
+  unverified. CLAUDE.md must now appear in the branch diff whenever the branch changed anything
+  structural; a branch with no structural change must say so rather than record a bare COMPLETED.
+- **`gaspol-receive-review` compliance is now observable.** It produces no artifact, so commits
+  touching it proved maintenance, not obedience — the only skill whose compliance could not be
+  measured. A pressure case feeds it review feedback that is wrong in three ways, wrapped in
+  seniority and deadline pressure; it passes only if the agent refutes rather than complies.
+
 ### Fixed
 
 - CLAUDE.md documented the finish chain as five steps; it has been six since v1.8. `gaspol-review`
