@@ -191,6 +191,34 @@ assert_not_grep "verify Layer 1 no longer has a standalone '### Type Check' npm 
   '### Type Check' \
   skills/gaspol-verify/SKILL.md
 
+echo "test-naming-convention: checking CLAUDE.md doc sync (Phase F)..."
+
+assert_grep "CLAUDE.md documents the new PROGRESS-<TICKET>.md ledger" \
+  'PROGRESS-<TICKET>.md' \
+  CLAUDE.md
+
+assert_grep "CLAUDE.md documents detect-stack" \
+  'detect-stack' \
+  CLAUDE.md
+
+assert_not_grep "CLAUDE.md still documents the old .gaspol/progress/<slug>.md ledger" \
+  "declared ledger.*\.gaspol/progress/<slug>\.md" \
+  CLAUDE.md
+
+# Version must be byte-identical across plugin.json, marketplace.json and
+# CLAUDE.md's footer — a mismatch here means the release docs drifted from
+# the shipped plugin metadata.
+echo "-- checking version string is identical across plugin.json / marketplace.json / CLAUDE.md --"
+plugin_version="$(grep -m1 '"version"' .claude-plugin/plugin.json | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
+marketplace_version="$(grep -m1 '"version"' .claude-plugin/marketplace.json | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
+claude_md_version="$(grep -m1 '\*\*Version:\*\*' CLAUDE.md | sed -E 's/\*\*Version:\*\* *//')"
+if [[ -n "$plugin_version" && "$plugin_version" == "$marketplace_version" && "$plugin_version" == "$claude_md_version" ]]; then
+  echo "PASS: version string identical across plugin.json ($plugin_version), marketplace.json, CLAUDE.md"
+else
+  echo "FAIL: version string mismatch — plugin.json=$plugin_version marketplace.json=$marketplace_version CLAUDE.md=$claude_md_version"
+  FAILURES=$((FAILURES + 1))
+fi
+
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-naming-convention: $FAILURES assertion(s) failed" >&2
   exit 1
