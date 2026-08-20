@@ -91,6 +91,59 @@ assert_not_grep "no leftover \"no date prefix\" claim anywhere" \
   'no date prefix' \
   skills/
 
+echo "test-naming-convention: checking PROGRESS-<TICKET>.md ledger format (Phase D)..."
+
+assert_grep "gaspol-plan derives the new PROGRESS-<TICKET>.md ledger path" \
+  'PROGRESS-<TICKET>.md' \
+  skills/gaspol-plan/SKILL.md
+
+assert_grep "gaspol-plan documents the [>] in-progress checklist marker" \
+  '\[>\]' \
+  skills/gaspol-plan/SKILL.md
+
+assert_grep "gaspol-plan documents the [~] cancelled/skipped checklist marker" \
+  '\[~\]' \
+  skills/gaspol-plan/SKILL.md
+
+assert_grep "gaspol-plan states the '## Log' is always the last block rule" \
+  '## Log.*is ALWAYS the last block' \
+  skills/gaspol-plan/SKILL.md
+
+assert_grep "gaspol-plan creates the ledger AT PLAN-WRITE TIME" \
+  'plan-write time' \
+  skills/gaspol-plan/SKILL.md
+
+assert_grep "gaspol-execute documents backward-compat read for old ledger paths" \
+  'older ledgers' \
+  skills/gaspol-execute/SKILL.md
+
+assert_grep "gaspol-execute documents the tick-then-append per-phase gate" \
+  'tick.*then.*append\|tick-then-append' \
+  skills/gaspol-execute/SKILL.md
+
+assert_grep "checkpoint-template documents the tick-then-append gate" \
+  'tick.*then.*append\|tick-then-append' \
+  skills/gaspol-execute/checkpoint-template.md
+
+assert_grep "gaspol-parallel documents the tick-then-append per-task gate" \
+  'tick.*then.*append\|tick-then-append' \
+  skills/gaspol-parallel/SKILL.md
+
+assert_grep "gaspol-parallel references the new PROGRESS-<TICKET>.md ledger path" \
+  'PROGRESS-<TICKET>.md' \
+  skills/gaspol-parallel/SKILL.md
+
+# Case-sensitive check (assert_not_grep is deliberately case-insensitive, which would
+# collide with the correct new form `progress/PROGRESS-<TICKET>.md`) — the stale lowercase
+# derivation `.gaspol/progress/progress-<TICKET>.md` must be gone everywhere.
+echo "-- checking for leftover lowercase progress/progress- derivation --"
+if grep -rn --include='*.md' 'progress/progress-' skills/ agents/ 2>/dev/null; then
+  echo "FAIL: no leftover lowercase progress/progress-<TICKET> derivation anywhere"
+  FAILURES=$((FAILURES + 1))
+else
+  echo "PASS: no leftover lowercase progress/progress-<TICKET> derivation anywhere"
+fi
+
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-naming-convention: $FAILURES assertion(s) failed" >&2
   exit 1

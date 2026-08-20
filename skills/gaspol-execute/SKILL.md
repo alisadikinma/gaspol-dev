@@ -98,9 +98,11 @@ Read `CLAUDE.md` in its entirety to understand:
 ### Step 3: Create TodoWrite (+ resume from durable ledger)
 
 **Ledger path.** Use the plan's declared **Progress ledger** — its header names a per-plan
-path (`.gaspol/progress/<slug>.md`) so concurrent plans never collide. Fall back to the shared
-`.gaspol/progress.md` only when the plan names no ledger (older plans). Resolve this path once;
-read AND write the same file throughout.
+path, `.gaspol/progress/PROGRESS-<TICKET>.md` for plans written after IDS-1 Phase D. **Backward
+compatibility:** older ledgers (`.gaspol/progress/<slug>.md`, or the shared
+`.gaspol/progress.md` when the plan names no ledger at all) are STILL READ when the plan's
+header names them — only NEW ledgers (from `gaspol-plan` step 7) use the `PROGRESS-<TICKET>.md`
+path. Resolve this path once; read AND write the same file throughout.
 
 **Resume read first.** If the resolved ledger exists, read it before
 creating TodoWrite — it is the durable record of phases already completed in a prior
@@ -111,21 +113,17 @@ from its `NEXT:` action rather than blindly restarting the phase. Absent a curso
 ledger), fall back to continuing from the first unfinished phase. TodoWrite is in-memory and
 is lost on compaction; the ledger is the source of truth for "where were we?".
 
-**Initialize on first write (new ledger only).** If the resolved ledger file does not exist
-yet, create it (and its parent dir) with a `## Checklist` section listing every phase from
-the plan, unchecked, before any phase starts:
-```markdown
-# Progress Ledger — <TICKET>
-
-## Checklist
-- [ ] Phase 1: <name>
-- [ ] Phase 2: <name>
-
-## Log
-```
-This checklist is the at-a-glance progress view (see Checkpoint Rule 6 below); the `## Log`
-section keeps the existing append-only history with handoff cursors. Skip this init step on
-resume — an existing ledger's checklist already reflects prior progress.
+**Initialize on first write (fallback only).** Plans written after IDS-1 Phase D already have
+their ledger created by `gaspol-plan` at plan-write time — it exists before execute ever runs,
+so this step is normally a no-op. For an older plan whose ledger does not exist yet, create it
+(and its parent dir) with the same format `gaspol-plan` uses — see
+`skills/gaspol-plan/SKILL.md` "Progress Ledger Format" for the exact template and the four
+checklist states (`[ ]` todo / `[>]` in progress / `[x]` done / `[~]` cancelled, reason
+mandatory) — a `## Checklist` line for every phase from the plan (all `[ ]`), and a `## Log`
+with one line noting the plan/ticket. **`## Log` is always the last block** — never append a
+section below it; `scan-active-ledgers` reads the file's last non-empty line to detect
+active-vs-done. Skip this init step on resume — an existing ledger's checklist already
+reflects prior progress.
 
 Create a TodoWrite entry for EVERY phase in the plan. The mapping must be 1:1 — if the plan has 6 phases, the TodoWrite has 6 items. Do not combine phases. Do not add phases the plan doesn't have.
 
@@ -237,15 +235,18 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 3. **Report deviations.** If anything differs from the plan, explain what and why.
 4. **Classify data sources.** Every component that handles data must list its source and whether it is real or placeholder.
 5. **List all file changes.** Every file created or modified in the phase.
-6. **Update the durable ledger (checklist toggle + log line with handoff cursor).** After
-   presenting the checkpoint, update the plan's resolved ledger (per-plan
-   `.gaspol/progress/<slug>.md`, else the shared `.gaspol/progress.md`; create the file, and
-   its parent dir, if absent) in two places:
-   - **Checklist (in-place edit):** flip this phase's `## Checklist` line from
-     `- [ ] Phase [X]: [name]` to `- [x] Phase [X]: [name] — DONE` on completion, or to
-     `- [~] Phase [X]: [name] — WIP` if left unfinished. This is the at-a-glance progress
+6. **The tick-then-append gate (BLOCKING).** After presenting the checkpoint, and BEFORE the next
+   phase starts, update the plan's resolved ledger (`.gaspol/progress/PROGRESS-<TICKET>.md`
+   for new plans; older ledgers per the backward-compat rule in Step 3 above) in two places —
+   this is blocking, like a test gate: no next phase until BOTH are written, never batched at
+   the end, because a crash mid-run must leave a truthful state, not a stale one:
+   - **(a) Tick the Checklist (in-place edit):** flip this phase's `## Checklist` line from
+     `- [ ] Phase [X]: [name]` to `- [x] Phase [X]: [name] — DONE` on completion; to
+     `- [>] Phase [X]: [name] — DOING` when the phase starts; or to
+     `- [~] Phase [X]: [name] — <short reason>` if the phase is cancelled/skipped (a reason is
+     MANDATORY on the line, with detail in the Log). This is the at-a-glance progress
      view — open the file, see what's done, without reading the whole log.
-   - **Log (append-only):** append one line —
+   - **(b) Append to the Log:** add one line —
      `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <phase X+1 name, or "DONE" if last phase>`.
      If a phase is left **unfinished** (a blocker, an approaching `/compact`, or you pause mid-phase), append instead:
      `Phase [X] [name] — WIP — <what's done so far> — BLOCKER: <what's stuck / why paused> — NEXT: <the exact action to resume>`.
@@ -285,7 +286,7 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 
 Count phases completed in the **current execute run** (phases restored from a prior session's ledger on resume do not count — only ones this run itself finishes). After presenting the checkpoint report for the **6th** phase completed in this run — and every 6th subsequent one (12th, 18th, ...) — use the **AskUserQuestion** tool:
 
-> "N phases done this session. Continue here, or pick up fresh next session? The ledger (`.gaspol/progress/progress-<TICKET>.md`, or the plan's declared ledger path) has the exact resume point either way."
+> "N phases done this session. Continue here, or pick up fresh next session? The ledger (`.gaspol/progress/PROGRESS-<TICKET>.md`, or the plan's declared ledger path) has the exact resume point either way."
 
 Options:
 - **(a) Continue as normal** — proceed to the next phase immediately

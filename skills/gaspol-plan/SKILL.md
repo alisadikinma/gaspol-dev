@@ -91,10 +91,19 @@ resolution above — reuse the spec file's ticket if one exists):
    ```
    Use `<PREFIX>-1` as this plan's ticket (the counter now points at it — no need to
    re-run `next-ticket`).
-4. Derive this plan's ledger path from the ticket: `.gaspol/progress/progress-<TICKET>.md`.
+4. Derive this plan's ledger path from the ticket: `.gaspol/progress/PROGRESS-<TICKET>.md`.
 5. Derive the plan filename from the ticket and today's date: `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md`.
 6. Write the ticket, ledger, and (if a spec preceded this plan) spec path into the header
    below as `**Ticket:**`, `**Ledger:**`, and `**Spec:**` fields.
+7. **Create the ledger file now, at plan-write time** — do not defer this to the executor.
+   Write `.gaspol/progress/PROGRESS-<TICKET>.md` (and its parent dir) with the header fields,
+   a `## Checklist` line for EVERY phase this plan just defined (all starting `[ ]`), and a
+   `## Log` with exactly one line: `- <YYYY-MM-DD> plan ditulis — NEXT: Phase A` (or whatever
+   the first phase is named). Rationale: at plan-write time the phase names are already known,
+   so the executor only has to tick boxes rather than re-derive the phase list. Accepted side
+   effect: a plan that is written but never executed shows up as active work in
+   `scan-active-ledgers` — that is honest, and `gaspol-execute` Step 0 already has a 4-option
+   modal for it.
 
 Every plan document MUST start with this header:
 
@@ -103,11 +112,11 @@ Every plan document MUST start with this header:
 > **CRITICAL:** This plan specifies real integrations. During execution,
 > NEVER substitute placeholders for real data sources without explicit
 > user approval. If a data source doesn't exist yet, STOP and ask.
-> **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/progress-<TICKET>.md` (TICKET = this plan's ticket, from the header below). After EACH phase and **BEFORE** starting the next, STOP and append that phase's line — status `done` + the exact command you ran and its result. This is **blocking**, like a test gate: no next phase until the line is written. Set `doing` when a phase starts, `done` when its tests pass. **Never batch all updates at the end** — a crash mid-run must leave a truthful cursor, not a stale `todo`. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other).
+> **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/PROGRESS-<TICKET>.md` (TICKET = this plan's ticket, from the header below; created by `gaspol-plan` at plan-write time — see Plan Document Header step 7). After EACH phase and **BEFORE** starting the next, STOP and do BOTH: (a) tick that phase's `## Checklist` line, (b) append a `## Log` line ending with the handoff cursor. This is **blocking**, like a test gate: no next phase until both are written. **Never batch all updates at the end** — a crash mid-run must leave a truthful state, not a stale one. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other). **Backward compatibility:** older ledgers at `.gaspol/progress/<slug>.md` or the shared `.gaspol/progress.md` are STILL READ when a plan's header names them — only NEW plans write the `PROGRESS-<TICKET>.md` path.
 > **Self-contained:** this plan is the COMPLETE spec. It must be executable by an agent with **no other context** — a fresh post-`/compact` session, or an external executor in a separate process that cannot see this chat or read a linked PDF. Every file path, contract, config key, and convention it needs is written here **verbatim**, not merely referenced. If it lives only in the conversation, copy it in.
 
 **Ticket:** IND-81
-**Ledger:** .gaspol/progress/progress-IND-81.md
+**Ledger:** .gaspol/progress/PROGRESS-IND-81.md
 **Spec:** docs/plans/2026-08-20-IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
 **Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- optional — present ONLY when the Execution Handoff artifact offer was accepted and rendered; omit entirely otherwise, never write "n/a" -->
 
@@ -123,6 +132,41 @@ Every plan document MUST start with this header:
 
 [Frameworks, libraries, patterns to use — reference existing choices from CLAUDE.md]
 ```
+
+## Progress Ledger Format
+
+The ledger `gaspol-plan` creates at `.gaspol/progress/PROGRESS-<TICKET>.md` (step 7 above) MUST
+use exactly this template:
+
+```markdown
+# PROGRESS — IDS-1: gaspol output naming standard
+
+**Ticket:** IDS-1
+**Plan:** docs/plans/2026-08-20-IDS-1-gaspol-output-naming-standard-plan.md
+
+## Checklist
+- [x] Phase A: script detect-stack — DONE
+- [>] Phase B: glob ledger case-insensitive — DOING
+- [ ] Phase C: konvensi nama file spec & plan
+- [~] Phase D: contoh fase dibatalkan — DIBATALKAN (YAGNI, alasan di Log)
+
+## Log
+- 2026-08-20 Phase A done — `bash tests/ticket-scripts/test-detect-stack.sh` exit 0 — NEXT: Phase B
+```
+
+Four checklist states:
+
+| Marker | Meaning | Condition |
+|---|---|---|
+| `[ ]` | todo | — |
+| `[>]` | in progress | set when the phase starts |
+| `[x]` | done | that phase's tests are green |
+| `[~]` | cancelled / skipped | a short reason is MANDATORY on the line + detail in the Log |
+
+**Structural rule — `## Log` is ALWAYS the last block in the file.** `scan-active-ledgers`
+reads the file's last non-empty line to decide active-vs-done; if any block sits below
+`## Log`, that detection breaks. This is a hard formatting requirement, not a style preference
+— never append a section after `## Log`.
 
 ## Bite-Sized Task Granularity
 
@@ -308,7 +352,8 @@ Before presenting the plan, verify none of these red flags are present:
 | Phase too large (>15 min estimated) | Executor loses focus, skips verification | Break into smaller phases |
 | Placeholder language ("TODO: wire up later") | Violates anti-placeholder contract | Specify the real integration now |
 | Plan only makes sense with the chat context | A fresh-session or external executor runs blind and will guess | Inline every contract/convention verbatim — the plan alone must suffice |
-| No `Progress ledger:` line in the header | Executor writes the shared global ledger, colliding with concurrent plans | Add `Progress ledger: .gaspol/progress/<slug>.md` to the header |
+| No `Progress ledger:` line in the header | Executor writes the shared global ledger, colliding with concurrent plans | Add `Progress ledger: .gaspol/progress/PROGRESS-<TICKET>.md` to the header |
+| Ledger not created at plan-write time | Executor has to re-derive the phase list instead of ticking boxes | Create `.gaspol/progress/PROGRESS-<TICKET>.md` with the full `## Checklist` before presenting the plan |
 
 ## Integration with Other Skills
 
