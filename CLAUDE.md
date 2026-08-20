@@ -26,7 +26,8 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
-| `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it") |
+| `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
+| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`). Fast, no API calls — run these first |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |

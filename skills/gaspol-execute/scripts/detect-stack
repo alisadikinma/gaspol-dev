@@ -16,6 +16,17 @@
 #             line is prefixed "<stack>/<level>: <command>"
 #   exit 0    always, on a normal scan (zero markers found is NOT an error)
 #   exit 1    usage error (missing arg / directory not found)
+#
+# SECURITY INVARIANT — do not break this:
+#   Every command printed on stdout is a LITERAL from the detection table
+#   below. No value read out of a scanned project file (package.json keys,
+#   composer.json, pyproject.toml, ...) is ever echoed. Project files are
+#   only ever TESTED for presence, never interpolated into output.
+#   This matters because the consumers of this script (gaspol-verify
+#   Layer 1, gaspol-parallel's Validation Ladder) RUN what it prints. The
+#   moment attacker-controlled text from a scanned repo reaches stdout,
+#   this becomes command injection in every consumer. Keep printed
+#   commands literal.
 set -euo pipefail
 
 usage() {
