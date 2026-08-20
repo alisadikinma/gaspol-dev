@@ -41,13 +41,19 @@ is_active() {
 scan_dir() {
     local dir="$1"
     local file
-    shopt -s nullglob
+    # nocaseglob makes "progress-*.md" match PROGRESS-*.md / Progress-*.md
+    # too (IDS-1 renamed new ledgers to uppercase; old lowercase ledgers
+    # must keep working). On a case-insensitive filesystem (macOS/APFS)
+    # the glob itself already returns each file once, so nocaseglob adds
+    # no duplicates there; on a case-sensitive filesystem (Linux/CI) it
+    # is required for the glob to match uppercase names at all.
+    shopt -s nullglob nocaseglob
     for file in "$dir"/progress-*.md; do
         if is_active "$file"; then
             basename "$file"
         fi
     done
-    shopt -u nullglob
+    shopt -u nullglob nocaseglob
 }
 
 _self_test() {
@@ -100,6 +106,22 @@ EOF
     out3="$(scan_dir "$blank_dir")"
     if [[ "$out3" != "progress-IND-90.md" ]]; then
         echo "self-test FAIL: case 3 expected 'progress-IND-90.md', got '$out3'" >&2
+        return 1
+    fi
+
+    # Case 4: UPPERCASE PROGRESS-*.md ledger (IDS-1 naming) must still be
+    # found by the lowercase "progress-*.md" glob.
+    local upper_dir="$tmp_dir/upper"
+    mkdir -p "$upper_dir"
+    cat >"$upper_dir/PROGRESS-IDS-1.md" <<'EOF'
+# log
+
+step one — NEXT: Phase A
+EOF
+    local out4
+    out4="$(scan_dir "$upper_dir")"
+    if [[ "$out4" != "PROGRESS-IDS-1.md" ]]; then
+        echo "self-test FAIL: case 4 expected 'PROGRESS-IDS-1.md', got '$out4'" >&2
         return 1
     fi
 
