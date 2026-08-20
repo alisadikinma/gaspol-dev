@@ -158,7 +158,12 @@ Classify task novelty to decide research level:
     → Inline in Phase 2
 
   NEW: No KB hit AND no project pattern
-    → Invoke gaspol-research skill (deep research, ~20 min, cached to KB)
+    → Prior-art probe FIRST (cheap, ~30s): `npx skills find "<domain> <task>"`
+      (skills.sh). No precedent anywhere in-house is exactly when somebody
+      else's packaged, battle-tested skill is the better answer than a design
+      you invent. NEVER auto-install what it returns — the install rules live
+      in gaspol-write-skill Step 0 and apply here unchanged.
+    → Then invoke gaspol-research skill (deep research, ~20 min, cached to KB)
     → Wait for research output before Phase 2
 ```
 
@@ -170,7 +175,7 @@ Classification questions (internal — not asked to user):
 
 If PRECEDENT: briefly note "Using precedent from [source]" and proceed to Phase 2 fast.
 If SEMI-NEW: do 2-3 WebSearch queries about industry current state, include findings in Phase 2.
-If NEW: AskUserQuestion "Deep research needed? (~20 min)" options: [Yes, research] / [Skip, use training memory — flag as potentially outdated] / [Ask more questions first].
+If NEW: run the prior-art probe, report what it found (or that it found nothing), then AskUserQuestion "Deep research needed? (~20 min)" options: [Yes, research] / [Skip, use training memory — flag as potentially outdated] / [Ask more questions first].
 
 ## Phase 2: Exploring Approaches
 

@@ -31,6 +31,81 @@ The same discipline that prevents bugs in code prevents gaps in skills.
 
 ---
 
+## Step 0: Prior-Art Search (BLOCKING — runs before RED)
+
+```
+NO NEW SKILL BEFORE A PRIOR-ART SEARCH
+```
+
+The baseline failure here is not hypothetical, it is this repo's own history.
+Both skills deleted in v1.14 existed because nobody looked first: `gaspol-design`
+was a 1.4MB fork of data the `ui-ux-pro-max` plugin already publishes — the fork
+drifted, upstream did not — and a 12KB forked security checklist duplicated the
+`/security-review` command already compiled into the Claude Code binary. Two
+builds, two deletions, zero searches.
+
+Run **all three** lookups. One is not enough, and they fail in different
+directions: "is it installed?" cannot see a built-in slash command, and neither
+can see the marketplace.
+
+1. **Installed already?** Check the session's skill/plugin listing and `skills/`.
+2. **Built into the harness?** Built-in slash commands appear in no skill
+   listing — check for a matching `/command` before assuming absence.
+3. **On the marketplace?** `npx skills find "<domain> <task>"` (the vercel-labs
+   `skills` CLI; browse at https://skills.sh). Optional, never required:
+   if the command is unavailable, say so, run a web search instead, and
+   continue — never record the search as done when it did not run.
+
+**Record the verdict in the skill's RED notes before writing any SKILL.md:**
+
+| Verdict | Meaning | Action |
+|---|---|---|
+| `NONE` | three lookups, no match | build it — and you now know why it must exist |
+| `EXISTS` | something already does this | do not build. Route to it, soft-referenced |
+| `DELTA` | an existing thing covers most of it | build ONLY the delta, and name the delta in the new skill's Integration section |
+
+`DELTA` is the usual verdict and the one most often faked. Naming the delta is
+what makes it real: `anti-ai-slop.md` survived the IDS-2 deletion because someone
+checked and found `ui-ux-pro-max` ships no anti-slop layer at all — zero "never
+use" lists. "Ours needs to be more opinionated" without that check is exactly how
+a 1.4MB fork gets built.
+
+Route to what exists the way `ui-ux-pro-max` is routed to: named in the routing
+tables, **never** a `dependencies` entry in `plugin.json`. That field is
+all-or-nothing — a renamed or yanked third-party package would disable every
+unrelated skill in the plugin.
+
+### Installing what you find — never automatically
+
+A skill is a prompt that runs inside your agent. Installing one from an unknown
+repo is a supply-chain and prompt-injection decision, not a convenience.
+
+- **NEVER** run `npx skills add ... -y`, and never `-g -y`. Upstream's own
+  `find-skills` documents that exact flag pair. Do not follow it.
+- Present the candidate through **AskUserQuestion**. The user decides.
+- **READ the candidate's SKILL.md before recommending it.** Install count is
+  popularity, not an audit — a widely-installed prompt is still a prompt you
+  have not read.
+- Check last commit date, owner, and whether the skill shells out, fetches the
+  network, or writes outside the project.
+- Weigh the standing cost: every installed skill's description loads into
+  **every** session. A skill used twice a year is a permanent context tax, and
+  "it might be handy" is not a reason to pay it.
+
+
+### Rationalizations that skip Step 0
+
+| What you'll think | Why it's wrong |
+|---|---|
+| "I'd remember if a skill existed for this" | Two skills were built and deleted in one release on exactly that memory. |
+| "Ours needs to be different" | Probably true, and it argues for `DELTA` — build the difference, not the other 95%. |
+| "Searching costs more than writing it" | One `npx skills find` against a 1.4MB fork that later had to be deleted. |
+| "It's a small skill, not worth a search" | Small skills rot unnoticed. The 12KB security checklist was the small one. |
+| "The marketplace is full of junk" | Then the search returns junk and the verdict is `NONE` — recorded, in thirty seconds. |
+| "I'll search after I draft it" | After drafting, `EXISTS` costs you the draft, so you'll rationalize `DELTA` instead. |
+
+---
+
 ## Skill Types
 
 ### Technique Skills
@@ -311,6 +386,8 @@ Classify the baseline failure first, then pick the form:
 ## Skill Creation Checklist
 
 ### RED Phase
+- [ ] Prior-art search run (Step 0) — verdict `NONE` / `EXISTS` / `DELTA` recorded
+- [ ] On `DELTA`, the delta is named explicitly (what the existing thing does NOT do)
 - [ ] Pressure scenario defined (realistic task)
 - [ ] Baseline test run (agent without skill)
 - [ ] Failures documented (specific, numbered)
@@ -454,6 +531,8 @@ If the answer is "no," the skill needs more context, clearer instructions, or be
 ## Quick Reference
 
 ```
+0. STEP 0:  Prior-art search — installed? built-in? marketplace?
+            Verdict NONE / EXISTS / DELTA (BLOCKING, never auto-install)
 1. RED:     Define pressure scenario
 2. RED:     Run agent WITHOUT skill, document failures
 3. GREEN:   Write SKILL.md addressing each failure

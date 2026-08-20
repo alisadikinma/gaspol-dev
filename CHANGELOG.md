@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.15.0] - 2026-08-21
+
+### Added — a prior-art gate, so nothing gets rebuilt that already exists (IDS-4)
+
+v1.14 deleted two skills that should never have been written: `gaspol-design` (a 1.4MB fork
+of data `ui-ux-pro-max` already publishes) and `gaspol-security-review` (a checklist for a
+`/security-review` command compiled into the CLI binary). Two builds, two deletions, zero
+prior-art searches. This release adds the search.
+
+- **`gaspol-write-skill` Step 0: Prior-Art Search — BLOCKING.** Three lookups before any
+  SKILL.md is written, because each is blind where the others see: (1) already installed,
+  (2) a built-in harness `/command` — these appear in no skill listing, (3) the marketplace
+  via `npx skills find` (vercel-labs `skills` CLI, https://skills.sh). Verdict recorded in
+  the RED notes as `NONE` / `EXISTS` / `DELTA`; `DELTA` requires naming the delta, which is
+  what `anti-ai-slop.md` did to survive the IDS-2 deletion.
+- **Install is never automatic.** A skill is a prompt that runs inside the agent. No
+  `npx skills add ... -y` (upstream `find-skills` documents that exact flag pair — it is not
+  followed), candidate presented via `AskUserQuestion`, candidate's SKILL.md read before it is
+  recommended, and the standing context cost of every installed skill weighed against use.
+- **`gaspol-brainstorm` Phase 1.5, `NEW` branch only.** No KB hit and no project pattern is
+  precisely when someone else's packaged skill beats an invented design — a ~30s probe runs
+  before the ~20min deep research. Deliberately NOT Phase 0.5, which is product precedent.
+- **`gaspol-research` gather lane 6.** "Already packaged as an agent skill" is a research
+  finding like any other, and the cheapest recommendation available. Reported, never installed.
+- **Soft reference throughout**, on the same reasoning that kept `ui-ux-pro-max` out of
+  `plugin.json`'s `dependencies`: a missing CLI degrades the search and blocks nothing, and an
+  unrun lookup is reported as unrun rather than recorded as empty.
+- **`tests/ticket-scripts/test-prior-art-gate.sh`** — deterministic, no API calls, with a
+  self-check that fails loudly rather than passing vacuously if the grep helper stops matching.
+
 ## [1.14.0] - 2026-08-21
 
 ### Changed — two skills deleted in favour of tooling every user already has (IDS-2)
