@@ -26,7 +26,8 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
-| `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it") |
+| `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
+| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`). Fast, no API calls — run these first |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -40,6 +41,7 @@ Claude Code plugin providing **22 development skills + 4 agents** for execution 
 | `skills/gaspol-design/integration/ui-ux-pro-max-bridge.py` | Optional v2.0 delegation bridge |
 | `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file |
 | `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking |
+| `skills/gaspol-execute/scripts/detect-stack` | **NEW (v1.13)** — reads stack marker files at a project root, prints `<level>: <command>` lines (static/lint/unit/build); prints `UNKNOWN` when a marker exists but its backing command doesn't; prints nothing when there are no markers. Feeds `gaspol-verify` Layer 1, `gaspol-parallel`'s Validation Ladder L1-L3, and `gaspol-plan`'s per-phase Verification block — no more hardcoded npm |
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
 | `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint with Auto-Review section |
 | `skills/gaspol-execute/implementer-prompt.md` | Subagent dispatch template with model rubric |
@@ -317,11 +319,15 @@ Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
 
 ### Per-Phase Checkpoints (Tiered Auto-Review in v1.2)
 
-**Durable ledger + handoff cursor (v1.5, cursor v1.9.1, per-plan v1.10):** after each checkpoint, `gaspol-execute`/`gaspol-parallel`
-append the phase/task status to the plan's declared ledger — per-plan `.gaspol/progress/<slug>.md` (v1.10, so
-concurrent plans never collide), falling back to the shared `.gaspol/progress.md` when the plan names none
-(gitignored working-tree scratch, never `.git/`).
-Each line carries a trailing **handoff cursor** — `— NEXT: <next phase, or DONE>` on a COMPLETE line, or
+**Durable ledger + handoff cursor (v1.5, cursor v1.9.1, per-plan v1.10, PROGRESS-<TICKET>.md v1.13):**
+`gaspol-plan` creates the ledger at plan-write time as `.gaspol/progress/PROGRESS-<TICKET>.md`, containing a
+`## Checklist` block (`[ ]` todo / `[>]` doing / `[x]` done / `[~]` cancelled-with-mandatory-reason) above a
+`## Log` block that is ALWAYS last. After each checkpoint, `gaspol-execute`/`gaspol-parallel` tick the checklist
+AND append the phase/task status to the Log — a BLOCKING gate before the next phase starts — falling back to
+the shared `.gaspol/progress.md` when the plan names none (gitignored working-tree scratch, never `.git/`).
+Older ledgers (`.gaspol/progress/<slug>.md`, or the lowercase-prefixed per-ticket form) are still read for
+backward compatibility.
+Each Log line carries a trailing **handoff cursor** — `— NEXT: <next phase, or DONE>` on a COMPLETE line, or
 `— WIP — <done so far> — BLOCKER: <what's stuck> — NEXT: <exact resume action>` when a phase is left unfinished
 (blocker/`/compact`/pause). It survives `/compact`; `gaspol-execute` Step 3 reads the LAST line's cursor on start
 to resume from the exact `NEXT:` action and surface any open `BLOCKER:`, instead of merely inferring the first
@@ -446,10 +452,10 @@ When user wants to create, add, or modify anything:
 7. **Phase 3**: Design Intelligence (AUTO-TRIGGERED for UI work) — invokes `gaspol-design` power peer
 8. **Phase 4**: Implementation feasibility check (REAL data paths, existing backend)
 9. **Phase 5**: Present design in 200-300 word sections, AskUserQuestion confirm per section, include Data Integration Map
-10. **Phase 6**: Mint ticket, write to `docs/plans/<TICKET>-<topic>-spec.md`;
+10. **Phase 6**: Mint ticket, write to `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-spec.md`;
     **spec self-review (v1.5)** (scan for placeholder/contradiction/ambiguity/scope) + **user
     reviews the written spec** before offering to proceed to `gaspol-plan`, which writes a
-    separate `<TICKET>-<topic>-plan.md` (same ticket, reused — not re-minted)
+    separate dated `-plan.md` file (same ticket, reused — not re-minted)
 
 ### TDD Enforcement (gaspol-tdd) — Hard-Gated by execute in v1.2
 
@@ -491,7 +497,7 @@ Iron Law: `NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE`
 4. VERIFY — does output actually confirm the specific claim?
 5. ONLY THEN — make the claim, quote the evidence
 
-**Layer 1: Technical** — `npm run build` (exit 0), `npx tsc --noEmit` (exit 0), `npm test` (0 failures), `npm run lint`
+**Layer 1: Technical** — commands are derived, never hardcoded: run `skills/gaspol-execute/scripts/detect-stack <project-root>`, which prints `<level>: <command>` lines (e.g. `unit: npm test`, `static: npx tsc --noEmit`). Three cases: a `<level>: <command>` line → run it, must exit 0 / 0 failures; `<level>: UNKNOWN` (marker present, no backing command) → STOP and ask the user; zero lines (no stack markers) → fall back to the plan-declared commands, recorded explicitly as `detect-stack: no stack markers, using plan-declared commands` rather than silently skipped
 
 **Layer 2: Plan Fidelity** — use upgraded `plan-verifier` agent (step-level, evidence-based, BLOCKING if MISSING>0)
 
@@ -516,7 +522,7 @@ Every plan MUST include:
 - Bite-sized tasks (2-5 minutes each, one action per step)
 - Plan header with gaspol-execute instruction
 
-Plans saved to: `docs/plans/<TICKET>-<feature-name>-plan.md` — ticket reused from the preceding `gaspol-brainstorm` spec file (`<TICKET>-<feature-name>-spec.md`) if one exists, else minted fresh. Spec and plan are always separate files; the suffix (`-spec.md` vs `-plan.md`) says which stage produced it.
+Plans saved to: `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md` — ticket reused from the preceding `gaspol-brainstorm` spec file (found by glob `docs/plans/*-<TICKET>-*-spec.md`; STOP and ask the user which spec if more than one matches) if one exists, else minted fresh. Spec and plan are always separate files; the suffix (`-spec.md` vs `-plan.md`) says which stage produced it. Seven pre-ticket files in `docs/plans/` predate this convention and are deliberately not renamed.
 
 ### Parallel Execution (gaspol-parallel) — Mode Field in v1.2, Worktree + Continuous in v1.3, SDD harness in v1.6
 
@@ -692,7 +698,12 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 - Reference files: lowercase, kebab-case (e.g., `anti-placeholder-rules.md`)
 - Agent files: `<kebab-case-name>.md` in `agents/`
 
+## gaspol Ticket Counter
+
+Prefix: IDS
+Last ticket: IDS-1
+
 ---
 
-**Version:** 1.12.0
+**Version:** 1.13.0
 **Last Updated:** August 2026

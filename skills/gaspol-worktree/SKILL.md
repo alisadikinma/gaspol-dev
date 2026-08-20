@@ -130,6 +130,18 @@ Baseline: <N> tests passing, 0 failures
 Ready to implement <feature-name>
 ```
 
+### Step 4: Ticket Documents Inside the Worktree
+
+Once the worktree is live, IDS-1's naming conventions apply inside it exactly as they would on any branch:
+
+- Spec: `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-spec.md`
+- Plan: `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md`
+- Ledger: `.gaspol/progress/PROGRESS-<TICKET>.md`
+
+**Spec and plan are version-controlled artifacts that stay ON THE BRANCH.** They get committed in the worktree's branch and reach the default branch only via the merge — never copy them into the main working tree. An untracked file of the same name sitting in the main tree blocks the merge with `untracked working tree files would be overwritten by merge`. To read one from the default branch without merging: `git show <branch>:docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md`.
+
+**The ledger is different — it is gitignored working-tree scratch.** Because `.gaspol/` sits under the gitignore this skill's Step 1b safety verification already covers, the ledger never collides and never merges; each worktree gets its own copy. If the operator wants to watch progress from the default branch, the ledger is the only one of the three that may be mirrored there.
+
 ---
 
 ## Quick Reference
@@ -158,6 +170,7 @@ Ready to implement <feature-name>
 | Assuming the worktree directory location | Violates project convention; inconsistent state |
 | Proceeding past a failing baseline without asking | Can't tell new bugs from pre-existing ones |
 | Cleaning up the worktree before the merge is confirmed | If the merge fails, you need the worktree to fix it (see gaspol-finish) |
+| Copying spec/plan into the main working tree | Blocks the merge (`untracked working tree files would be overwritten by merge`) — keep them on the branch, use `git show` to read them |
 
 ## Rationalization Table
 

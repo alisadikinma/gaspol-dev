@@ -191,13 +191,17 @@ The implementer:
 A passing unit test proves nothing if the types don't compile, and a green build proves
 nothing if the edge cases were never exercised. Run these levels **in order, stopping at the
 first failure** — cheap fast checks gate the expensive slow ones, so a typo never costs a full
-integration run:
+integration run.
+
+**L1–L3 commands come from `skills/gaspol-execute/scripts/detect-stack <project-root>`, not a
+literal `tsc --noEmit`** — that's one stack's command, hardcoding it silently skips L1 on every
+non-node project. Run `detect-stack` once for the project, then map its output onto the ladder:
 
 | # | Level | Gate (what must pass) |
 |---|-------|-----------------------|
-| 1 | **Static** | `tsc --noEmit` clean + linter clean on changed files. No type errors, no lint errors. |
-| 2 | **Unit** | Unit tests covering the changed units pass (the TDD tests written for this task). |
-| 3 | **Build** | The project builds (`build` script / bundler) if it has a build step. |
+| 1 | **Static** | The `static:` command `detect-stack` prints, clean on changed files. `<level>: UNKNOWN` → STOP and ask the user for the correct command, don't guess. No stack markers at all → use the plan-declared command for this phase. |
+| 2 | **Unit** | The `unit:` command `detect-stack` prints — tests covering the changed units pass (the TDD tests written for this task). Same `UNKNOWN`/no-markers handling as L1. |
+| 3 | **Build** | The `build:` command `detect-stack` prints, if it has a build step. `detect-stack` prints no `build:` line for that stack → explicit **N/A**, not a silent skip. |
 | 4 | **Integration** | Integration/e2e tests exercising the changed code path pass, if any exist. |
 | 5 | **Edge** | The non-happy paths are actually run — null/empty/boundary/error branch, not just the success case. This is the anti-"green on happy path only" gate. |
 
@@ -208,6 +212,10 @@ Rules:
 - **A level that genuinely doesn't apply is skipped explicitly, not silently** — e.g. "L3 Build:
   N/A, no build step" / "L4 Integration: N/A, no integration suite". A silent skip reads as
   "passed" when it didn't (same failure mode as placeholder data).
+- **An implementer subagent cannot run `detect-stack` itself** (it may not have repo access to
+  the script, or any context beyond the dispatched prompt) — the orchestrator resolves the L1–L3
+  commands before dispatch and pastes them verbatim into the task prompt (see
+  `implementer-prompt.md`).
 - The ladder is per-task verification depth; it does not replace Steps 5–6 (independent spec +
   quality review by a *different* subagent). Self-validation and independent review are different
   guarantees.
@@ -359,19 +367,29 @@ This skill works with:
 
 ## Task Execution Tracking
 
-**Durable ledger (survives `/compact`):** alongside the visual tracker below, append one
-line per finished task to the plan's resolved ledger — per-plan `.gaspol/progress/<slug>.md`
-when the plan header names it, else the shared `.gaspol/progress.md` (create the file, and its
-parent dir, if absent):
-`Task [N] [title] — COMPLETE — <1-line summary> — NEXT: <next task, or "DONE">`. If a task
-is left unfinished (blocker or `/compact`), append instead:
-`Task [N] [title] — WIP — <what's done> — BLOCKER: <what's stuck> — NEXT: <exact resume action>`.
+**Durable ledger (survives `/compact`) — tick-then-append gate, BLOCKING:** alongside the
+visual tracker below, after EACH task completes and BEFORE the next one starts, update the
+plan's resolved ledger — `.gaspol/progress/PROGRESS-<TICKET>.md` when the plan header names it
+(new plans, created by `gaspol-plan` at plan-write time), else an older ledger path
+(`.gaspol/progress/<slug>.md` or the shared `.gaspol/progress.md`) per its backward-compat
+rule (create the file, and its parent dir, if genuinely absent). This is blocking, like a test
+gate: no next task until both steps are written, never batched at the end — a crash mid-run
+must leave a truthful state, not a stale one:
+- **(a) Tick the Checklist:** flip this task's `## Checklist` line — `- [ ]` → `- [>]` when the
+  task starts, → `- [x] — DONE` on completion, or → `- [~] — <reason>` if cancelled/skipped
+  (reason mandatory, detail in the Log). See `skills/gaspol-plan/SKILL.md` "Progress Ledger
+  Format" for the exact four-state template.
+- **(b) Append to the Log:**
+  `Task [N] [title] — COMPLETE — <1-line summary> — NEXT: <next task, or "DONE">`. If a task
+  is left unfinished (blocker or `/compact`), append instead:
+  `Task [N] [title] — WIP — <what's done> — BLOCKER: <what's stuck> — NEXT: <exact resume action>`.
 The trailing `NEXT:`/`BLOCKER:` fields are the handoff cursor a resumed session reads to know
-where to continue and what's blocking (older lines without the suffix still parse). The visual
-tracker is in-memory and is lost on compaction; the ledger is the durable record a resumed
-session reads to know which tasks are done. **Never** write under `.git/` (protected path — agent writes blocked).
-Ensure `.gaspol/` is in the project `.gitignore` (working-tree scratch, never committed);
-`git clean -fdx` deletes it, recover from `git log`.
+where to continue and what's blocking (older lines without the suffix still parse). `## Log`
+stays the last block in the file — `scan-active-ledgers` reads the file's last non-empty line.
+The visual tracker is in-memory and is lost on compaction; the ledger is the durable record a
+resumed session reads to know which tasks are done. **Never** write under `.git/` (protected
+path — agent writes blocked). Ensure `.gaspol/` is in the project `.gitignore` (working-tree
+scratch, never committed); `git clean -fdx` deletes it, recover from `git log`.
 
 **Session-length checkpoint (context-budget nudge):** count waves completed (mode
 `independent-domains`) or phases completed (mode `plan-phases`) in the **current run** —
@@ -379,7 +397,7 @@ not ones restored from the ledger on resume, only ones this run itself finishes.
 **3rd** wave/phase completes — the 3rd, 6th, 9th, ... — use the **AskUserQuestion** tool:
 
 > "N phases done this session. Continue here, or pick up fresh next session? The ledger
-> (`.gaspol/progress/progress-<TICKET>.md`, or the plan's declared ledger path) has the exact
+> (`.gaspol/progress/PROGRESS-<TICKET>.md`, or the plan's declared ledger path) has the exact
 > resume point either way."
 
 Options:

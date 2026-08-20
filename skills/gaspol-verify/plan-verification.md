@@ -9,7 +9,7 @@ Detailed reference for the Plan Fidelity Check (Layer 2) of gaspol-verify. This 
 ### Locating the Plan
 Plans are stored in `docs/plans/` with the naming convention:
 ```
-docs/plans/YYYY-MM-DD-feature-name.md
+docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md
 ```
 
 If the plan was created by `gaspol-execute`, it will have a structured format with phases, files, and deliverables.
@@ -60,7 +60,7 @@ Each criterion is a direct verification target.
 From the parsed plan, build a flat checklist:
 
 ```
-PLAN: docs/plans/2026-02-10-topic-cards.md
+PLAN: docs/plans/2026-02-10-IND-42-topic-cards-plan.md
 
 PHASES:
   [ ] Phase 1: Component scaffolding (3 files)
@@ -268,7 +268,7 @@ git diff --name-only main...HEAD | xargs grep -n -E "( as any|@ts-ignore|@ts-exp
 ```
 ============================================================
 SPARKFLUENCE VERIFICATION REPORT
-Plan: docs/plans/2026-02-10-feature-name.md
+Plan: docs/plans/2026-02-10-IND-42-feature-name-plan.md
 Date: 2026-02-10
 Branch: feat/feature-name
 ============================================================

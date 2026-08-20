@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.13.0] - 2026-08-20
+
+### Added — output naming standard: dated spec/plan files, PROGRESS-<TICKET>.md ledger, detect-stack (IDS-1)
+
+Field report: plan/spec filenames collided across tickets sharing a topic slug, the ledger's
+`.gaspol/progress/<slug>.md` path gave no per-phase checklist a human could scan at a glance, and
+Layer 1 / Validation Ladder verification hardcoded `npm run build` / `npx tsc --noEmit` even on
+non-Node projects. Seven phases close all three gaps (A-F as planned, plus G adding the same conventions to
+`gaspol-worktree`).
+
+**Suite status, measured not assumed:** ticket-scripts 4/4, skill-triggering 6/6,
+pressure 3/9 (exit 1). The pressure suite spawns real `claude` CLI runs and is stochastic —
+two measurements on this branch both scored 3/9 but with different failure composition, one
+with zero capitulations and one with two. Its redness predates this release: `tests/pressure/`
+is untouched here, no skill `description:` frontmatter changed (frontmatter drives triggering),
+and a baseline measurement at cd8bd1a scored 1/9. Repairing that suite is its own ticket.
+
+- **Dated spec/plan filenames.** `gaspol-brainstorm` and `gaspol-plan` now write
+  `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-{spec,plan}.md`. `gaspol-plan` locates its spec by
+  glob (`docs/plans/*-<TICKET>-*-spec.md`) instead of reconstructing the filename, and STOPs to
+  ask the user if more than one file matches. Seven pre-ticket files in `docs/plans/` predate the
+  convention and are deliberately not renamed.
+- **Case-insensitive ledger scan.** `scan-active-ledgers` now globs `PROGRESS-*.md` as well as
+  lowercase `progress-*.md`.
+- **`PROGRESS-<TICKET>.md` ledger with a per-phase checklist.** `gaspol-plan` creates
+  `.gaspol/progress/PROGRESS-<TICKET>.md` at plan-write time: a `## Checklist` block (`[ ]` todo /
+  `[>]` doing / `[x]` done / `[~]` cancelled-with-mandatory-reason) above a `## Log` block that is
+  ALWAYS last. `gaspol-execute` and `gaspol-parallel` gain a BLOCKING per-phase gate — tick the
+  checklist AND append the Log line with its `— NEXT:` cursor before the next phase starts. Older
+  ledger paths are still read for backward compatibility.
+- **`detect-stack`** (`skills/gaspol-execute/scripts/detect-stack`) — reads stack marker files at
+  a project root and prints `<level>: <command>` lines (static/lint/unit/build); prints `UNKNOWN`
+  when a marker exists but its backing command doesn't (`command -v` checks for
+  python/go/rust/flutter too); prints nothing when there are no markers.
+- **Verification commands are derived, not hardcoded.** `gaspol-verify` Layer 1 and
+  `gaspol-parallel`'s Validation Ladder L1–L3 now run `detect-stack` instead of assuming npm;
+  `gaspol-plan` copies its output verbatim into each phase's Verification block, and
+  `implementer-prompt.md` carries it verbatim to dispatched subagents. Three documented result
+  cases: a command line → run it; `UNKNOWN` → STOP and ask the user; zero lines → fall back to the
+  plan-declared commands, recorded explicitly rather than silently skipped.
+
 ## [1.10.1] - 2026-07-11
 
 ### Changed — ledger update is now a hard per-phase gate

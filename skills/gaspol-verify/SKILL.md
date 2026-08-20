@@ -51,37 +51,38 @@ Make the claim. Quote the evidence. Show the output. Let the user see what you s
 
 Run every applicable check. All must pass before proceeding to Layer 2.
 
-### Build Check
-```bash
-npm run build
-```
-- Exit code must be 0
-- Zero errors in output (warnings are reported but do not block)
-- Check for "Failed to compile" or "Build failed" strings
+### Derive the commands — run `detect-stack`, never hardcode npm
 
-### Type Check
-```bash
-npx tsc --noEmit
-```
-- Exit code must be 0
-- Zero type errors
-- Report any `any` type warnings if strict mode is on
+Layer 1 does NOT hardcode `npm run build` / `npx tsc --noEmit` / `npm test` / `npm run
+lint` as the checks to run — those are one stack's commands, and hardcoding them silently
+skips verification on every non-node project. Instead:
 
-### Test Suite
 ```bash
-npm test -- --watchAll=false
+skills/gaspol-execute/scripts/detect-stack <project-root>
 ```
-- Exit code must be 0
-- All test suites pass
-- Zero failing tests (skipped tests are reported)
-- Check snapshot mismatches
 
-### Lint Check
-```bash
-npm run lint
-```
-- Report error count
-- Lint passing does NOT replace build or type check
+Run every line it prints. There are exactly three result shapes, and each is handled
+differently — never conflate them:
+
+1. **`<level>: <command>`** (e.g. `unit: npm test`, `static: npx tsc --noEmit`, `build: npm
+   run build`, `lint: npm run lint` — these are EXAMPLE outputs `detect-stack` might print
+   for a node project, not required commands in themselves) → run that command. Exit code
+   must be 0.
+2. **`<level>: UNKNOWN`** → the marker file proves the stack but nothing backs the command
+   (no `.scripts` key, no vendor binary, no tool on PATH). **STOP and ask the user** what the
+   correct command is for that level. Never guess, never silently skip it.
+3. **Zero lines** (no stack markers at all — e.g. the gaspol-dev repo itself, a pure-markdown
+   plugin) → no automated commands can be derived from the filesystem. Fall back to the
+   commands the plan wrote into each phase's `Verification` block (see `gaspol-plan`'s
+   Phase Structure — it copies `detect-stack` output into the plan at write time for exactly
+   this case). Record explicitly: `detect-stack: no stack markers, using plan-declared
+   commands` — do not silently skip Layer 1.
+
+Report each executed check the same way regardless of level name (`static`/`lint`/`unit`/
+`build`):
+- Exit code must be 0
+- Zero errors in output
+- Warnings are reported but do not block
 
 ### Runtime Verification
 - If a dev server is running, check browser console for errors
@@ -100,11 +101,17 @@ UI/user-visible surface)".
 
 ### Evidence Format
 ```
-TECHNICAL VERIFICATION:
-  Build:      PASS (exit 0, 0 errors, 3 warnings)
-  TypeCheck:  PASS (exit 0, 0 errors)
-  Tests:      PASS (14 suites, 47 tests, 0 failures, 2 skipped)
-  Lint:       PASS (0 errors, 1 warning)
+TECHNICAL VERIFICATION (detect-stack: node):
+  static: PASS (npx tsc --noEmit, exit 0, 0 errors)
+  lint:   PASS (npm run lint, 0 errors, 1 warning)
+  unit:   PASS (npm test, 14 suites, 47 tests, 0 failures, 2 skipped)
+  build:  PASS (npm run build, exit 0, 0 errors, 3 warnings)
+```
+
+Or, when no stack markers exist:
+```
+TECHNICAL VERIFICATION (detect-stack: no stack markers, using plan-declared commands):
+  <phase's plan-declared command>: PASS (exit 0)
 ```
 
 ### Evals (for non-deterministic / LLM features)
@@ -148,7 +155,7 @@ This is the layer most verification systems skip. It answers: "Did we build what
 
 ### Evidence Format
 ```
-PLAN FIDELITY CHECK (plan: docs/plans/2026-02-10-feature-x.md)
+PLAN FIDELITY CHECK (plan: docs/plans/2026-02-10-IND-42-feature-x-plan.md)
   Phase 1: Component scaffolding ........... DONE (3/3 files)
   Phase 2: Hook integration ................ DONE (2/2 hooks)
   Phase 3: API connection .................. PARTIAL (missing error handler)
