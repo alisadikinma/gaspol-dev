@@ -187,8 +187,11 @@ git checkout main
 # Merge feature branch
 git merge feature/my-feature --no-ff
 
-# Verify tests still pass after merge
-npm test  # or project-specific test command
+# Verify tests still pass after merge. DERIVE the command -- never assume npm.
+# detect-stack prints "<level>: <command>" lines for whatever this project
+# actually is; run the unit line. No stack markers -> use the commands the plan
+# declared, and say so explicitly rather than skipping the run.
+skills/gaspol-execute/scripts/detect-stack .
 
 # Delete feature branch
 git branch -d feature/my-feature
@@ -198,6 +201,26 @@ git worktree remove .worktrees/my-feature 2>/dev/null || true
 ```
 
 **Use when:** Small changes, sole developer, no review needed.
+
+**Merging is not publishing.** A local merge leaves the work on this machine only.
+Before reporting the branch as shipped:
+
+```bash
+git push origin main
+```
+
+If this repository is a Claude Code **plugin**, pushing still is not enough -- the
+installed copy is a cached version, not the checkout:
+
+```bash
+claude plugin marketplace update <marketplace>
+claude plugin update <plugin>@<marketplace>   # the full id; the bare name fails
+                                              # with: Plugin "<name>" not found
+```
+
+Restart Claude Code afterwards; an updated plugin does not take effect in the
+running session. Skipping this is how a merged, tagged, correct version sits inert
+while the repo claims it shipped.
 
 ### Option 2: Push and Create PR
 
@@ -245,6 +268,34 @@ git worktree remove .worktrees/my-feature --force
 **Use when:** Approach was wrong, work is obsolete, starting over.
 
 ---
+
+## Close the Ledger (after the chosen option is executed)
+
+The per-ticket ledger `.gaspol/progress/PROGRESS-<TICKET>.md` is created by
+`gaspol-plan` and ticked by `gaspol-execute` / `gaspol-parallel` after every phase.
+**Nothing closed it.** It is gitignored, so a stale one never shows up in
+`git status` and never gets noticed -- ledgers from finished tickets pile up
+carrying a cursor that still claims work is in flight.
+
+Finish owns the end of that lifecycle:
+
+1. Append a final `## Log` line recording the outcome, ending with the cursor
+   `— NEXT: DONE`. State which option was taken and the merge/PR reference, e.g.
+   `— merged to main as <sha> — NEXT: DONE`. If the branch was kept or discarded,
+   say that instead -- a truthful cursor beats a tidy one.
+2. Confirm every `## Checklist` line is `[x]` or `[~]`. A `[ ]` or `[>]` left at
+   finish time means the work is not actually done, or the ledger lied during
+   execution. Either way, resolve it before claiming completion -- do not tick it
+   silently to make the file look finished.
+3. Surface any OTHER ledger still open, so the pile is visible rather than growing:
+
+```bash
+skills/gaspol-execute/scripts/scan-active-ledgers .gaspol/progress
+```
+
+   It prints one basename per ledger whose last `NEXT:` marker is not `DONE`.
+   Empty output means nothing else is in flight. Report what it prints; do not
+   act on other tickets' ledgers from here.
 
 ## Post-Finish Summary
 

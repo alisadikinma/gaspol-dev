@@ -27,7 +27,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`). Fast, no API calls — run these first |
+| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`, `test-skill-delegation.sh`, `test-finish-gates.sh`). Fast, no API calls — run these first |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -592,6 +592,18 @@ Pre-finish verification chain (MANDATORY — all six, in order, none conditional
 5. Run `gaspol-sync-docs` (update CLAUDE.md)
 6. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
 
+**After the chosen option executes (IDS-3):** close the ledger. Append a final `## Log` line
+to `.gaspol/progress/PROGRESS-<TICKET>.md` ending `— NEXT: DONE`, confirm no `[ ]`/`[>]` is left
+in the Checklist, and run `skills/gaspol-execute/scripts/scan-active-ledgers .gaspol/progress` to
+surface any other ticket still in flight. The ledger is gitignored, so a stale one is invisible to
+`git status` — nothing else closes it.
+
+**Merging is not publishing (IDS-3).** A local merge leaves the work on one machine. Push, and for
+a plugin repo also run `claude plugin marketplace update <marketplace>` +
+`claude plugin update <plugin>@<marketplace>` (the full id — the bare name fails with
+`Plugin "<name>" not found`), then restart Claude Code. The post-merge test command is derived from
+`skills/gaspol-execute/scripts/detect-stack`, never hardcoded to npm.
+
 Then present exactly 4 options via AskUserQuestion:
 
 - **Merge locally** — `git merge --no-ff`, verify tests, delete branch
@@ -712,7 +724,7 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-2
+Last ticket: IDS-3
 
 ---
 
