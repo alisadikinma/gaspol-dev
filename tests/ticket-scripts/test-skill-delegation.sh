@@ -202,11 +202,57 @@ test_security_delegation() {
 }
 
 # ---------------------------------------------------------------------------
+# Phase C — gaspol-review absorbs what the official plugin does better
+# ---------------------------------------------------------------------------
+# gaspol-review was NOT replaced by code-review@claude-plugins-official, and
+# these assertions encode why. That plugin is PR-only: its allowed-tools are all
+# `gh pr ...`, it fetches a pull request and posts a comment back to GitHub, so
+# it cannot gate a local pre-merge branch the way gaspol-finish Step 3 needs.
+# gaspol-review already has all five of its review lanes plus tiering and an
+# adversarial refutation pass it lacks. Two mechanics were missing, and only
+# those two were absorbed: a numeric confidence rubric, and an explicit
+# false-positive catalogue.
+test_review_confidence() {
+  local F="skills/gaspol-review/SKILL.md"
+
+  assert_grep "refuter returns a numeric confidence" "CONFIDENCE:" "$F"
+
+  assert_grep "confidence threshold is 80" "Threshold 80" "$F"
+
+  assert_grep "false-positive catalogue names pre-existing issues" "Pre-existing" "$F"
+
+  assert_grep "false-positive catalogue excludes what CI already catches" "typechecker" "$F"
+
+  assert_grep "escalation route to the cloud review is documented" "/code-review ultra" "$F"
+
+  assert_grep "escalation says Claude cannot launch it" "Claude cannot launch it" "$F"
+
+  # The adversarial pass must SURVIVE. The rubric adds ranking on top of it; it
+  # does not replace the verdict, and it must never turn a fail-safe into a
+  # fail-open.
+  assert_grep "adversarial refutation verdict still present" \
+    "VERDICT: CONFIRMED | REFUTED | UNVERIFIABLE" "$F"
+
+  assert_grep "verdict outranks the score on conflict" "outranks the score" "$F"
+
+  assert_grep "unverifiable Critical still blocks regardless of score" \
+    "regardless of score" "$F"
+
+  # The five lanes and the tier table are untouched by this phase.
+  local lane
+  for lane in code-reviewer plan-artifact-reviewer git-history-reviewer \
+              code-comment-reviewer pr-comments-reviewer; do
+    assert_present_path "review lane $lane survives" "skills/gaspol-review/$lane.md"
+  done
+}
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 self_check_sweep
 test_design_delegation
 test_security_delegation
+test_review_confidence
 
 if [[ "$FAILURES" -gt 0 ]]; then
   echo "test-skill-delegation: $FAILURES assertion(s) failed" >&2
