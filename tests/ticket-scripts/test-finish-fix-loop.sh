@@ -67,6 +67,14 @@ echo "test-finish-fix-loop: cheap gates run before expensive ones..."
 claim "$FIN" "finish" "before dispatching any agent" || exit 1
 claim "$FIN" "finish" "test-gate-mutations.sh" || exit 1
 
+echo "test-finish-fix-loop: Step 0 anchors its script and names its checks..."
+# /security-review, IDS-9. Step 0 was the one place this diff introduced a new
+# script invocation, and it introduced it twice over: a relative path, plus an
+# instruction to DISCOVER a harness in the working repo and run it. Step 0 runs
+# before /security-review by design, so nothing would have inspected either first.
+claim "$FIN" "finish" '`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/detect-stack"' || exit 1
+claim "$FIN" "finish" "never go looking for a checker to run" || exit 1
+
 echo "test-finish-fix-loop: re-runs are scoped, not whole-branch..."
 claim "$FIN" "finish" "record the SHA that verdict saw" || exit 1
 claim "$FIN" "finish" "re-runs a gate scopes to that SHA" || exit 1

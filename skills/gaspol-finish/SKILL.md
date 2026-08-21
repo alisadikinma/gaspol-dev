@@ -37,8 +37,19 @@ every finish pass exactly like steps 1, 2, 5, and 6 always have.
 ### Step 0: Run the deterministic checks first — before dispatching any agent
 
 The chain's cheapest gate runs first, always. Derive the command with
-`skills/gaspol-execute/scripts/detect-stack <project-root>` and run it; where the repository
-also keeps a mutation harness over its own gates, run that too — in this repository,
+`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/detect-stack" <project-root>` and run what
+it prints.
+
+**Two rails on that line, both learned the hard way.** The script is reached through
+`$CLAUDE_PLUGIN_ROOT`, never relatively: this skill runs with the **target project** as its
+working directory, so a relative path executes whatever a repo carrying that path happens to
+ship — and `detect-stack`'s stdout is then executed, so a substituted script both runs and
+chooses the next command. And **never go looking for a checker to run.** An earlier draft of this
+step said "where the repository keeps a mutation harness over its own gates, run that too", which
+instructs an agent to discover and execute an arbitrary script out of the working repository —
+Step 0 runs *before* `/security-review`, so nothing would have looked at it first. A repository's
+extra checks belong in the plan's declared verification commands, or named literally in its own
+`CLAUDE.md`, where a human wrote them down. In THIS repository that is
 `tests/ticket-scripts/test-gate-mutations.sh`.
 
 **Why this is Step 0 and not a footnote.** In IDS-8 an eight-minute Opus audit was dispatched

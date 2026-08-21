@@ -485,6 +485,13 @@ IDS-8's own surface is fixed: all ten `kb-root` invocations now go through
 `${CLAUDE_PLUGIN_ROOT:?…}` so an unset variable stops loudly instead of falling back to the working
 directory. `test-kb-no-hardcoded-path.sh` gates it.
 
+**`detect-stack` is the one to fix first when that ticket runs.** `/security-review` on IDS-9
+flagged it specifically: its stdout is **executed**, so a substituted script both runs and chooses
+the next command — the script's own header calls that out as its security invariant. IDS-9
+anchored the single call site it added (`gaspol-finish` Step 0) and gated that line, but **eight
+other call sites across five files stay relative**, and the shared gate still matches only
+`kb-root`. Widening it is what actually closes the surface; anchoring one line is not.
+
 **Eight scripts still carry the old form** and are deliberately out of scope here: `detect-stack`,
 `task-brief`, `dag-lanes`, `review-package`, `next-ticket`, `scan-active-ledgers`, plus
 `design_audit.py` and `extract-design-tokens` — roughly 33 call sites. They predate IDS-8 and none
