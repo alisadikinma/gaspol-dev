@@ -1,5 +1,90 @@
 # Changelog
 
+## [1.18.0] - 2026-08-21
+
+### Fixed during the release's own review chain (IDS-8, rounds after the plan closed)
+
+The finish chain found four defects the eight-phase implementation had not, and each one is a
+different reason a green suite can still be wrong:
+
+- **The first run on any fresh machine aborted.** All three KB skills merged `kb-root`'s exit 3
+  (configured and unreadable, must stop) into exit 4 (nothing configured, must report and
+  continue). Every test exercised the resolver *standalone*, so the resolver was right and its
+  three callers were wrong, and nothing looked at the seam. `kb-root --init` now creates the
+  default store for a write and returns 0; state 3 is untouched. A new test **executes** the bash
+  extracted from each `SKILL.md` rather than reading it.
+- **`gaspol-kb-audit` stopped being a valid skill.** The index caveat was inserted between the
+  opening `---` and `name:` — inside the YAML frontmatter Claude Code routes on. The identical
+  edit landed correctly in four other skills. `test-skill-frontmatter.sh` now checks all 20.
+- **`git -C "$KB" add .` staged whole working trees.** The ownership guard asks *"is `$KB` the
+  repository root?"*, which is true both for a dedicated KB repo and for a vault root a mis-set
+  `kb_local` points at — structure cannot tell them apart, so the guard was never the last line of
+  defence. Every write now stages one file by pathspec.
+- **Resolver invocations were relative.** An agent runs a skill's bash with the *target project* as
+  its working directory, so `$(skills/_shared/kb-root)` would run whatever a repo shipping that
+  path happens to contain, and its stdout becomes the path gaspol commits. All ten invocations now
+  go through `$CLAUDE_PLUGIN_ROOT`. Six older scripts still carry the old form and are named in
+  `CLAUDE.md` as the next ticket's subject.
+
+Five separate times on this branch, a gate's own fix tripped over prose that *described* the
+hazard it polices. The answer each time was to anchor on shape — a line that runs starts the line;
+prose wraps the same text in backticks mid-sentence — never to add a text exemption, because an
+exemption added to keep a gate usable is how every earlier regression got in.
+
+### Fixed — gaspol was running a second knowledge pipeline alongside one that already existed (IDS-8)
+
+The owner keeps an Obsidian vault with a working capture pipeline: a SessionStart hook writes
+session learnings to `90-Inbox/agent-learnings/`, and `superbrain-promote` is the single
+human-gated promoter into the curated core. gaspol ran its own store in parallel. On 2026-08-21
+**both harvested the same session**: one prior-art lesson became `search-the-market-before-building-a-capability`
+in the gaspol KB and three separate notes in the vault inbox. Same day, same insight, two stores.
+
+Four more defects, each verified by running a command:
+
+| Defect | Evidence |
+|---|---|
+| `kb_local` documented as the way to relocate the KB, **read by nothing** | named in `README.md`, `CLAUDE.md`, `docs/kb-setup.md`; `grep kb_local skills/` → **0 hits**; `grep gaspol-config skills/` → **0 files** |
+| Precedent lookup off for the work that repeats mistakes | `gaspol-brainstorm` Phase 0.5 was headed *"architectural path only"* — bounded fixes never queried |
+| gaspol would commit a repository it does not own | synced mode runs `git commit`/`push` **inside** the KB dir; the vault is a git repo. Inert today, armed the day `kb_remote` is set |
+| The code index went stale with nothing in the chain refreshing it | `grep graphify skills/gaspol-sync-docs/` → 0 hits |
+
+The relocation defect is IDS-7's `--design-system` shape one layer up: a setting parsed into
+documentation and consulted by nothing.
+
+### Changed
+
+- **One resolver.** `skills/_shared/kb-path.md` states the order (`$GASPOL_KB_LOCAL` → `kb_local`
+  in `gaspol-config.json` → default) and the three states; `skills/_shared/kb-root` executes it,
+  reporting `available` / `UNKNOWN` / `none` through exit codes 0/3/4. Sixteen prose sites across
+  six skills stopped naming the default folder.
+- **Capture feeds the quarantine, in the quarantine's own shape.** Flat notes with frontmatter +
+  `# Title` + `tags:`, always `status: proposed`. gaspol no longer promotes its own writes;
+  `superbrain-promote` stays the sole gate. The four category directories became tags.
+- **Precedent query runs on bounded work too.** Spike keeps its exemption — a probe that keeps no
+  code has no precedent to apply. `gaspol-brainstorm` Phase 0 reads the vault in the owner's own
+  order and stops as soon as it has enough.
+- **Ownership guard.** Before any write-side git operation, the KB root is compared against
+  `git rev-parse --show-toplevel`; a mismatch records
+  `kb-sync: skipped — KB lives inside a repo gaspol does not own` and continues. Reads stay allowed.
+- **Code index lane** in `gaspol-sync-docs`: `graphify-out/` + CLI → `graphify update .`; marker
+  without CLI → `graphify: UNKNOWN` and STOP; no marker → skipped, never recorded as passed. The
+  federated `graphify global add` writes outside the repo, so it is offered, never taken.
+
+### Deferred, named rather than forgotten
+
+`gaspol-kb-audit` now overlaps `superbrain-promote` almost completely — both are
+scan → cluster → per-finding human decision → apply → audit log. Not resolved here because the
+two are **not like-for-like**: one is public and agnostic, the other private and hardcoded to one
+vault.
+
+### Note on the audit itself
+
+This ticket's first duplication probe returned ten blank rows and would have "proved" zero
+duplicates while being broken. Every probe afterwards carries a positive control. Four test
+assertions in this release were caught passing over sabotaged code and rewritten — a guard that
+can be satisfied by an unrelated line is not guarding anything.
+
+
 ## [1.17.0] - 2026-08-21
 
 ### Fixed — Layer 4's design gate was reporting a number, not enforcing a contract (IDS-7)

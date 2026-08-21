@@ -76,12 +76,14 @@ Before writing to KB, validate:
 |---|---|---|
 | Min content | Body ≥200 words describing pattern | Reject, prompt user to expand |
 | Tag validation | ≥2 tags from allowed taxonomy | Reject, prompt to add tags |
-| Duplicate detection | Grep INDEX.md for similar titles (>80% overlap) | Surface duplicate, ask merge/keep-separate |
+| Duplicate detection | `grep -ril "<key phrase>" "$KB"/*.md` over the flat notes' `# Title` and `tags:` lines (>80% overlap) | Surface duplicate, ask merge/keep-separate |
 | Not CLAUDE.md restate | Content must go beyond what's already in project CLAUDE.md | Reject if pure restate |
 | Source citation (research type) | ≥2 URLs if entry type is `research` | Reject, demand sources |
 | Body structure | Has sections: Context, Pattern, When to Use, Example, Variations | Reject if bare dump |
 
-Failed quality gate → log to `~/.claude/gaspol-knowledge/.rejected-log`:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+Failed quality gate → log to `<KB_ROOT>/.rejected-log`:
 
 ```
 [2026-04-17 14:32] Rejected: "Image generation 3-pane layout"
@@ -96,31 +98,47 @@ Determine target directory:
 
 | Pattern Type | Target |
 |---|---|
-| UI component layout, interaction pattern | `ui-patterns/` |
-| System-level architecture (auth, data flow, state) | `architecture/` |
-| Reusable code snippet (hook, utility, helper) | `reusable-snippets/` |
-| (ADRs go via gaspol-adr, not gaspol-learn) | `design-decisions/` |
-| (Research goes via gaspol-research, not gaspol-learn) | `research/` |
+| UI component layout, interaction pattern | tag `ui-patterns` |
+| System-level architecture (auth, data flow, state) | tag `architecture` |
+| Reusable code snippet (hook, utility, helper) | tag `reusable-snippets` |
+| (ADRs go via gaspol-adr, not gaspol-learn) | tag `design-decisions` |
+| (Research goes via gaspol-research, not gaspol-learn) | tag `research` |
 
-### Step 5: Write Entry
+### Step 5: Write the quarantine note
 
-File: `~/.claude/gaspol-knowledge/<category>/<slug>.md`
+**One flat file. No category directories.** File: `<KB_ROOT>/YYYY-MM-DD-<slug>.md`
 
-```yaml
+gaspol does not own a knowledge store any more — it feeds the quarantine that
+`superbrain-promote` (or the equivalent human gate) reads. That promoter's scan keys on
+**frontmatter + H1**, so the shape below is a contract, not a style. A note in a different shape is
+silently skipped: it looks captured and is unreachable, which is worse than not capturing it.
+
+```markdown
 ---
-id: <category>-YYYY-MM-DD-<slug>
-title: <Title>
+status: proposed
 date: YYYY-MM-DD
-status: proposed                # default; user can promote to accepted via gaspol-kb-audit
-type: <ui-pattern | architecture | snippet>
-source_project: <project-name>
-source_location: <file:line-range>
-tags: [<tag1>, <tag2>, ...]
-reusable_in: [<domain1>, <domain2>]    # where this pattern fits
-last_validated: YYYY-MM-DD              # initial = date created
+source: gaspol-learn (<project> <TICKET>)
 ---
 
 # <Title>
+tags: [<category>, <tag1>, <tag2>]
+
+<body>
+```
+
+**`status` is always `proposed`, and never `accepted`.** Promotion belongs to the human gate. A
+skill that grades its own capture as accepted has removed the gate it was told to feed — the same
+reason `plan-verifier` is a separate agent rather than a self-assessment.
+
+The old category directories (`ui-patterns/`, `architecture/`, `reusable-snippets/`) survive as the
+**first tag**, not as folders. Routing a note to its final home is the promoter's job and it already
+has a routing table; a second routing scheme in gaspol is exactly the duplication this ticket
+removes.
+
+**gaspol writes no index.** Writing one into a quarantine folder puts a non-note where the
+promoter scans notes, and an index gaspol has to keep in sync is a drift source with no reader —
+the flat notes carry their own frontmatter and tags, so a grep over them answers the same question.
+
 
 ## Context
 <Original problem this pattern solved.>
@@ -144,26 +162,52 @@ last_validated: YYYY-MM-DD              # initial = date created
 <Links to other KB entries, ADRs, research.>
 ```
 
-### Step 6: Update INDEX.md
+### Step 6: (removed — no index)
 
-```markdown
-- title: <Title>
-  path: <category>/<slug>.md
-  tags: [<tags>]
-  status: 🟨 proposed
-  source: <project> YYYY-MM-DD
-  hook: <1-line summary of reusability>
-```
+The index step is gone. gaspol writes flat quarantine notes that carry their own `status`, `date`,
+`source`, `# Title` and `tags: [...]`, so the question an index answered is answered by grepping the
+notes. An index that gaspol maintains but no promoter reads is a second source of truth that can
+only drift — and it would put a non-note into the folder the promoter scans.
 
 ### Step 7: Commit (+ Push if synced)
 
 See [docs/kb-setup.md](../../docs/kb-setup.md) for mode resolution. Auto-init the local KB dir if missing. **Always commit locally; push only in synced mode.**
 
+**Ownership guard (IDS-8):** before these git commands run, compare `$KB` against
+`git -C "$KB" rev-parse --show-toplevel`. A mismatch means the store is a guest inside a repo
+gaspol **does not own** — a vault, a monorepo — so the write-side git operations are refused with
+`kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)` and reads continue.
+Full snippet and rationale: `skills/_shared/kb-path.md`.
+
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
-git -C "$KB" add . && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" || true
-# push ONLY if a remote is configured (kb_remote / $GASPOL_KB_REMOTE):
-[ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root" --init)"; rc=$?
+# --init: state 4 (nothing configured, fresh machine) CREATES the default store
+# and returns 0, so a first-run capture has somewhere to go. State 3 is untouched
+# and still stops: an empty store reads as "no precedent exists", which is exactly
+# when a documented mistake gets repeated.
+case $rc in
+  0) : ;;
+  3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;
+  *) echo "kb-root: unexpected exit $rc — see skills/_shared/kb-path.md"; exit 1 ;;
+esac
+# Never continue with an empty $KB: git -C "" is a silent wrong answer.
+[ -n "$KB" ] || exit 1
+REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
+NOTE="$KB/$(date +%F)-<slug>.md"        # the file this capture just wrote
+TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
+  echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
+else
+  # PATHSPEC, never `add .` (IDS-8, /security-review). The guard above asks "is
+  # $KB the repo ROOT?", which is the right question for a dedicated KB repo and
+  # the WRONG one for somebody's vault root — and a wrong answer there staged the
+  # entire working tree. Staging only the note gaspol just wrote bounds the damage
+  # to gaspol's own file no matter how the guard rules.
+  git -C "$KB" add -- "$NOTE" && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" -- "$NOTE" || true
+  # push ONLY if a remote is configured (kb_remote / $GASPOL_KB_REMOTE):
+  [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
+fi
 ```
 
 In **local-only mode** (default) there is no remote — the local commit IS the capture. No push, no offline queue, no error. In **synced mode**, if push fails (offline) queue in `.pending-push` for retry next session.
@@ -172,7 +216,7 @@ In **local-only mode** (default) there is no remote — the local commit IS the 
 
 ## Quality Gate — Capture Rejection Log
 
-Path: `~/.claude/gaspol-knowledge/.rejected-log`
+Path: `<KB_ROOT>/.rejected-log`
 
 Contents: chronological rejected captures with reasons. NOT indexed, NOT committed to git (user can gitignore or not).
 
@@ -226,6 +270,6 @@ Before commit:
 - [ ] File written to correct category directory
 - [ ] Frontmatter complete (id, title, tags, status, source_project, source_location)
 - [ ] Body has all 6 sections (Context, Pattern, When to Use, When NOT, Example, Variations)
-- [ ] INDEX.md updated
+- [ ] No index written — the flat note carries its own frontmatter and tags
 - [ ] Git committed + pushed
 - [ ] Status = `proposed` (not `accepted`) until validated in future project

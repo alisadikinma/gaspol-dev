@@ -49,26 +49,29 @@ Input:
 
 Resolve KB mode first (see [docs/kb-setup.md](../../docs/kb-setup.md)): skip only on explicit `"kb_mode":"off"`; otherwise auto-init the local KB dir if missing and continue. **No GitHub config needed — local-only is the default.**
 
-Query `~/.claude/gaspol-knowledge/design-decisions/` for similar decisions:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+Query `<KB_ROOT>/` (flat quarantine notes) for similar decisions:
 - Grep by tags extracted from context
 - Grep by domain (auth, state-mgmt, image-gen, etc.)
 
 If precedent found:
-- Consistent with precedent → capture as **confirming** ADR (status: accepted, supersedes: null, referencing precedent)
+- Consistent with precedent → capture as **confirming** ADR (`status: proposed` — gaspol never writes `accepted`; the human gate promotes)
 - Inconsistent with precedent → capture as **divergence** ADR (see Step 4)
 
 If no precedent, proceed as fresh ADR.
 
 ### Step 3: Generate MADR File
 
-Write to `~/.claude/gaspol-knowledge/design-decisions/YYYY-MM-DD-<slug>.md`:
+Write to `<KB_ROOT>/YYYY-MM-DD-<slug>.md` — flat, no category directory. `status: proposed`, never `accepted`: promotion belongs to `superbrain-promote`, not to the skill that wrote the note. The frontmatter + `# Title` + `tags: [...]` shape is what the promoter's scan reads.
 
 ```markdown
 ---
 id: ADR-YYYY-MM-DD-<slug>
 title: <Concise decision title>
 date: YYYY-MM-DD
-status: accepted              # proposed | accepted | superseded | deprecated
+status: proposed              # ALWAYS proposed from gaspol. Only the human gate
+                              # (superbrain-promote) may set accepted/superseded/deprecated.
 project: <project-name>
 domain: <domain-tag>
 tags: [<tag1>, <tag2>, ...]
@@ -120,7 +123,7 @@ related: []                   # other ADR ids
 ## References
 
 - [Research cache: ../research/<slug>.md] (if research informed this)
-- [Precedent: ../design-decisions/YYYY-MM-DD-<slug>.md] (if following precedent)
+- [Precedent: the flat note tagged `design-decisions` this one follows] (if following precedent)
 ```
 
 ### Step 4: Divergence Handling
@@ -128,10 +131,10 @@ related: []                   # other ADR ids
 If user chose `[Override with reason]` at precedent surface (in `gaspol-brainstorm` Phase 0.5):
 
 1. Prompt user for divergence reason (1-2 sentences)
-2. Create divergence ADR at `design-decisions/divergence-YYYY-MM-DD-<slug>.md`
+2. Create the divergence ADR as a flat quarantine note: `<KB_ROOT>/YYYY-MM-DD-divergence-<slug>.md`, tagged `design-decisions` (no category directory — Phase C abolished them)
 3. Frontmatter:
    ```yaml
-   status: accepted
+   status: proposed
    supersedes: null                     # old precedent NOT superseded (both coexist)
    diverges_from: <precedent-ADR-id>    # NEW field: explicit divergence marker
    divergence_reason: "<1-2 sentence reason>"
@@ -148,25 +151,46 @@ If new ADR conflicts with existing accepted ADR on same tag/domain (not divergen
    - New ADR: `supersedes: <old-id>`
 3. Commit with clear message: `adr: supersede <old-id> with <new-id> — <reason>`
 
-### Step 6: Update INDEX.md + Git
+### Step 6: Commit (no INDEX.md)
 
-Add to `~/.claude/gaspol-knowledge/INDEX.md`:
+**gaspol writes no index.** An index inside a quarantine folder is a non-note where the promoter
+scans notes, and one gaspol must keep in sync is a drift source with no reader. The flat note
+carries `status`, `date`, `source`, `# Title` and `tags: [...]`, so a grep over the notes answers
+what the index used to.
 
-```markdown
-- title: <Title>
-  path: design-decisions/YYYY-MM-DD-<slug>.md
-  tags: [<tag1>, <tag2>]
-  status: 🟢 accepted
-  project: <project>
-  date: YYYY-MM-DD
-```
 
 Commit locally (always), push only in synced mode — see [docs/kb-setup.md](../../docs/kb-setup.md):
 
+**Ownership guard (IDS-8):** before these git commands run, compare `$KB` against
+`git -C "$KB" rev-parse --show-toplevel`. A mismatch means the store is a guest inside a repo
+gaspol **does not own** — a vault, a monorepo — so the write-side git operations are refused with
+`kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)` and reads continue.
+Full snippet and rationale: `skills/_shared/kb-path.md`.
+
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
-git -C "$KB" add . && git -C "$KB" commit -q -m "adr: <id> — <title>" || true
-[ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root" --init)"; rc=$?
+# --init: state 4 (nothing configured, fresh machine) CREATES the default store
+# and returns 0, so a first-run capture has somewhere to go. State 3 is untouched
+# and still stops: an empty store reads as "no precedent exists", which is exactly
+# when a documented mistake gets repeated.
+case $rc in
+  0) : ;;
+  3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;
+  *) echo "kb-root: unexpected exit $rc — see skills/_shared/kb-path.md"; exit 1 ;;
+esac
+# Never continue with an empty $KB: git -C "" is a silent wrong answer.
+[ -n "$KB" ] || exit 1
+REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
+NOTE="$KB/$(date +%F)-<slug>.md"        # the file this ADR just wrote
+TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
+  echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
+else
+  # PATHSPEC, never `add .` — see skills/_shared/kb-path.md (IDS-8, /security-review)
+  git -C "$KB" add -- "$NOTE" && git -C "$KB" commit -q -m "adr: <id> — <title>" -- "$NOTE" || true
+  [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
+fi
 ```
 
 ### Step 7: Return to Caller
@@ -177,7 +201,7 @@ Notify caller skill (brainstorm/plan) that ADR is captured with id. Caller can r
 
 ## Cross-Brainstorm Surfacing
 
-`gaspol-brainstorm` Phase 0.5 queries `design-decisions/` for similar past decisions. When match found, presents to user:
+`gaspol-brainstorm` Phase 0.5 greps the flat notes for the `design-decisions` tag. When match found, presents to user:
 
 ```
 Found relevant past decisions:
@@ -209,7 +233,7 @@ Found relevant past decisions:
 | Skill | Interaction |
 |---|---|
 | `gaspol-brainstorm` Phase 2 | Auto-invoked when approach selected from 2+ options |
-| `gaspol-brainstorm` Phase 0.5 | Grep design-decisions/ for precedent |
+| `gaspol-brainstorm` Phase 0.5 | Grep the notes for the `design-decisions` tag |
 | `gaspol-plan` | Captures architectural forks within phases |
 | `gaspol-research` | Research verdicts feed into ADR "References" section |
 | `gaspol-kb-audit` | Flags stale ADRs (accepted >180 days without validation) |
@@ -226,6 +250,6 @@ Before commit:
 - [ ] Decision reasoning references project constraints
 - [ ] Consequences section (positive + negative + neutral)
 - [ ] Supersession/divergence links bidirectional (if applicable)
-- [ ] INDEX.md updated with entry
+- [ ] No index written — the flat note carries its own frontmatter and tags
 - [ ] Git commit message descriptive
 - [ ] Push to KB repo succeeded

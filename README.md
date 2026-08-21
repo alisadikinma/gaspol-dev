@@ -176,13 +176,8 @@ gaspol: Phase 1.5 classified PRECEDENT. Skipping research. Proceeding with 3-pan
 Target Project
   └─ CLAUDE.md ──────┐
                      │
-~/.claude/gaspol-knowledge/    (local by default; GitHub sync optional)
-  ├─ INDEX.md        │
-  ├─ ui-patterns/    │   ← gaspol-learn
-  ├─ architecture/   │   ← gaspol-learn
-  ├─ design-decisions/   ← gaspol-adr (MADR)
-  ├─ research/           ← gaspol-research (TTL + freshness)
-  └─ reusable-snippets/  ← gaspol-learn
+<KB_ROOT>/          (resolved by skills/_shared/kb-root — env > kb_local > default)
+  └─ YYYY-MM-DD-<slug>.md   ← flat notes, status: proposed, category is the first tag
                      │
         Chain:       ↓
   brainstorm → plan → execute → verify → review → finish → learn
@@ -323,15 +318,23 @@ cat > ~/.claude/gaspol-config.json <<EOF
 }
 EOF
 ```
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
+
+
 
 ### Verify
 
 ```bash
 claude plugin list | grep gaspol-dev
-# Should show: gaspol-dev@gaspol-dev, version 1.15.0
+# Should show: gaspol-dev@gaspol-dev, version 1.18.0
 
-ls ~/.claude/gaspol-knowledge/   # created automatically after your first brainstorm/adr/learn
-# INDEX.md ui-patterns/ architecture/ design-decisions/ research/ reusable-snippets/
+ls "$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")"   # the RESOLVED root — not a fixed path. Created on first capture.
+# flat notes: YYYY-MM-DD-<slug>.md (no index, no category dirs since v1.18)
 ```
 
 **Updating:** a plugin update needs a restart to take effect, and the update command wants the **full id** — the bare name fails with `Plugin "gaspol-dev" not found`.

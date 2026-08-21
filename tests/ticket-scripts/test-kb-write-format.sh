@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# test-kb-write-format.sh — capture into the quarantine, in its own shape (IDS-8 Phase C)
+#
+# The owner already runs a capture pipeline: memory-extract.sh writes session
+# learnings to 90-Inbox/agent-learnings/, and superbrain-promote is the single
+# human gate that moves them into the curated core. gaspol was running a second,
+# parallel store — on 2026-08-21 both harvested the same lesson, four files, one
+# insight.
+#
+# So gaspol stops owning a store and starts feeding that quarantine. Two things
+# this test refuses to let slip:
+#
+#   1. superbrain-promote's scan reads frontmatter + H1. If gaspol's notes are a
+#      different shape, the promoter silently skips them and the capture is worse
+#      than useless — it looks captured and is unreachable.
+#   2. status must be `proposed`, never `accepted`. gaspol no longer promotes its
+#      own writes; only the human gate does. An agent that grades its own work as
+#      accepted has removed the gate it was told to feed.
+#
+# And the ≥200-word quality gate must SURVIVE the restructure. It is the only
+# thing gaspol contributes that the vault extractor does not already do. Losing
+# it while deleting directories would be a silent downgrade dressed as cleanup.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+LEARN="$REPO_ROOT/skills/gaspol-learn/SKILL.md"
+ADR="$REPO_ROOT/skills/gaspol-adr/SKILL.md"
+RESEARCH="$REPO_ROOT/skills/gaspol-research/SKILL.md"
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+
+echo "test-kb-write-format: no skill writes into a category DIRECTORY..."
+# The four category dirs are what made gaspol a separate store. Routing to a
+# final home is superbrain-promote's job and it already has the table for it.
+for f in "$LEARN" "$ADR" "$RESEARCH"; do
+    if grep -nE '<KB_ROOT>/(architecture|design-decisions|research|reusable-snippets|ui-patterns)/' "$f" >/dev/null; then
+        grep -nE '<KB_ROOT>/(architecture|design-decisions|research|reusable-snippets|ui-patterns)/' "$f" | sed 's/^/    /' >&2
+        fail "$(basename "$(dirname "$f")") still writes into a category directory — that shape is a second store, and superbrain-promote's scan will not see it"
+    fi
+done
+grep -qE '<KB_ROOT>/<category>/' "$LEARN" \
+    && fail "gaspol-learn still writes <KB_ROOT>/<category>/<slug>.md instead of a flat quarantine note"
+
+echo "test-kb-write-format: the flat quarantine filename is specified..."
+for f in "$LEARN" "$ADR" "$RESEARCH"; do
+    grep -qE '<KB_ROOT>/(YYYY-MM-DD|\$\(date)' "$f" \
+        || fail "$(basename "$(dirname "$f")") does not specify the flat dated filename <KB_ROOT>/YYYY-MM-DD-<slug>.md"
+done
+
+echo "test-kb-write-format: the note shape matches what the promoter scans..."
+for f in "$LEARN" "$ADR" "$RESEARCH"; do
+    n=$(basename "$(dirname "$f")")
+    grep -qF 'status: proposed' "$f" \
+        || fail "$n does not mandate 'status: proposed' — the promoter's scan keys on frontmatter"
+    grep -qE '^\s*#\s|# <Title>|# <title>' "$f" \
+        || fail "$n does not show the '# Title' H1 the scan reads"
+    grep -qE 'tags:\s*\[' "$f" \
+        || fail "$n does not show the tags: [...] line"
+done
+
+echo "test-kb-write-format: gaspol never grades its own capture as accepted..."
+for f in "$LEARN" "$ADR" "$RESEARCH"; do
+    n=$(basename "$(dirname "$f")")
+    grep -qiE 'never .{0,40}accepted|not .{0,20}accepted|proposed.{0,60}never accepted' "$f" \
+        || fail "$n does not state that gaspol writes are never 'accepted' — promotion belongs to superbrain-promote, and a skill that promotes itself has removed the gate"
+done
+
+# --- the gate that must survive the restructure -----------------------------
+echo "test-kb-write-format: the quality gate survived..."
+# BOTH halves, separately. A single "does 200 appear anywhere" check passed a
+# sabotage that halved the threshold, because the OTHER gate line still carried
+# the digits. Weakening either half must fail.
+grep -qE '(≥|>=) ?200 ?word' "$LEARN" \
+    || fail "the ACCEPT threshold (body ≥200 words) is gone or weakened — it is the ONLY thing gaspol adds that memory-extract.sh does not, so losing it turns this merge into a pure downgrade"
+grep -qiE '< ?200 ?word.*reject|reject.*< ?200 ?word' "$LEARN" \
+    || fail "the REJECT rule for a body under 200 words is gone — a threshold with no rejection is a suggestion, not a gate"
+grep -c '200' "$LEARN" | grep -qE '^[2-9]|^[0-9]{2,}' \
+    || fail "fewer than two 200-word gate references remain — the accept threshold and the reject rule are separate lines and both must survive"
+
+# --- sole-promoter rule stated where a reader will meet it ------------------
+echo "test-kb-write-format: the sole-promoter rule is written down..."
+grep -qi 'superbrain-promote\|sole promoter\|single .{0,20}gate' "$LEARN" \
+    || fail "gaspol-learn does not name the promoter it feeds — without that, the next editor will 'helpfully' write straight into the curated core"
+
+# --- coherence: nobody reads an index nobody writes -------------------------
+# Removing the INDEX.md write while leaving thirteen readers in place would be
+# the exact "documented but does not work" pattern this ticket opened with.
+echo "test-kb-write-format: no skill instructs writing or grepping an index gaspol never writes..."
+# The vault's own INDEX.md is a DIFFERENT artifact: the owner writes and
+# maintains it as the vault master map, and reading it is correct. Only an index
+# GASPOL would have to write is forbidden. The exemption is named rather than
+# broad, so it cannot quietly cover a gaspol-written index later.
+# Two exemption families, both NAMED rather than broad: (1) sentences that negate,
+# (2) the VAULT's own master map, recognisable by the notes it is read alongside
+# (hot.md, 30-Knowledge, 20-Projects) — the owner writes that one and reading it is
+# correct. Only an index GASPOL would have to write is forbidden.
+# WHOSE index, not which verb. Two earlier rules failed the same way:
+#   * a noun filter (hot.md / 30-Knowledge) exempted "update INDEX.md …, then hot.md"
+#   * a verb filter using grep -vE "read" exempted "…for tags already captured",
+#     because "already" CONTAINS "read". Unanchored substrings do not encode intent.
+#
+# Only two shapes are legitimate, and both are enumerable from the tree:
+#   1. a sentence that NEGATES writing one (gaspol writes no index)
+#   2. the VAULT's own master map inside the read-order CHAIN (INDEX.md -> hot.md -> …)
+# Everything else fails, read or write, because a gaspol-KB index and the vault's
+# master map are BOTH reads — the distinction was never the verb.
+#
+# Both exemptions are ANCHORED to the literal shapes present in the tree, never to
+# a loose signal. Three rounds running, a loose exemption became the bypass:
+#   a noun      (hot.md on the line)          -> "update INDEX.md ..., then hot.md"
+#   a substring (grep -vE "read")             -> "...tags already captured"
+#   an arrow    (INDEX.md .{0,30} -> hot.md)  -> "Update INDEX.md -> refresh hot.md"
+# Anchoring costs nothing: there are exactly six legitimate mentions in the tree,
+# and every one of them is matched verbatim below.
+#
+# Round 5, the fourth instance: the anchored version shipped TWO alternations,
+# and the first, `INDEX.md` (master map), matched on its own -- no arrow, no
+# hot.md -- so a write wearing that literal walked through. It was also dead
+# weight: both real chain lines already carry the arrow form. The exemption now
+# requires the FULL chain, a SECOND arrow included, because both real lines
+# continue past hot.md and no write instruction plausibly does.
+#
+# Round 7, Tier 0 review: a two-arrow write DOES walk through -- "Update
+# `INDEX.md` -> `hot.md` -> `30-Knowledge/` after every capture." wears the shape
+# exactly. Requiring a THIRD arrow was tried and REJECTED: the real brainstorm
+# line wraps, so grep sees only two arrows on it and the tightening turned a
+# legitimate line red. That is the floor of shape-anchoring -- the exemption
+# matches a SHAPE, so anything wearing the shape exactly gets in, and every
+# alternative signal tried over four rounds (noun, substring, arrow, literal)
+# traded this narrow floor for a wider hole. The floor is left in place and made
+# VISIBLE instead: test-gate-mutations.sh carries both attack lines as `allowed`
+# rows, so it is a recorded limit rather than a latent surprise.
+# Positive control on the PIPELINE, not just the result. If a grep in the chain
+# below errors (an unsupported regex, a locale quirk — see the KB entry
+# bsd-grep-include-dies-with-exclude-dir), it emits nothing, STALE comes back
+# empty, and the gate PASSES having examined zero lines. Assert the raw scan
+# finds the mentions we know are there before any exemption runs.
+RAW=$(grep -rcE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null | awk -F: '{n+=$2} END{print n+0}') || true
+[ "${RAW:-0}" -ge 5 ] \
+    || fail "the raw INDEX.md scan found only ${RAW:-0} mentions — the tree has at least 5, so the pipeline is broken and every verdict below would be vacuous"
+
+# The chain runs OUTSIDE command substitution, into a temp file, because
+# PIPESTATUS inside $( ) dies with the subshell and cannot be inspected. grep
+# exits 1 for "no matches" -- the CLEAN result here -- so only >1 is an error:
+# an unsupported regex under ugrep, an unreadable path. Under the `|| true` this
+# chain used to carry, such an error emitted nothing, left STALE empty, and
+# PASSED the gate having examined zero lines. That is the repo's own
+# bsd-grep-include-dies-with-exclude-dir and vacuous-assertion-proves-nothing in
+# a single line.
+# Every scan path must EXIST. grep keeps going past a missing file and still
+# exits 0 when the survivors match, so renaming one of these silently shrinks
+# the gate's coverage while it keeps reporting clean — a gate that quietly stops
+# looking is the failure this whole file is about.
+for sp in "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md"; do
+    [ -e "$sp" ] || fail "scan path $sp does not exist — the gate would silently stop covering it and keep passing"
+done
+
+STALE_FILE="$(mktemp)"
+set +e
+grep -rnE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
+  | grep -viE 'no longer writes an .?INDEX|writes no index|no .?INDEX[.]md|\(no INDEX[.]md\)' \
+  | grep -vE '`INDEX[.]md` (\(master map\) )?(→|->) `hot[.]md`[^|]*(→|->)' \
+  > "$STALE_FILE"
+CHAIN_STATUS=("${PIPESTATUS[@]}")
+set -e
+for st in "${CHAIN_STATUS[@]}"; do
+    [ "$st" -le 1 ] \
+        || { rm -f "$STALE_FILE"; fail "a grep in the INDEX.md chain exited $st — the pipeline errored, so an empty result proves nothing, it only looks clean"; }
+done
+STALE="$(cat "$STALE_FILE")"; rm -f "$STALE_FILE"
+# Two exemption families, both named rather than broad:
+#   1. sentences that NEGATE (gaspol writes no index)
+#   2. the VAULT's own master map, recognisable by the notes it is read alongside
+#      (hot.md, 30-Knowledge, 20-Projects) — the owner writes that one, and reading
+#      it is correct. Only an index GASPOL would have to write is forbidden.
+if [ -n "$STALE" ]; then
+    printf '%s\n' "$STALE" | sed 's/^/    /' >&2
+    fail "skill text still points at INDEX.md — gaspol writes no index, so every one of these reads finds nothing and reports 'no precedent', which is when a known mistake gets repeated"
+fi
+
+# --- no doc may still promise status: accepted from gaspol -------------------
+echo "test-kb-write-format: nothing writes status: accepted..."
+BAD=$(grep -rn '^status: accepted' "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)
+[ -z "$BAD" ] || { printf '%s\n' "$BAD" | sed 's/^/    /' >&2; fail "a skill template still emits 'status: accepted' — an agent copies the template, not the sentence forbidding it"; }
+
+echo "PASS: test-kb-write-format"

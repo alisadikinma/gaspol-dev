@@ -53,11 +53,14 @@ Never output React code for a Vue project.
 
 ### Rule G5: Query KB Before Proposing
 
-**BEFORE** proposing any UI pattern, query `~/.claude/gaspol-knowledge/ui-patterns/` for similar past patterns:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+**BEFORE** proposing any UI pattern, query the store for notes tagged `ui-patterns`:
 
 ```bash
-cd ~/.claude/gaspol-knowledge/
-grep -i "<domain>" INDEX.md
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || exit 1   # unassigned $KB expands to /*.md — the filesystem root
+grep -rilE "<domain>|ui-patterns" "$KB"/*.md   # flat notes; gaspol writes no index
 # Read matched patterns
 ```
 
@@ -76,7 +79,7 @@ When querying KB, filter by `status`:
 
 ### Rule G7: Learn After Ship
 
-After the design output ships via gaspol-finish, gaspol-learn captures the pattern to `ui-patterns/` with:
+After the design output ships via gaspol-finish, gaspol-learn captures the pattern with the `ui-patterns` tag:
 - Tags extracted from decision context
 - Status: `proposed` (until validated in future project)
 - Source: current project name + component path
@@ -151,7 +154,7 @@ Neither path breaks; just capability differs.
 
 Never output design recommendations without having read:
 1. Target project CLAUDE.md
-2. Relevant KB entries in ui-patterns/ (if any)
+2. Relevant KB notes tagged `ui-patterns` (if any)
 3. Design system existing tokens
 
 If any of these can't be read → AskUserQuestion to clarify before proceeding.

@@ -42,23 +42,47 @@ BEFORE exploring codebase, ALWAYS read CLAUDE.md first.
    - Data sources (what hooks/APIs/edge functions exist?)
    - Design system tokens (colors, patterns, component styles)
    - Known gotchas (from Debugging Checklist)
-3. ONLY THEN explore codebase for details NOT covered in CLAUDE.md
-4. Reference CLAUDE.md sections in proposals
+3. **Read the second brain, if one is configured** (IDS-8). Where the knowledge store resolves
+   inside a personal vault, that vault holds the *why* — decisions, project state, identity — that
+   no codebase records. Read in this order and **stop as soon as you have enough**; progressive
+   disclosure is the point, and reading a whole vault every brainstorm is precisely the token cost
+   this phase exists to avoid:
+   `INDEX.md` (master map) → `hot.md` (what changed lately) → `10-Identity/` (identity, voice and
+   positioning work only) → `20-Projects/<name>/README.md` (the project at hand) →
+   `30-Knowledge/` (cross-project standards).
+   **No vault configured is not a failure.** Say so, name `kb_local` in
+   `~/.claude/gaspol-config.json`, and continue — the same soft-reference the plugin already applies
+   to `ui-ux-pro-max`. Never hardcode a vault path here: this plugin is public and agnostic, and the
+   store's location is resolved, never assumed.
+4. ONLY THEN explore codebase for details NOT covered in CLAUDE.md
+5. Reference CLAUDE.md sections in proposals
 
 Saves 10-50k tokens per brainstorm session.
 
-## Phase 0.5: KB Cross-Project Query (architectural path only — AFTER CLAUDE.md, before questions — local-only by default)
+## Phase 0.5: Precedent Query (architectural AND bounded — AFTER CLAUDE.md, before questions)
 
 ```
-BEFORE asking clarifying questions, query cross-project KB for precedent.
-KB works out of the box (local-only). It only disables on explicit "kb_mode": "off".
+BEFORE asking clarifying questions, query the knowledge store for precedent.
+Runs on the ARCHITECTURAL and BOUNDED paths. Only "kb_mode": "off" disables it.
 ```
 
-0. **Resolve KB mode** (see [docs/kb-setup.md](../../docs/kb-setup.md)): `off` (config has `"kb_mode":"off"`) → skip Phase 0.5 silently. Otherwise auto-init the local KB if missing (mkdir structure + `git init`) and proceed — no config needed.
-1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C ~/.claude/gaspol-knowledge pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
+**Why bounded now runs it too (IDS-8).** This phase used to be architectural-only. Bounded fixes are
+the majority of day-to-day work and are exactly where a documented gotcha gets re-hit — the
+mechanism behind "we solved this already and did it wrong again". A grep over an index-free set of
+notes is cheap; re-making a recorded mistake is not.
+
+**Spike stays exempt**, deliberately. A feasibility probe answers a question and keeps no code, so
+there is no precedent to apply to it. Widening this gate to *every* path would be a different,
+unrequested change.
+
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+0. **Resolve the store** via `skills/_shared/kb-path.md`. `"kb_mode":"off"` → skip silently. Otherwise honour the three states: `available` → proceed; `none` → record `knowledge-store: none — not configured`, say what a store would give them, **continue** (not a failure — a public plugin cannot require one); `UNKNOWN` → **STOP and ask**, never treat an unreadable store as an empty one.
+   **Create the directory only, never `git init`.** The store may live inside a repository gaspol does not own — a vault, a monorepo — and initialising a repo inside someone else's is the write-side hazard the ownership guard exists to prevent (`skills/_shared/kb-path.md`).
+1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C <KB_ROOT> pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
-3. **Grep INDEX.md** — `grep -i "<tag1>|<tag2>" INDEX.md`
-4. **Filter by status** — default show only `status: accepted` entries; optionally include `proposed`
+3. **Grep the notes** — `KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || exit 1` then `grep -rilE "<tag1>|<tag2>" "$KB"/*.md`. Assign `$KB` first: unassigned it expands to `/*.md`, scanning the filesystem root. There is no index: gaspol writes flat notes carrying their own `# Title` and `tags: [...]`, and an index nothing writes is worse than none.
+4. **Filter by status** — show `proposed` **and** `accepted`. `proposed` is not a lesser tier here: gaspol writes `proposed` exclusively (promotion belongs to the human gate), so filtering it out would hide every capture from the query built to find it. Mark the tier when surfacing so the user can weigh a promoted note above a pending one.
 5. **Freshness check** — for research/ entries, check age tier (🟢 FRESH / 🟡 AMBER / 🟠 STALE / 🔴 EXPIRED)
 6. **Surface to user via AskUserQuestion** (if matches found):
 
@@ -407,6 +431,6 @@ Before finalizing:
   - `gaspol-research` (Phase 1.5 when novelty = NEW)
   - `ui-ux-pro-max` plugin skill (Phase 2.5/3 for UI work)
   - `gaspol-adr` (Phase 2 when user picks approach from 2+ options)
-- **Reads from KB:** `gaspol-knowledge/` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
+- **Reads from KB:** `<KB_ROOT>` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
 - **Writes to KB:** via `gaspol-adr` (decisions) and (after gaspol-finish) `gaspol-learn` (patterns)
 - **Leads to:** `gaspol-plan` (after design approved — writes a separate `-plan.md` file, same ticket)

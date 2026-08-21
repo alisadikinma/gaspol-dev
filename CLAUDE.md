@@ -25,9 +25,14 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `hooks/hooks.json` | SessionStart hook definition |
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
+| `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
+| `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`, `test-skill-delegation.sh`, `test-finish-gates.sh`, `test-prior-art-gate.sh`). Fast, no API calls — run these first |
+| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **29 at v1.18**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
+| `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
+| `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
+| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 20 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -228,26 +233,32 @@ Config file schema:
   "kb_owner": "<your-github-username>"
 }
 ```
+`kb_local` is read by `skills/_shared/kb-root` — see `skills/_shared/kb-path.md` for the
+resolution order and the three states. Prefer it over the `GASPOL_KB_LOCAL` environment variable:
+a shell export only exists for processes that inherited that shell.
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
-Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (auto-init `~/.claude/gaspol-knowledge/`, write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
 
-Structure (same on every user's machine):
+Structure — **flat, since v1.18** (see "One Knowledge Store" below, which supersedes this
+paragraph wherever they disagree):
 
 ```
-~/.claude/gaspol-knowledge/
-├── INDEX.md                  ← tagged index (grepped by brainstorm Phase 0.5)
-├── ui-patterns/              ← populated by gaspol-learn (component patterns)
-├── architecture/             ← populated by gaspol-learn (system-level patterns)
-├── design-decisions/         ← populated by gaspol-adr (ADRs, MADR format)
-├── research/                 ← populated by gaspol-research (with TTL + freshness)
-└── reusable-snippets/        ← populated by gaspol-learn (hooks, helpers)
+<KB_ROOT>/                       ← resolved by skills/_shared/kb-root, NOT a fixed path
+└── YYYY-MM-DD-<slug>.md         ← flat notes: frontmatter + "# Title" + tags: [...]
 ```
+
+gaspol writes no index, and the four category directories are **gone**. The category is the first
+tag; the promoter routes. An index gaspol maintains that no promoter reads can only drift, and
+inside a quarantine folder it is a non-note where notes are scanned.
 
 Entry status lifecycle: `proposed` → `accepted` → `superseded` OR `deprecated`.
+**gaspol only ever writes `proposed`.** Promotion belongs to the human gate.
 
-Default query filter: `status=accepted`. Freshness tiers for research: 🟢 FRESH <90d / 🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
+Default query filter: `proposed` **and** `accepted` — filtering to `accepted` alone would hide
+every gaspol capture from the query built to find it. Freshness tiers for research: 🟢 FRESH <90d /
+🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
 
 Compounding effect: every shipped feature → `gaspol-learn` captures patterns → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs.
 
@@ -387,6 +398,115 @@ is ignored and reported, never followed); a failed fetch records `wig-lane: not 
 This closes the wrong-colours/wrong-fonts half of the mockup-mismatch problem. The wrong-layout
 half is still open and still belongs to IDS-6's deferred Part B (canvas.html, `data-vv` DOM
 markers, geometry diffing).
+
+### One Knowledge Store (NEW in v1.18) — gaspol stopped running a second pipeline
+
+The complaint that started this: *"seharusnya ini merge dgn obsidian vault biar gak 2x kerja."*
+It was right, and the proof is dated the same day. A SessionStart hook has been writing session
+learnings to the owner's vault at `90-Inbox/agent-learnings/` since 2026-07-05, with
+`superbrain-promote` as the single human-gated promoter into the curated core. gaspol ran its own
+store in parallel, and on 2026-08-21 **both harvested the same session** — one prior-art lesson
+became one entry in the gaspol KB and three notes in the vault inbox.
+
+Four defects, each verified by running a command, not inferred:
+
+| Defect | Evidence |
+|---|---|
+| `kb_local` documented as the relocation setting, **read by nothing** | `grep kb_local skills/` → **0 hits**; `grep gaspol-config skills/` → **0 files**. Only env vars were honoured |
+| Precedent lookup off for the work that repeats mistakes | Phase 0.5 was headed *"architectural path only"* — bounded fixes never queried it |
+| gaspol would commit a repo it does not own | synced mode runs `git commit`/`push` **inside** the KB dir; the vault is a git repo |
+| Code index went stale, nothing refreshed it | `grep graphify skills/gaspol-sync-docs/` → 0 hits |
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none; `--init` makes a
+write's state 4 create the default store and return 0, and never touches state 3). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
+
+The first is IDS-7's `--design-system` shape one layer up: parsed into documentation, consulted by
+nothing.
+
+**Resolution.** One order, stated in `skills/_shared/kb-path.md` and executed by
+`skills/_shared/kb-root`: `$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` →
+`~/.claude/gaspol-knowledge`. **Prefer the config file** — a shell export only exists for processes
+that inherited that shell, and everywhere else resolution falls through and recreates the store you
+moved away from.
+
+| State | Exit | Behaviour |
+|---|---|---|
+| available | 0 | path on stdout, read and write normally |
+| **UNKNOWN** | 3 | configured and unreadable → **STOP and ask.** Never an empty store: empty reads as *"no precedent exists"*, which is when a documented mistake gets repeated |
+| none | 4 | nothing configured → `knowledge-store: none — not configured`. **Not a failure** — a public plugin cannot require a vault |
+
+**Capture feeds the quarantine, in the quarantine's own shape.** Flat notes at
+`<KB_ROOT>/YYYY-MM-DD-<slug>.md`, frontmatter + `# Title` + `tags: [...]`, always
+`status: proposed` and **never** `accepted` — promotion belongs to the human gate, and a skill that
+promotes its own capture has removed the gate it was told to feed. The four category directories
+became tags; routing is `superbrain-promote`'s job and it already has the table. **No `INDEX.md`
+is written** — an index inside a quarantine puts a non-note where the promoter scans notes, and one
+gaspol maintains that nothing reads can only drift.
+
+**Precedent query runs on bounded work too.** Spike keeps its exemption: a probe that answers a
+question and keeps no code has no precedent to apply. `gaspol-brainstorm` Phase 0 reads the vault
+in the owner's order — `INDEX.md` → `hot.md` → `10-Identity/` → `20-Projects/<name>/README.md` →
+`30-Knowledge/` — stopping as soon as it has enough. A missing vault is soft-referenced exactly
+like `ui-ux-pro-max`: say so, name the setting, continue.
+
+**Ownership guard.** Before any write-side git operation, compare the KB root against
+`git rev-parse --show-toplevel`. A mismatch means the store is a guest inside somebody else's
+repository — record `kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)`
+and continue. **Reads stay allowed**; refusing them would disable the very lookup this change
+strengthens. Verified live: `TOP` resolves to the vault root, not the inbox folder.
+**The guard stops gaspol, not the host** — IDS-8's own migration was committed and pushed minutes
+later by the vault's own `auto-sync` timer. It prevents gaspol from authoring a commit; it does not
+give the user a review window, and must not be described as if it did.
+
+**Code index lane** (`gaspol-sync-docs`, which `gaspol-finish` already calls at Step 5 — no new
+gate): `graphify-out/` + CLI on PATH → `graphify update .`, record `graphify: updated`; marker
+present without the CLI → `graphify: UNKNOWN — index present, CLI missing` → **STOP and ask** (a
+stale index that reports clean still answers questions); no marker → skipped, **never** recorded as
+passed. `graphify global add` writes outside the repository, so it is **offered**, never taken.
+No install command is invented for graphify: this repo knows `ui-ux-pro-max`'s exact command and
+does **not** know how graphify is installed, and a fabricated command looks authoritative while
+sending the reader nowhere.
+
+**Relative script invocation — the next ticket's subject, repo-wide.** `/security-review` on this
+branch found that skills invoke their scripts by a **relative** path. An agent runs a SKILL.md bash
+block with the **target project** as its working directory, so `$(skills/_shared/kb-root)` executes
+whatever a repo carrying that path happens to ship — and that script's stdout becomes the path
+gaspol runs `git commit` and `git push` against. A missing file fails safe (127, and every caller's
+`case *)` stops); a **present one that is not ours** does not, and skill repositories are exactly
+the repos gaspol users open.
+
+IDS-8's own surface is fixed: all ten `kb-root` invocations now go through
+`"$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root"` — the anchor `hooks/hooks.json` already used — with
+`${CLAUDE_PLUGIN_ROOT:?…}` so an unset variable stops loudly instead of falling back to the working
+directory. `test-kb-no-hardcoded-path.sh` gates it.
+
+**Eight scripts still carry the old form** and are deliberately out of scope here: `detect-stack`,
+`task-brief`, `dag-lanes`, `review-package`, `next-ticket`, `scan-active-ledgers`, plus
+`design_audit.py` and `extract-design-tokens` — roughly 33 call sites. They predate IDS-8 and none
+is write-side. No ticket number is minted for them yet: a ticket id pointing at no spec is the
+promise-with-no-implementation shape this release exists to end, so the number gets minted when the
+spec is written.
+
+**The two design scripts were missed on the first pass and are named here deliberately.** They are
+invoked in *runnable* relative form in live skills — `python3 skills/gaspol-verify/scripts/design_audit.py`
+in both `gaspol-execute` (Step 3.5) and `gaspol-verify` (Layer 4), and
+`skills/gaspol-verify/scripts/extract-design-tokens` in `gaspol-verify` — which is the same hazard
+class as the `kb-root` finding this section resolves, not a lesser one. Recording the deferral as
+*six* would have carried two runnable invocations out of the next ticket's scope by omission. The
+count is the scope: an undercounted deferral is how a known hazard becomes an unknown one.
+
+**Deferred, named rather than forgotten.** `gaspol-kb-audit` now overlaps `superbrain-promote`
+almost completely — both are scan → cluster → per-finding human decision → apply → audit log.
+Not resolved here because they are **not like-for-like**: one is public and agnostic, the other
+private and hardcoded to one vault.
+
+**Scope boundary.** This merges knowledge *capture*. It does not touch `~/.claude/projects/<…>/memory/`
+(Claude Code operational feedback), and it does not merge the two brains into each other — the
+vault holds WHY, graphify holds HOW, and they stay separate stores with separate purposes.
 
 ### Model Switching Rubric (NEW in v1.2)
 
@@ -578,7 +698,7 @@ When user wants to create, add, or modify anything:
 0. **HARD-GATE (v1.5)**: no implementation skill / code / scaffold until a design is
    presented AND user-approved — every project, regardless of perceived simplicity.
 1. **Phase 0**: Read project's CLAUDE.md (MANDATORY before any codebase exploration)
-2. **Phase 0.5**: KB cross-project query (MANDATORY — git pull, grep INDEX.md, surface precedent)
+2. **Phase 0.5**: Precedent query (MANDATORY on the architectural AND bounded paths — resolve the root, grep the flat notes' tags, surface precedent). No index is grepped; gaspol writes none
 3. **Phase 1**: Ask clarifying questions ONE at a time via AskUserQuestion (**decompose gate
    (v1.5)**: flag multi-subsystem requests first, split into sub-projects, each its own cycle)
 4. **Phase 1.5**: Novelty assessment (PRECEDENT / SEMI-NEW / NEW → decide research depth)
@@ -884,9 +1004,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-7
+Last ticket: IDS-8
 
 ---
 
-**Version:** 1.17.0
+**Version:** 1.18.0
 **Last Updated:** August 2026
