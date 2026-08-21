@@ -63,7 +63,7 @@ If `gaspol-worktree` reports you are already in a linked worktree, proceed — d
 Once the task list is confirmed and the workspace is isolated, **execute all tasks continuously — do not pause to check in between tasks.** Fresh subagent per task already prevents context drift; mid-run "Should I continue?" prompts and per-task progress summaries waste the user's time. The user asked you to execute the plan, so execute it.
 
 **The only reasons to stop mid-run:**
-- A spec/quality review fails after 3 fix attempts (escalate — see Handling Failures).
+- The fix loop trips its round-5 breaker AND adjudicating the open findings still leaves every path forward a guess (see The Fix Loop).
 - A genuine ambiguity in a task blocks progress (ask via AskUserQuestion).
 - An Iron Law violation or destructive operation is required (always pause).
 - All tasks complete.
@@ -72,6 +72,31 @@ Once the task list is confirmed and the workspace is isolated, **execute all tas
   not a per-task check-in.
 
 Update the visual task tracker as you go (see Task Execution Tracking) instead of narrating each task in prose. This is the in-session analogue of `gaspol-auto`'s hard-stop guardrails — autonomous flow, bounded by the same always-pause conditions.
+
+## Pre-Flight Conflict Matrix (BLOCKING — before the first dispatch)
+
+Scan the plan once for conflicts **before the first task runs**, writing down what you
+checked as you check it. A contradiction found before task 1 costs a ruling; the same
+contradiction found at task 12 costs everything built on top of it.
+
+The scan's output is a **table, not a verdict**. Two kinds of row, both required:
+
+| Kind | One row for | Columns |
+|---|---|---|
+| Cross-task | every pair of tasks that **share a file** or an interface | the two tasks · what one produces against what the other consumes · the finding |
+| Self-consistency | every task — whether its own text **agrees with itself** | the task · its tests against the code it specifies, the files it creates against the files it later touches · the finding |
+
+Also flag anything the plan explicitly mandates that the review rubric treats as a defect
+(a test that asserts nothing, a verbatim-duplicated logic block).
+
+**"The scan is clean" without those rows is not a scan that ran.** Write the table to the
+ledger — **above `## Log`**, never below it, because `scan-active-ledgers` reads the file's
+last non-empty line and anything under `## Log` breaks active-vs-done detection.
+
+Rule on every finding before execution begins: weigh it against the plan text with the spec
+as the binding authority, and record the **ruling** beside its row. If the scan is genuinely
+clean — rows written, nothing found — proceed without further comment. The review loop
+remains the net for conflicts that only emerge from implementation.
 
 ## Process Flow
 
@@ -158,9 +183,36 @@ Gather scene-setting context the implementer needs:
 `review-package` later. NEVER use `HEAD~1` as the base: a multi-commit task has more than one
 commit and `HEAD~1` silently drops all but the last.
 
-Use the `implementer-prompt.md` template. Key rules:
-- **Paste the full task text** into the subagent prompt — NEVER reference a file
-- Include all scene-setting context inline
+**Extract the task's brief first.** Run
+`skills/gaspol-parallel/scripts/task-brief <PLAN_FILE> <N>` — it writes that one task's
+full text to `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. The brief is
+the single source of the implementer's requirements.
+
+Use the `implementer-prompt.md` template. A dispatch prompt carries exactly five things:
+
+1. One line on where this task fits in the project.
+2. The **brief path**, introduced as "read this first — it is your requirements, with the
+   exact values to use **verbatim**".
+3. Interfaces and decisions from earlier tasks that the brief cannot know.
+4. Your resolution of any ambiguity you noticed in the brief.
+5. The **report-file path** (`.gaspol/tasks/<TICKET>/task-<N>-report.md`) and the short
+   return contract.
+
+**Never reference the plan.** A subagent handed a 2000-line plan reads the wrong task —
+that is the failure the older blanket rule existed to prevent, and it is still prevented.
+The rule is narrowed, not reversed: the plan stays off-limits; the **task-scoped brief** is
+the handoff.
+
+**Exact values** — numbers, magic strings, signatures, test cases — live only in the brief.
+Retyping them into the prompt is where they drift.
+
+Everything you paste into a dispatch prompt, and everything a subagent prints back, stays
+resident in your context for the rest of the session and is re-read on every later turn. Do
+not paste accumulated prior-task summaries ("state after tasks 1-3") into later dispatches.
+A fresh subagent needs its task, the interfaces it touches, and the global constraints —
+nothing else.
+
+Key rules:
 - Include anti-placeholder rules (see below)
 - Include self-review checklist
 - **Always specify the model explicitly**, scaled to task class (see
@@ -253,10 +305,8 @@ Dispatch the spec reviewer using `spec-reviewer-prompt.md` (pass the review-pack
 - Checks for placeholder data (CRITICAL)
 - Returns: spec-compliant OR list of issues
 
-**Fix → re-review loop:** if issues are found, dispatch a fix (yourself or a fresh implementer
-subagent) and then **RE-RUN the spec review** — do not accept "I fixed it" without a clean
-re-review. Loop until spec passes; do NOT proceed to quality review until it does. After 3
-loops still failing → escalate (see Handling Failures).
+**Fix → re-review loop:** if issues are found, run **The Fix Loop** below — do not accept
+"I fixed it" without a clean re-review. Do NOT proceed to quality review until spec passes.
 
 #### Step 6: Code Quality Review
 
@@ -271,9 +321,50 @@ finding, dispatch one refuter subagent per finding (default REFUTED) to kill fal
 otherwise the fix → re-review loop below burns turns chasing hallucinated bugs. Drop REFUTED
 findings; only CONFIRMED (or unverifiable) ones proceed.
 
-**Fix → re-review loop:** for surviving Critical/Important findings, dispatch a fix subagent then
-**RE-RUN the quality review** until clean. Note Minor issues (fix if quick, else track). Do not
-mark the task complete with unresolved Critical/Important findings.
+**Fix → re-review loop:** surviving Critical/Important findings go through **The Fix Loop**
+below. Note Minor issues in the ledger (`Task <N>: minor (deferred): <one-liner>`) and point
+the final review at that list — a roll-up nobody reads is a silent discard. Minor findings
+never enter the loop. Do not mark the task complete with unresolved Critical/Important
+findings.
+
+##### The Fix Loop
+
+A fix round is one fix dispatch plus one scoped re-review. **Five rounds maximum per task.**
+
+**Rounds 1-3 — resume the original implementer.** Send it the open findings verbatim. Its
+context is intact: it knows the task, the code, and its own choices. If your harness cannot
+message a live subagent, dispatch a fresh one carrying the brief path, the report-file path,
+and the findings — the report file is the persistent memory either way.
+
+**Rounds 4-5 — dispatch a fresh implementer one model tier above** the one that got stuck
+(see `docs/rubric-model-switching.md`), framed as: "a prior implementer attempted this task
+N times; you own it now — read the report file for what was tried." A loop that survives
+three resumes usually means the implementer cannot see its own problem. Fresh eyes and a
+capability bump, in one move.
+
+**Every round, either way:** the implementer fixes, re-runs the tests covering the amended
+code, and appends its fix report to the same report file. Before re-dispatching the
+reviewer, confirm the fix report contains **the covering tests, the command run, and its
+output** — all three. Name the covering test files in the fix message; a one-line fix does
+not need the whole suite.
+
+**The re-review is scoped.** Run `review-package <FIX_BASE> HEAD`, where `FIX_BASE` is
+**the head the previous review saw** — so the re-reviewer gets the fix diff and nothing
+else, instead of re-reading the whole task. Dispatch
+[re-review-prompt.md](re-review-prompt.md) with the findings list, the brief path, the
+report file, and the printed diff path. The same prohibition applies here as everywhere:
+never pass `HEAD~1` as a base — a multi-commit fix has more than one commit and `HEAD~1`
+silently drops all but the last. Re-reviews of small fix diffs take a cheap-to-mid model
+tier; scale it to the diff, not to the task.
+
+**Round 5 is the breaker, not a wall.** When it trips, **adjudicate** each still-open
+finding yourself: weigh it against the plan text with the spec as the binding authority,
+record the ruling in the ledger, and continue. Stop and ask the user only when every path
+forward is a guess.
+
+**A finding that conflicts with what the plan mandates is yours to rule on** before you act
+on it. Do not dismiss the finding because the plan mandates it, and do not dispatch a fix
+that contradicts the plan without a recorded ruling.
 
 #### Step 7: Mark Complete
 
@@ -345,7 +436,7 @@ For every component/function the implementer creates:
 | Proceeding with unfixed Critical/Important issues | Technical debt compounds; fix now or pay 10x later |
 | Dispatching parallel implementation subagents WITHOUT worktree isolation | Race conditions, merge conflicts, context drift — invoke gaspol-worktree (Phase 0) first |
 | Pausing to ask "should I continue?" between tasks | Breaks continuous execution — only stop on the bounded always-pause conditions |
-| Making subagent read plan file instead of pasting task text | Subagent may misparse, miss context, or read stale version |
+| Pasting task text into the dispatch instead of handing over the brief path | The paste stays resident in the controller's context and is re-read every turn; the brief is task-scoped and cannot be misparsed into the wrong task |
 | Skipping scene-setting context in implementer dispatch | Subagent lacks project knowledge, makes wrong assumptions |
 | Ignoring subagent questions | Forces subagent to guess, leading to wrong implementations |
 | Accepting "close enough" on spec compliance | Small spec gaps become large bugs in production |
@@ -439,9 +530,12 @@ Task 2/5: Add session persistence hook
 - If task is genuinely blocked by missing infrastructure, skip and note for user
 
 ### Spec Review Keeps Failing
-- After 3 attempts, stop and escalate to user
-- Something may be wrong with the spec, not the implementation
-- Present: what was attempted, what keeps failing, proposed resolution
+- Run The Fix Loop: rounds 1-3 resume the implementer, rounds 4-5 bring fresh eyes one model
+  tier up. Do not blind-retry the same model with nothing changed.
+- If the round-5 breaker trips, something may be wrong with the spec rather than the
+  implementation. Adjudicate each open finding and record the ruling.
+- Escalate to the user only when adjudication leaves every path forward a guess. Present:
+  what was attempted across the rounds, what keeps failing, proposed resolution.
 
 ### Quality Review Finds Architectural Issues
 - If the architecture was specified in the plan, this is a spec issue (go back to spec)

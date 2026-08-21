@@ -106,6 +106,22 @@ repo is a supply-chain and prompt-injection decision, not a convenience.
 
 ---
 
+## Reference Files (read only when the question is live)
+
+Three references sit beside this file. They are **not** background reading — each answers one
+specific question, and each costs real context to open. Read one **only when** you are
+actually asking its question, and read none of them speculatively.
+
+| Question you are actually asking | Read |
+|---|---|
+| How do I know the skill actually works — how do I run a subagent against it and judge the result? | [testing-skills-with-subagents.md](testing-skills-with-subagents.md) |
+| How should a skill be structured — the frontmatter, the description field, the section order? | [anthropic-best-practices.md](anthropic-best-practices.md) |
+| The agent keeps finding ways to ignore the rule — how do I write it so it resists rationalisation? | [persuasion-principles.md](persuasion-principles.md) |
+
+Until IDS-6 these three were unreferenced from anywhere: ~11.9k tokens of material nobody
+could find. Reachable and explicitly on-demand is the point — a pointer without its question
+gets opened "just in case", which is the eager loading this table exists to avoid.
+
 ## Skill Types
 
 ### Technique Skills

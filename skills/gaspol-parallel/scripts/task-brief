@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# task-brief — extract ONE phase from a plan file into a standalone brief file.
+#
+# Usage:   task-brief <PLAN_FILE> <N>        (N is 1-based over "### Phase " headings)
+#
+# Prints the written path on stdout — nothing else — so a caller can consume it
+# directly. The brief is the single source of a dispatched implementer's
+# requirements: hand over this path, never the plan file, and never the task
+# text pasted into the prompt. Pasted task text stays resident in the
+# controller's context for the rest of the session and is re-read every turn.
+#
+# Output lands at <repo-root>/.gaspol/tasks/<TICKET>/task-<N>-brief.md, with the
+# repo root resolved from the plan file's own directory (same approach as
+# review-package).
+set -euo pipefail
+
+err() { echo "task-brief: $*" >&2; }
+
+PLAN="${1:-}"
+N="${2:-}"
+
+[ -z "$PLAN" ] && { err "missing PLAN_FILE. Usage: task-brief <PLAN_FILE> <N>"; exit 2; }
+[ -z "$N" ] && { err "missing N. Usage: task-brief <PLAN_FILE> <N>"; exit 2; }
+[ -f "$PLAN" ] || { err "plan file not found: $PLAN"; exit 2; }
+
+case "$N" in
+    ''|*[!0-9]*) err "N must be a positive integer, got: $N"; exit 2 ;;
+esac
+[ "$N" -ge 1 ] || { err "N must be >= 1, got: $N"; exit 2; }
+
+TICKET="$(sed -n 's/^\*\*Ticket:\*\*[[:space:]]*\([^[:space:]]*\).*/\1/p' "$PLAN" | head -1)"
+[ -n "$TICKET" ] || { err "plan has no '**Ticket:**' header line: $PLAN"; exit 2; }
+
+# Phase boundaries: start at the Nth "### Phase " heading, stop at the next
+# "### " heading or a "---" rule, whichever comes first (else end of file).
+BLOCK="$(awk -v want="$N" '
+    /^### Phase / { seen++; if (seen == want) { inblock = 1; print; next } }
+    inblock && (/^### / || /^---[[:space:]]*$/) { exit }
+    inblock { print }
+' "$PLAN")"
+
+[ -n "$BLOCK" ] || { err "no phase $N in $PLAN (fewer than $N '### Phase ' headings)"; exit 2; }
+
+PLAN_DIR="$(cd "$(dirname "$PLAN")" && pwd)"
+ROOT="$(git -C "$PLAN_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PLAN_DIR")"
+
+DIR="$ROOT/.gaspol/tasks/$TICKET"
+mkdir -p "$DIR"
+OUT="$DIR/task-$N-brief.md"
+
+{
+    echo "# Task brief — $TICKET, phase $N"
+    echo
+    echo "Source plan: $(basename "$PLAN")"
+    echo
+    echo "These are your requirements. Use every value in them verbatim — the"
+    echo "numbers, strings, signatures, and test cases here are exact, not"
+    echo "illustrative. Do not go looking for the plan file this came from."
+    echo
+    echo "---"
+    echo
+    echo "$BLOCK"
+} > "$OUT"
+
+echo "$OUT"

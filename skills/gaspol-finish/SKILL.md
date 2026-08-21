@@ -46,9 +46,23 @@ This ensures:
 
 If gaspol-verify was already run and passed in this session, you may skip this step.
 
-### Step 2: Run plan-verifier agent BLOCKING (step-level, evidence-based, spot-check 3 random FOUND items) -- unchanged from today
+### Step 2: Run plan-verifier agent BLOCKING (step-level, evidence-based, spot-check 3 random FOUND items)
 
-Dispatch the upgraded `plan-verifier` agent (step-level, evidence-based) to audit the implementation against the plan. See `agents/plan-verifier.md`.
+**The one conditional gate in this chain.** `plan-verifier` audits the implementation against
+a plan; with no plan, there is nothing to audit against and the agent — an Opus, step-level
+pass — returns nothing for real cost. Skip it **only when the branch provably references no
+plan**: no `**Plan:**` header in a ledger for this branch, **and** no `docs/plans/*-plan.md`
+touched by the diff. Provably absent, not "looks like it doesn't need one".
+
+When you skip it, record `plan-verifier: skipped — no plan referenced by this branch` in the
+ledger and continue. A silent omission is indistinguishable from a gate that ran and passed.
+
+Every other step in this chain is unconditional, `/security-review` above all: security
+defects hide in diffs that look boring, and in a skills repository markdown **is** the
+executed surface, so "docs only" never means "cannot introduce a vulnerability".
+
+In every other case, dispatch the upgraded `plan-verifier` agent (step-level, evidence-based)
+to audit the implementation against the plan. See `agents/plan-verifier.md`.
 
 **This step is BLOCKING.** You CANNOT present merge/PR options until the verdict is `CLEAN`.
 

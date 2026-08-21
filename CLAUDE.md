@@ -32,6 +32,8 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
 | `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
+| `skills/gaspol-parallel/scripts/task-brief` | **NEW (v1.16)** — extracts ONE phase from a plan into `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. Dispatch prompts hand over that path instead of pasting task text; the implementer writes its full report to a sibling `task-<N>-report.md` and returns four short fields |
+| `skills/gaspol-parallel/re-review-prompt.md` | **NEW (v1.16)** — scoped re-review after a fix round: verdicts each open finding against the fix diff alone (`review-package <FIX_BASE> HEAD`), and opens no new review ground |
 | `skills/gaspol-parallel/scripts/dag-lanes` | **NEW (v1.8)** — deterministic DAG scheduler (stdlib `graphlib`, zero deps): task graph → dependency waves + file-isolated lanes. Replaces binary conflict-check; has `--self-test` |
 | `skills/gaspol-verify/scripts/design_audit.py` | **MOVED (v1.14)** — offline static design-compliance lint (hardcoded colours/fonts, missing breakpoints, missing states, a11y gaps). Stdlib-only. Kept when `gaspol-design` was deleted because `ui-ux-pro-max`'s audit needs Playwright + a running URL and cannot run pre-merge |
 | `skills/gaspol-verify/rules/` | **MOVED (v1.14)** — anti-AI-slop tables + gaspol reasoning rules (project tokens, KB precedent). Kept for the same reason: `ui-ux-pro-max` ships no anti-slop opinion layer |
@@ -296,6 +298,36 @@ Write the laziest code that actually works. Before any code, stop at the first r
 **The boundary (must not be misread):** the ladder cuts SCOPE, never FIDELITY. It NEVER excuses a placeholder when a real integration is specified (`const data = []` awaiting an API is a Law-1 PLACEHOLDER, not a lazy one-liner), nor skipping validation/security/tests. A "lazy" move that crosses into fake data or a skipped safety check is negligent, not lazy. Structured reports (checkpoints, data-source tables, plan-verifier evidence) stay — their CONTENT is safety — but write them terse (hemat token = ringkas laporan, not less fidelity).
 
 **Relationship to peer plugins:** ponytail (global) governs code minimalism and is **absorbed here** so gaspol is self-contained on the coding path; caveman (global) governs prose voice — a different axis, deliberately NOT absorbed; RTK / context-mode compress tool OUTPUT at runtime — a different layer, help gaspol automatically, nothing to absorb.
+
+### Measured Trims (NEW in v1.16) — what the token audit actually found
+
+The 2026-08-21 audit was run because the plugin *felt* token-heavy. It measured otherwise, and
+three of its findings changed the code:
+
+- **Fixed per-session tax is ~1.9k tokens** in a consumer project (session-start block ~969,
+  twenty skill descriptions ~907). One full brainstorm → plan → execute → verify → finish cycle
+  loads ~26k of skill text. A single full-app build burns hundreds of thousands. **The plugin's
+  own text is not the bloat** — the execution loop is, which is what the v1.16 context handoff
+  above addresses. The 1.9k tax is deliberately left alone: measured, and too small to be worth
+  touching.
+- **Zero duplicated prose blocks** across all twenty skills and every reference file. There was
+  nothing to de-duplicate.
+- `gaspol-execute/SKILL.md` was the largest skill (32.7KB) and fires on nearly every job, so it
+  was trimmed to 25.1KB (-23%) — **words cut, obligations kept**, asserted by
+  `tests/ticket-scripts/test-execute-trim.sh` (every gate name, all three Iron Laws, the exact
+  TDD step-1 phrasing). The consulted Red Flags / Rationalizations table moved into
+  `anti-placeholder-rules.md` rather than being deleted. A project-specific leak in an agnostic
+  plugin ("Sparkfluence", named hooks) went with it.
+- `gaspol-write-skill`'s three heavy references (~11.9k tokens) turned out to be **orphans** —
+  SKILL.md never referenced them at all, they only referenced each other. The audit's premise
+  (eagerly loaded) was wrong; the fix is a pointer table naming the question each answers, read
+  only when that question is live.
+- `gaspol-finish` gained **one** conditional gate: `plan-verifier` is skipped when the branch
+  provably references **no plan at all** — no `**Plan:**` header in a ledger,
+  no `docs/plans/*-plan.md` in the diff — and the skip is recorded in the ledger as
+  `plan-verifier: skipped — no plan referenced by this branch`, never silently. `/security-review` stays unconditional on every branch, now guarded by its own
+  assertion in `test-finish-gates.sh`: security defects hide in boring diffs, and in a skills
+  repository markdown **is** the executed surface.
 
 ### Model Switching Rubric (NEW in v1.2)
 
@@ -586,17 +618,44 @@ gate expensive ones; fail at level N → fix → restart from N; an N/A level is
 (silent skip = placeholder-grade lie). This is per-task self-verification depth — it does NOT
 replace the independent spec + quality reviews (different subagent, different guarantee).
 
+**Context handoff (v1.16) — the dispatch is a path, not a paste.** Run
+`scripts/task-brief <PLAN_FILE> <N>`; the dispatch carries five things (one line of project
+context, the brief path, interfaces from earlier tasks, your resolution of any ambiguity, the
+report-file path) and nothing else. The old blanket rule `NEVER reference a file` is
+**narrowed, not reversed**: never reference the plan — a subagent handed a 2000-line plan reads
+the wrong task — always reference the task-scoped brief. Everything pasted into a dispatch and
+everything a subagent prints back stays resident in the controller's context and is re-read
+every turn; this is the single largest token cost in a long build.
+
+**Five-round fix loop with escalation (v1.16).** Replaces "3 attempts then escalate to the
+user". Rounds 1-3 resume the same implementer with the findings verbatim (its context is
+intact); rounds 4-5 dispatch a **fresh** implementer **one model tier above** the stuck one,
+told a prior implementer already tried N times and to read the report file. Every round the
+fix report must carry the covering tests, the command run, and its output before the
+re-review is dispatched. Round 5 is a breaker, not a wall: **adjudicate** each open finding
+against the plan text with the spec as binding authority, record the ruling, continue — stop
+and ask only when every path forward is a guess. The re-review is scoped:
+`review-package <FIX_BASE> HEAD`, where `FIX_BASE` is the head the previous review saw.
+
+**Pre-flight conflict matrix (v1.16) — BLOCKING, before the first dispatch.** Two row kinds,
+both required: one per pair of tasks sharing a file or interface (what one produces against
+what the other consumes), and one per task for self-consistency (its tests against its code,
+the files it creates against the files it later touches). "The scan is clean" without those
+rows is not a scan that ran. The table goes in the ledger **above `## Log`** —
+`scan-active-ledgers` reads the last non-empty line. Every finding is ruled on before
+execution begins. Also enforced in `gaspol-execute` (Pre-Execution Step 6).
+
 **Phase 0 (v1.3):** invoke `gaspol-worktree` BEFORE concurrent dispatch — required for `independent-domains`, recommended for overlapping `plan-phases`. Parallel agents in a shared working directory race on files.
 
-**Continuous execution (v1.3):** once the task list is confirmed and the workspace is isolated, execute all tasks without pausing to check in between them. The only always-pause conditions: review fails after 3 attempts, genuine ambiguity, Iron Law violation / destructive op, or all tasks complete. Update the visual task tracker instead of narrating each task.
+**Continuous execution (v1.3):** once the task list is confirmed and the workspace is isolated, execute all tasks without pausing to check in between them. The only always-pause conditions: the fix loop trips its round-5 breaker and adjudication still leaves every path a guess, genuine ambiguity, Iron Law violation / destructive op, or all tasks complete. Update the visual task tracker instead of narrating each task.
 
 Fresh subagent per task + two-stage review:
 
 **Mode `plan-phases`:** execute independent phases from plan
-1. Implementer dispatched with full task text (NEVER reference a file), anti-placeholder rules, self-review
+1. Implementer dispatched with the task-scoped brief path (never the plan), anti-placeholder rules, self-review
 2. Spec Review — reads ACTUAL CODE, compares to requirements line by line
 3. Code Quality Review — uses code-reviewer template, reviews commits between base SHA and HEAD
-4. If spec fails after 3 attempts → stop and escalate
+4. If spec keeps failing, run the five-round fix loop; at the round-5 breaker adjudicate the open findings, and escalate only if every path forward is a guess
 
 **Mode `independent-domains`:** solve 2+ unrelated problems concurrently
 - **DAG lane scheduling (v1.8) BLOCKING** — declare each task's `deps` + `files` (DB table = synthetic `db:<name>` token), run `scripts/dag-lanes` → dependency **waves** + file-isolated **lanes**. Replaces the old all-or-nothing conflict check: one dependency no longer serializes the whole batch; independent tasks still parallelize, dependents wait for their wave. Matrix is the proof no two concurrent tasks touch the same file.
@@ -766,9 +825,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-5
+Last ticket: IDS-6
 
 ---
 
-**Version:** 1.15.0
+**Version:** 1.16.0
 **Last Updated:** August 2026
