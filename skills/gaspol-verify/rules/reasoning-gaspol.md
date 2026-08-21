@@ -59,7 +59,7 @@ Never output React code for a Vue project.
 
 ```bash
 cd <KB_ROOT>/
-grep -i "<domain>" INDEX.md
+grep -rilE "<domain>" "$KB"/*.md   # flat notes; gaspol writes no index
 # Read matched patterns
 ```
 

@@ -59,7 +59,7 @@ KB works out of the box (local-only). It only disables on explicit "kb_mode": "o
 0. **Resolve KB mode** (see [docs/kb-setup.md](../../docs/kb-setup.md)): `off` (config has `"kb_mode":"off"`) → skip Phase 0.5 silently. Otherwise auto-init the local KB if missing (mkdir structure + `git init`) and proceed — no config needed.
 1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C <KB_ROOT> pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
-3. **Grep INDEX.md** — `grep -i "<tag1>|<tag2>" INDEX.md`
+3. **Grep the notes** — `grep -rilE "<tag1>|<tag2>" "$KB"/*.md`. There is no index: gaspol writes flat notes carrying their own `# Title` and `tags: [...]`, and an index nothing writes is worse than none.
 4. **Filter by status** — default show only `status: accepted` entries; optionally include `proposed`
 5. **Freshness check** — for research/ entries, check age tier (🟢 FRESH / 🟡 AMBER / 🟠 STALE / 🔴 EXPIRED)
 6. **Surface to user via AskUserQuestion** (if matches found):

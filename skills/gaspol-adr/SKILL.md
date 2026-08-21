@@ -51,19 +51,19 @@ Resolve KB mode first (see [docs/kb-setup.md](../../docs/kb-setup.md)): skip onl
 
 > **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
 
-Query `<KB_ROOT>/design-decisions/` for similar decisions:
+Query `<KB_ROOT>/` (flat quarantine notes) for similar decisions:
 - Grep by tags extracted from context
 - Grep by domain (auth, state-mgmt, image-gen, etc.)
 
 If precedent found:
-- Consistent with precedent → capture as **confirming** ADR (status: accepted, supersedes: null, referencing precedent)
+- Consistent with precedent → capture as **confirming** ADR (`status: proposed` — gaspol never writes `accepted`; the human gate promotes)
 - Inconsistent with precedent → capture as **divergence** ADR (see Step 4)
 
 If no precedent, proceed as fresh ADR.
 
 ### Step 3: Generate MADR File
 
-Write to `<KB_ROOT>/design-decisions/YYYY-MM-DD-<slug>.md`:
+Write to `<KB_ROOT>/YYYY-MM-DD-<slug>.md` — flat, no category directory. `status: proposed`, never `accepted`: promotion belongs to `superbrain-promote`, not to the skill that wrote the note. The frontmatter + `# Title` + `tags: [...]` shape is what the promoter's scan reads.
 
 ```markdown
 ---
@@ -150,18 +150,13 @@ If new ADR conflicts with existing accepted ADR on same tag/domain (not divergen
    - New ADR: `supersedes: <old-id>`
 3. Commit with clear message: `adr: supersede <old-id> with <new-id> — <reason>`
 
-### Step 6: Update INDEX.md + Git
+### Step 6: Commit (no INDEX.md)
 
-Add to `<KB_ROOT>/INDEX.md`:
+**gaspol writes no index.** An index inside a quarantine folder is a non-note where the promoter
+scans notes, and one gaspol must keep in sync is a drift source with no reader. The flat note
+carries `status`, `date`, `source`, `# Title` and `tags: [...]`, so a grep over the notes answers
+what the index used to.
 
-```markdown
-- title: <Title>
-  path: design-decisions/YYYY-MM-DD-<slug>.md
-  tags: [<tag1>, <tag2>]
-  status: 🟢 accepted
-  project: <project>
-  date: YYYY-MM-DD
-```
 
 Commit locally (always), push only in synced mode — see [docs/kb-setup.md](../../docs/kb-setup.md):
 
@@ -230,6 +225,6 @@ Before commit:
 - [ ] Decision reasoning references project constraints
 - [ ] Consequences section (positive + negative + neutral)
 - [ ] Supersession/divergence links bidirectional (if applicable)
-- [ ] INDEX.md updated with entry
+- [ ] No index written — the flat note carries its own frontmatter and tags
 - [ ] Git commit message descriptive
 - [ ] Push to KB repo succeeded

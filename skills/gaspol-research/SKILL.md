@@ -57,7 +57,7 @@ KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(r
   # Never continue with an empty $KB: git -C "" is a silent wrong answer.
   echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
 [ -n "$REMOTE" ] && git -C "$KB" pull --quiet || true   # synced mode only
-# Grep $KB/INDEX.md for matching tags (local-only mode reads local cache directly)
+# Grep the flat notes for matching tags: grep -ril "<tag>" "$KB"/*.md
 ```
 
 If cache hit found:
@@ -118,7 +118,7 @@ If any gate fails → fix or escalate to user before caching.
 
 > **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
 
-Write to `<KB_ROOT>/research/<slug>.md` with frontmatter:
+Write to `<KB_ROOT>/YYYY-MM-DD-<slug>.md` — flat, no category directory; the category becomes the first tag. `status: proposed`, never `accepted` — promotion is the human gate's call, not the skill's. Shape below must keep frontmatter + `# Title` + `tags: [...]`, which is what `superbrain-promote`'s scan reads:
 
 ```yaml
 ---
@@ -146,7 +146,7 @@ superseded_by: null
 ## Sources
 ```
 
-Update `INDEX.md` with new entry + freshness badge.
+No index is written. The freshness badge lives in the note's own frontmatter (`date:`), which is where a reader computes the tier from — an index gaspol must keep in sync is a drift source with no reader.
 
 Commit the cache entry locally (always); push only in synced mode (`kb_remote` / `$GASPOL_KB_REMOTE` configured). See [docs/kb-setup.md](../../docs/kb-setup.md). In local-only mode the cache persists locally and still serves future cache hits on this machine — no remote required.
 
@@ -221,5 +221,5 @@ Before returning research output:
 - [ ] Comparison matrix uses same dimensions per option
 - [ ] Recommendation references project constraints explicitly
 - [ ] Cache file has full frontmatter with TTL
-- [ ] INDEX.md updated with freshness badge
+- [ ] Freshness derivable from the note's own `date:` frontmatter — no index to update
 - [ ] Git committed + pushed to KB repo

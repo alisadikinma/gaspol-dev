@@ -1,4 +1,12 @@
 ---
+> **Index caveat (IDS-8).** gaspol no longer writes an `INDEX.md` — captures are flat notes
+> carrying their own frontmatter and tags. Where this skill reads or updates an index, it applies
+> **only** to a store that maintains one; against a quarantine folder, grep the notes instead.
+> This skill's own future is an open question: it now overlaps `superbrain-promote`
+> (scan → cluster → per-finding decision → apply → audit log) almost completely. Deferred
+> deliberately — one is public and agnostic, the other private and hardcoded to one vault, so
+> the replacement is not like-for-like.
+
 name: gaspol-kb-audit
 description: "Use quarterly, on-demand, or auto-triggered when KB size exceeds 500 entries."
 ---
@@ -22,7 +30,7 @@ Every KB entry has a shelf life. Some patterns become outdated (framework evolut
 ## When to Use
 
 - **Scheduled**: Quarterly (manual or cron). User invokes `/gaspol-kb-audit`.
-- **Size-triggered**: Auto-offer audit when KB INDEX.md entry count > 500.
+- **Size-triggered**: Auto-offer audit when the store's entry count > 500 — count the note files; gaspol writes no index (see the caveat above), so a store that maintains one is the exception, not the assumption.
 - **Pre-brainstorm hint**: If last audit > 90 days, brainstorm Phase 0 suggests running audit.
 - **Post-major-shift**: After framework version bump or major dependency change, audit entries tagged for affected tech.
 
@@ -193,8 +201,8 @@ For each finding, use AskUserQuestion with per-finding options. Apply chosen act
 
 - **Promote**: update status frontmatter `proposed` → `accepted`
 - **Supersede**: old gets `superseded_by: <new-id>`, new gets `supersedes: <old-id>`, both stay in KB
-- **Archive**: move file to `_archive/<category>/<slug>.md`, remove from INDEX.md (but audit trail retained in git history)
-- **Merge**: consolidate body content, delete one file, update INDEX.md
+- **Archive**: move file to `_archive/<slug>.md` and, **only where the store maintains one**, remove its index entry — gaspol writes no index (audit trail is retained in git history either way)
+- **Merge**: consolidate body content, delete one file, and update the index **only where the store maintains one** — gaspol writes no index
 - **Keep**: update `last_validated: YYYY-MM-DD` without other change
 
 ### Step 5: Commit Changes
@@ -273,7 +281,7 @@ Before completing audit:
 - [ ] Every finding has user decision
 - [ ] Archives moved to `_archive/`, not deleted
 - [ ] Supersede links bidirectional
-- [ ] INDEX.md updated
+- [ ] Index updated **only where the store maintains one** — gaspol writes no index
 - [ ] Audit report written to `_audit/audit-YYYY-MM-DD.md`
 - [ ] Health metrics updated
 - [ ] Git committed with descriptive message
