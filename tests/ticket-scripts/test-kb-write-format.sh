@@ -113,18 +113,51 @@ echo "test-kb-write-format: no skill instructs writing or grepping an index gasp
 #   an arrow    (INDEX.md .{0,30} -> hot.md)  -> "Update INDEX.md -> refresh hot.md"
 # Anchoring costs nothing: there are exactly six legitimate mentions in the tree,
 # and every one of them is matched verbatim below.
+#
+# Round 5, the fourth instance: the anchored version shipped TWO alternations,
+# and the first, `INDEX.md` (master map), matched on its own -- no arrow, no
+# hot.md -- so a write wearing that literal walked through. It was also dead
+# weight: both real chain lines already carry the arrow form. The exemption now
+# requires the FULL chain, a SECOND arrow included, because both real lines
+# continue past hot.md and no write instruction plausibly does.
 # Positive control on the PIPELINE, not just the result. If a grep in the chain
 # below errors (an unsupported regex, a locale quirk — see the KB entry
 # bsd-grep-include-dies-with-exclude-dir), it emits nothing, STALE comes back
 # empty, and the gate PASSES having examined zero lines. Assert the raw scan
 # finds the mentions we know are there before any exemption runs.
-RAW=$(grep -rcE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null | awk -F: '{n+=$2} END{print n+0}')
+RAW=$(grep -rcE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null | awk -F: '{n+=$2} END{print n+0}') || true
 [ "${RAW:-0}" -ge 5 ] \
     || fail "the raw INDEX.md scan found only ${RAW:-0} mentions — the tree has at least 5, so the pipeline is broken and every verdict below would be vacuous"
 
-STALE=$(grep -rnE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
-        | grep -viE 'no longer writes an .?INDEX|writes no index|no .?INDEX[.]md|\(no INDEX[.]md\)' \
-        | grep -vE '`INDEX[.]md` \(master map\)|`INDEX[.]md` (→|->) `hot[.]md`' || true)
+# The chain runs OUTSIDE command substitution, into a temp file, because
+# PIPESTATUS inside $( ) dies with the subshell and cannot be inspected. grep
+# exits 1 for "no matches" -- the CLEAN result here -- so only >1 is an error:
+# an unsupported regex under ugrep, an unreadable path. Under the `|| true` this
+# chain used to carry, such an error emitted nothing, left STALE empty, and
+# PASSED the gate having examined zero lines. That is the repo's own
+# bsd-grep-include-dies-with-exclude-dir and vacuous-assertion-proves-nothing in
+# a single line.
+# Every scan path must EXIST. grep keeps going past a missing file and still
+# exits 0 when the survivors match, so renaming one of these silently shrinks
+# the gate's coverage while it keeps reporting clean — a gate that quietly stops
+# looking is the failure this whole file is about.
+for sp in "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md"; do
+    [ -e "$sp" ] || fail "scan path $sp does not exist — the gate would silently stop covering it and keep passing"
+done
+
+STALE_FILE="$(mktemp)"
+set +e
+grep -rnE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
+  | grep -viE 'no longer writes an .?INDEX|writes no index|no .?INDEX[.]md|\(no INDEX[.]md\)' \
+  | grep -vE '`INDEX[.]md` (\(master map\) )?(→|->) `hot[.]md`[^|]*(→|->)' \
+  > "$STALE_FILE"
+CHAIN_STATUS=("${PIPESTATUS[@]}")
+set -e
+for st in "${CHAIN_STATUS[@]}"; do
+    [ "$st" -le 1 ] \
+        || { rm -f "$STALE_FILE"; fail "a grep in the INDEX.md chain exited $st — the pipeline errored, so an empty result proves nothing, it only looks clean"; }
+done
+STALE="$(cat "$STALE_FILE")"; rm -f "$STALE_FILE"
 # Two exemption families, both named rather than broad:
 #   1. sentences that NEGATE (gaspol writes no index)
 #   2. the VAULT's own master map, recognisable by the notes it is read alongside

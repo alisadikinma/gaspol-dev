@@ -86,6 +86,15 @@ plant skill "$G_FMT" caught 'gaspol no longer writes plans, so update INDEX.md a
 plant skill "$G_FMT" caught 'Index caveat aside, update INDEX.md on every capture.'
 plant skill "$G_FMT" caught 'There is no index for plans, so maintain INDEX.md.'
 
+# The exemption STRING itself, worn by a write. Round 4 added piggyback rows
+# that used neither backticks nor parens, so they never exercised the exemption
+# they shipped beside — the same gap that let round 3's fence narrowing pass an
+# earlier version of this table. An attack row must wear the exemption verbatim.
+plant skill "$G_FMT" caught 'Maintain `INDEX.md` (master map) on every capture.'
+plant skill "$G_FMT" caught 'Grep `INDEX.md` (master map) for tag matches.'
+plant skill "$G_FMT" caught 'Regenerate `INDEX.md` (master map) after each capture.'
+plant skill "$G_FMT" caught 'Rebuild `INDEX.md` -> `hot.md` after every capture.'
+
 echo "test-gate-mutations: index gate — the two legitimate shapes still pass..."
 plant skill "$G_FMT" allowed 'Read the vault: `INDEX.md` (master map) → `hot.md` (recent) → `30-Knowledge/`'
 plant skill "$G_FMT" allowed 'gaspol writes no index — there is no INDEX.md to update.'
@@ -153,7 +162,7 @@ fi
 # DELETING rows did not — the harness passed with nine index attacks removed.
 # A gate whose attack table can be quietly trimmed is a gate that can be quietly
 # loosened, which is the whole failure mode this file exists for.
-MIN_ROWS=44
+MIN_ROWS=48
 [ "$pass" -ge "$MIN_ROWS" ] \
     || fail "only $pass mutations ran, expected at least $MIN_ROWS — attack rows were removed. Raise MIN_ROWS deliberately when adding rows; never lower it to make a run pass."
 
