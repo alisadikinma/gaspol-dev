@@ -453,6 +453,18 @@ def changed_ui_files(project_root: Path, base: str) -> list[Path]:
     An unresolvable base raises. It must never fall back to scanning everything:
     a silent widening turns a green branch red for reasons nobody introduced.
     """
+    # `f"{base}..HEAD"` is a single argv element, so a base beginning with `-`
+    # arrives at git as an OPTION rather than a revision -- `--output=/tmp/x`
+    # becomes `--output=/tmp/x..HEAD`, and git writes the diff to that path.
+    # argparse rejects the space-separated form but passes `--changed-files=-…`
+    # straight through, so the guard belongs here. BASE is operator-supplied
+    # today, but this is a trust boundary and those are not where scope gets cut.
+    if base.startswith("-"):
+        raise RuntimeError(
+            f"refusing BASE {base!r}: a revision must not begin with '-' — "
+            "git would parse it as an option, not a commit"
+        )
+
     proc = subprocess.run(
         ["git", "-C", str(project_root), "diff", "--name-only", f"{base}..HEAD"],
         capture_output=True,

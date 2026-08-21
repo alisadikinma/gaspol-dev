@@ -91,6 +91,25 @@ set -e
 echo "$BAD_OUT" | grep -qi 'nonexistent-sha\|git diff\|not a\|unknown revision' \
     || fail "the bad-BASE error does not say what went wrong: $BAD_OUT"
 
+# --- a BASE that looks like a git option is rejected, not passed through ----
+#
+# f"{base}..HEAD" is one argv element, so a base of "--output=/tmp/x" reaches
+# git as the option --output=/tmp/x..HEAD. argparse blocks the space-separated
+# form, but "--changed-files=--output=..." goes straight through — so the guard
+# has to live in the code, not in argparse. Not reachable from untrusted input
+# today (BASE is an operator-supplied CLI flag), but it is a trust boundary and
+# those do not get the lazy treatment.
+
+echo "test-design-diff-scope: option-shaped BASE..."
+set +e
+OPT_OUT="$(python3 "$AUDIT" "$REPO" "--changed-files=--output=$TMP_DIR/pwned" --json 2>&1)"
+rc=$?
+set -e
+[ "$rc" != "0" ] || fail "an option-shaped BASE was accepted — it reaches git as an option, not a revision"
+[ -e "$TMP_DIR/pwned..HEAD" ] && fail "git wrote a file: the option-shaped BASE was passed through to git"
+echo "$OPT_OUT" | grep -qi "revision" \
+    || fail "the rejection message does not say why: $OPT_OUT"
+
 # --- scan_project still exists: one code path, both modes -------------------
 
 PYTHONPATH="$(dirname "$AUDIT")" python3 -c "
