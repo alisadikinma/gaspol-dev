@@ -264,6 +264,25 @@ OUT="$(cd "$CONLY" && python3 "$AUDIT_DIR/design_audit.py" . 2>&1 || true)"
 echo "$OUT" | grep -qi 'font-gate: not run' \
     || fail "a contract with no fonts: map must record 'font-gate: not run' — otherwise the font count reads as judged. Got: $OUT"
 
+# ...and in JSON too, which is the mode gaspol-verify Layer 4 actually invokes.
+# A state that exists only in the human-readable branch is not recorded in the
+# report the gate consumes, leaving the reader to infer it from the ABSENCE of a
+# severity key — which is the inference-from-absence this third state exists to
+# eliminate.
+JOUT="$(cd "$CONLY" && python3 "$AUDIT_DIR/design_audit.py" . --json 2>&1 || true)"
+echo "$JOUT" | grep -qi '"font_gate"' \
+    || fail "--json output carries no font_gate key — Layer 4 invokes --json, so the unjudged state is invisible in the mode that matters. Got: $JOUT"
+echo "$JOUT" | grep -qi 'not run' \
+    || fail "font_gate in JSON does not say the gate did not run. Got: $JOUT"
+
+# When fonts ARE declared, the JSON must say the gate ran — otherwise the key is
+# decoration and cannot be relied on to distinguish the two states.
+JACT="$(cd "$GATE" && python3 "$AUDIT_DIR/design_audit.py" . --json 2>&1 || true)"
+echo "$JACT" | grep -qi '"font_gate"' \
+    || fail "font_gate is missing when fonts ARE declared — the key must be present in both states to be readable. Got: $JACT"
+echo "$JACT" | grep -qi 'not run' \
+    && fail "font_gate says 'not run' even though the contract declares fonts. Got: $JACT"
+
 # --- Phase C: no DESIGN.md must behave exactly as before --------------------
 
 echo "test-design-contract: no-contract regression..."

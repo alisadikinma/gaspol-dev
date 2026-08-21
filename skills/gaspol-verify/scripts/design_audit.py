@@ -600,6 +600,17 @@ def main():
 
     contrast_findings = check_contract_contrast(contract)
 
+    # Computed once and emitted in BOTH branches. Layer 4 invokes --json, so a
+    # state that lives only in the text branch is invisible to the gate that
+    # consumes this -- leaving a reader to infer "unjudged" from the ABSENCE of a
+    # severity key, which is the inference-from-absence this state exists to end.
+    if contract is None:
+        font_gate = "not run — no DESIGN.md"
+    elif not contract.get("fonts"):
+        font_gate = "not run — DESIGN.md declares no fonts: map, font findings are unjudged"
+    else:
+        font_gate = f"active ({len(contract['fonts'])} declared families)"
+
     if args.json:
         output = {
             "project": str(project_root),
@@ -607,6 +618,7 @@ def main():
                 "none" if contract is None
                 else f"loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
             ),
+            "font_gate": font_gate,
             "summary": summary,
             "verdict": overall_verdict,
             "contrast": contrast_findings,
@@ -621,8 +633,7 @@ def main():
             if contract is None
             else f"design-contract: loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
         )
-        if contract and not contract.get("fonts"):
-            print("font-gate: not run — DESIGN.md declares no fonts: map, font findings below are unjudged")
+        print(f"font-gate: {font_gate}")
         for f in contrast_findings:
             print(f"  {f['severity']}: {f['message']}")
         print()

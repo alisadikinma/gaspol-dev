@@ -347,9 +347,13 @@ contain:
 - **Design tokens** — colours against `DESIGN.md`'s `colors:` map, severity split by CSS role.
   Fonts against its `fonts:` map, if it declares one: an undeclared family BLOCKS. When the
   contract declares **no** `fonts:` map — which is what `extract-design-tokens` produces, since
-  it extracts colours only — font findings are still reported but **unjudged**, and the run
-  records `font-gate: not run`. They are never silenced: a `Hardcoded fonts: 0` that nobody
-  computed reads as checked-and-clean.
+  it extracts colours only — font findings are still reported but **unjudged**. They are never
+  silenced: a `Hardcoded fonts: 0` that nobody computed reads as checked-and-clean.
+
+  **Read the `font_gate` key, do not infer from the counts.** Every run emits it in both output
+  modes: `active (N declared families)`, `not run — no DESIGN.md`, or
+  `not run — DESIGN.md declares no fonts: map…`. Judging "no violations" versus "never judged"
+  by the absence of a `severity` field is exactly the guesswork this key removes.
   Without any contract, it reports hex/font literals without judging either.
 - **Contrast** — WCAG 2.1 AA ratios computed for the **contract's own** foreground/background
   token pairs (4.5:1 body, 3:1 large text). Where no pairing can be determined it reports
