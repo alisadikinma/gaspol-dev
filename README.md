@@ -323,6 +323,19 @@ cat > ~/.claude/gaspol-config.json <<EOF
 }
 EOF
 ```
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
+
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
 
 ### Verify
 

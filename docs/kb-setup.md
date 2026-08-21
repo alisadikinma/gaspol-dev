@@ -1,5 +1,15 @@
 # KB Modes & Setup
 
+> **Resolution is implemented, not merely documented (IDS-8, 2026-08-21).** `kb_local` used to be
+> described here, in `README.md` and in `CLAUDE.md` while **no skill read it** — `grep kb_local
+> skills/` returned zero hits. The order and the three states now live in one place,
+> `skills/_shared/kb-path.md`, and are executed by `skills/_shared/kb-root`, which prints the
+> resolved path and reports `available` / `UNKNOWN` / `none` through exit codes 0/3/4. Prefer the
+> config file over the environment variable: an export from a shell profile only exists for
+> processes that inherited that shell, and everywhere else resolution falls through and recreates
+> the store you moved away from.
+
+
 The cross-project Knowledge Base (KB) is what makes gaspol *compound* — `gaspol-adr`
 and `gaspol-learn` **write** to it, `gaspol-brainstorm` Phase 0.5 and `gaspol-research`
 **read** from it, `gaspol-kb-audit` **maintains** it.
@@ -75,5 +85,18 @@ cat > ~/.claude/gaspol-config.json <<EOF
   "kb_owner": "<your-github-username>" }
 EOF
 ```
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
+
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
 
 Everything already captured locally comes along on the first push.

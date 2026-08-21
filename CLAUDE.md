@@ -25,6 +25,8 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `hooks/hooks.json` | SessionStart hook definition |
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
+| `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
+| `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
 | `tests/ticket-scripts/` | Deterministic bash tests for the shell scripts (`test-next-ticket.sh`, `test-scan-active-ledgers.sh`, `test-detect-stack.sh`, `test-naming-convention.sh`, `test-skill-delegation.sh`, `test-finish-gates.sh`, `test-prior-art-gate.sh`). Fast, no API calls — run these first |
@@ -228,6 +230,12 @@ Config file schema:
   "kb_owner": "<your-github-username>"
 }
 ```
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
@@ -387,6 +395,83 @@ is ignored and reported, never followed); a failed fetch records `wig-lane: not 
 This closes the wrong-colours/wrong-fonts half of the mockup-mismatch problem. The wrong-layout
 half is still open and still belongs to IDS-6's deferred Part B (canvas.html, `data-vv` DOM
 markers, geometry diffing).
+
+### One Knowledge Store (NEW in v1.18) — gaspol stopped running a second pipeline
+
+The complaint that started this: *"seharusnya ini merge dgn obsidian vault biar gak 2x kerja."*
+It was right, and the proof is dated the same day. A SessionStart hook has been writing session
+learnings to the owner's vault at `90-Inbox/agent-learnings/` since 2026-07-05, with
+`superbrain-promote` as the single human-gated promoter into the curated core. gaspol ran its own
+store in parallel, and on 2026-08-21 **both harvested the same session** — one prior-art lesson
+became one entry in the gaspol KB and three notes in the vault inbox.
+
+Four defects, each verified by running a command, not inferred:
+
+| Defect | Evidence |
+|---|---|
+| `kb_local` documented as the relocation setting, **read by nothing** | `grep kb_local skills/` → **0 hits**; `grep gaspol-config skills/` → **0 files**. Only env vars were honoured |
+| Precedent lookup off for the work that repeats mistakes | Phase 0.5 was headed *"architectural path only"* — bounded fixes never queried it |
+| gaspol would commit a repo it does not own | synced mode runs `git commit`/`push` **inside** the KB dir; the vault is a git repo |
+| Code index went stale, nothing refreshed it | `grep graphify skills/gaspol-sync-docs/` → 0 hits |
+Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
+inherited that shell, and everywhere else resolution falls through to the default and recreates
+the store you moved away from.
+
+
+The first is IDS-7's `--design-system` shape one layer up: parsed into documentation, consulted by
+nothing.
+
+**Resolution.** One order, stated in `skills/_shared/kb-path.md` and executed by
+`skills/_shared/kb-root`: `$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` →
+`~/.claude/gaspol-knowledge`. **Prefer the config file** — a shell export only exists for processes
+that inherited that shell, and everywhere else resolution falls through and recreates the store you
+moved away from.
+
+| State | Exit | Behaviour |
+|---|---|---|
+| available | 0 | path on stdout, read and write normally |
+| **UNKNOWN** | 3 | configured and unreadable → **STOP and ask.** Never an empty store: empty reads as *"no precedent exists"*, which is when a documented mistake gets repeated |
+| none | 4 | nothing configured → `knowledge-store: none — not configured`. **Not a failure** — a public plugin cannot require a vault |
+
+**Capture feeds the quarantine, in the quarantine's own shape.** Flat notes at
+`<KB_ROOT>/YYYY-MM-DD-<slug>.md`, frontmatter + `# Title` + `tags: [...]`, always
+`status: proposed` and **never** `accepted` — promotion belongs to the human gate, and a skill that
+promotes its own capture has removed the gate it was told to feed. The four category directories
+became tags; routing is `superbrain-promote`'s job and it already has the table. **No `INDEX.md`
+is written** — an index inside a quarantine puts a non-note where the promoter scans notes, and one
+gaspol maintains that nothing reads can only drift.
+
+**Precedent query runs on bounded work too.** Spike keeps its exemption: a probe that answers a
+question and keeps no code has no precedent to apply. `gaspol-brainstorm` Phase 0 reads the vault
+in the owner's order — `INDEX.md` → `hot.md` → `10-Identity/` → `20-Projects/<name>/README.md` →
+`30-Knowledge/` — stopping as soon as it has enough. A missing vault is soft-referenced exactly
+like `ui-ux-pro-max`: say so, name the setting, continue.
+
+**Ownership guard.** Before any write-side git operation, compare the KB root against
+`git rev-parse --show-toplevel`. A mismatch means the store is a guest inside somebody else's
+repository — record `kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)`
+and continue. **Reads stay allowed**; refusing them would disable the very lookup this change
+strengthens. Verified live: `TOP` resolves to the vault root, not the inbox folder.
+
+**Code index lane** (`gaspol-sync-docs`, which `gaspol-finish` already calls at Step 5 — no new
+gate): `graphify-out/` + CLI on PATH → `graphify update .`, record `graphify: updated`; marker
+present without the CLI → `graphify: UNKNOWN — index present, CLI missing` → **STOP and ask** (a
+stale index that reports clean still answers questions); no marker → skipped, **never** recorded as
+passed. `graphify global add` writes outside the repository, so it is **offered**, never taken.
+No install command is invented for graphify: this repo knows `ui-ux-pro-max`'s exact command and
+does **not** know how graphify is installed, and a fabricated command looks authoritative while
+sending the reader nowhere.
+
+**Deferred, named rather than forgotten.** `gaspol-kb-audit` now overlaps `superbrain-promote`
+almost completely — both are scan → cluster → per-finding human decision → apply → audit log.
+Not resolved here because they are **not like-for-like**: one is public and agnostic, the other
+private and hardcoded to one vault.
+
+**Scope boundary.** This merges knowledge *capture*. It does not touch `~/.claude/projects/<…>/memory/`
+(Claude Code operational feedback), and it does not merge the two brains into each other — the
+vault holds WHY, graphify holds HOW, and they stay separate stores with separate purposes.
 
 ### Model Switching Rubric (NEW in v1.2)
 
@@ -888,5 +973,5 @@ Last ticket: IDS-8
 
 ---
 
-**Version:** 1.17.0
+**Version:** 1.18.0
 **Last Updated:** August 2026
