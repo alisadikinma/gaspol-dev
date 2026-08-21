@@ -268,6 +268,45 @@ Expected back:
 
 Present design recommendations 200-300 word sections, AskUserQuestion confirm after each.
 
+### Freeze the approved palette into DESIGN.md (v1.17)
+
+Once the user has **approved** the palette and typography, offer to write them to `DESIGN.md`
+at the project root. This is the point where the design is agreed and no code exists yet — the
+cheapest possible moment to fix the contract. **One** reason implementations drift from the
+mockup is that the palette never got written down anywhere a tool could read.
+
+**Scope boundary:** this pins TOKENS — colour and typography — not layout geometry. The
+wrong-layout half of mockup drift is not addressed by a DESIGN.md and stays open (IDS-6's
+deferred Part B). Do not present a DESIGN.md as solving mockup mismatch.
+
+Format — YAML frontmatter, then whatever prose you want below it:
+
+```markdown
+---
+colors:
+  primary: "#2563EB"
+  text:    "#1F2937"
+  surface: "#FFFFFF"
+fonts:
+  heading: "Poppins"
+  body:    "Inter"
+---
+```
+
+Name at least one foreground token (`text`, `ink`, `body`, `foreground`) and one background
+token (`surface`, `background`, `canvas`) — that pairing is what lets `gaspol-verify` grade
+WCAG AA contrast instead of reporting `no declared pairing`.
+
+`gaspol-verify` Layer 4 reads this file and blocks on off-contract structural colours. Format
+origin: Google Stitch DESIGN.md; 73 worked examples at
+<https://github.com/voltagent/awesome-design-md> — **referenced, never vendored** (see the
+v1.14 fork deletion).
+
+Offer it with **AskUserQuestion**: `[Write DESIGN.md]` / `[Not now — keep the gate off]` /
+`[I'll write it myself]`. Never write
+it without asking, and never write it before the palette is approved — a contract frozen around
+a design the user has not agreed to is worse than none.
+
 ### Visual Companion (just-in-time — v1.7)
 
 A browser-based companion for showing mockups, diagrams, and visual options during

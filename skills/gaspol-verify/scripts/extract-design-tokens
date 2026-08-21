@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""
+extract-design-tokens -- print a DESIGN.md token contract from what a project
+already declares.
+
+Why this exists: an existing repository has its colours written down somewhere
+already. Without extraction, the DESIGN.md gate only ever works for projects
+that went through a gaspol brainstorm, and every other project waits for a
+contract nobody is going to hand-write.
+
+Sources, in order, first hit wins:
+  1. tailwind.config.{js,ts,cjs,mjs}  -- any `name: "#hex"` pair in the file (not theme-scoped)
+  2. CSS custom properties            -- --color-*, --brand-*, --c-* in .css/.scss
+  3. theme.json                       -- a top-level "colors" object
+
+Two rules this script will not bend:
+
+  * Extraction is LITERAL. A colour is emitted only if it appears as a value in
+    the source file. An unrecognised config shape emits NOTHING and exits 1
+    saying so. A plausible-looking invented token is worse than an admitted gap,
+    because it looks like it worked -- the same rule `detect-stack` follows for
+    commands (KB: marker-file-is-not-proof-tool-installed).
+
+  * It NEVER writes a file. Output goes to stdout only. Writing a contract into
+    someone's repository unasked is the same overreach as auto-installing a
+    marketplace skill; the write is offered by gaspol-verify via
+    AskUserQuestion, and declining is a real answer.
+    ponytail: stdout-only by design. If writing is ever wanted, that is a
+    deliberate upgrade with its own confirmation, not a quiet default.
+
+Usage:
+    extract-design-tokens <project_root>          # prints DESIGN.md to stdout
+    extract-design-tokens <project_root> > DESIGN.md
+"""
+
+import json
+import re
+import sys
+from pathlib import Path
+
+HEX = r"#[0-9a-fA-F]{3,8}"
+SKIP_DIRS = {"node_modules", ".git", ".next", "dist", "build", "out", "__pycache__", ".cache"}
+
+# `name: '#hex'` / `"name": "#hex"` -- the shape both tailwind configs and
+# theme.json colour maps use.
+NAMED_HEX = re.compile(rf"""["']?([A-Za-z_][\w-]*)["']?\s*:\s*["']({HEX})["']""")
+CSS_VAR = re.compile(rf"--((?:color|brand|c|theme|palette)[\w-]*)\s*:\s*({HEX})\s*;", re.I)
+
+
+def _normalise(hex_colour: str) -> str:
+    """Lowercase, and expand #abc to #aabbcc. Mirrors design_audit._normalise_hex."""
+    v = hex_colour.strip().lower()
+    if re.fullmatch(r"#[0-9a-f]{3}", v):
+        return "#" + "".join(c * 2 for c in v[1:])
+    return v
+
+
+def _iter_files(root: Path, suffixes):
+    for path in root.rglob("*"):
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        if path.is_file() and path.suffix in suffixes:
+            yield path
+
+
+def from_tailwind(root: Path) -> dict:
+    """Colours declared in a tailwind config's theme block."""
+    tokens = {}
+    for name in ("tailwind.config.js", "tailwind.config.ts", "tailwind.config.cjs", "tailwind.config.mjs"):
+        path = root / name
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for key, value in NAMED_HEX.findall(text):
+            tokens.setdefault(key.lower(), _normalise(value))
+    return tokens
+
+
+def from_css_variables(root: Path) -> dict:
+    """Colour-ish CSS custom properties. A `--spacing-sm: 4px` is not a colour
+    and must not land in the colours map -- the regex requires a hex value."""
+    tokens = {}
+    for path in _iter_files(root, {".css", ".scss", ".sass"}):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for key, value in CSS_VAR.findall(text):
+            clean = re.sub(r"^(?:color|brand|c|theme|palette)-", "", key.lower())
+            tokens.setdefault(clean or key.lower(), _normalise(value))
+    return tokens
+
+
+def from_theme_json(root: Path) -> dict:
+    """A top-level `colors` object in theme.json."""
+    path = root / "theme.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    colors = data.get("colors")
+    if not isinstance(colors, dict):
+        return {}
+    return {
+        str(k).lower(): _normalise(v)
+        for k, v in colors.items()
+        if isinstance(v, str) and re.fullmatch(HEX, v)
+    }
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print("usage: extract-design-tokens <project_root>", file=sys.stderr)
+        return 2
+
+    root = Path(sys.argv[1]).resolve()
+    if not root.is_dir():
+        print(f"extract-design-tokens: not a directory: {root}", file=sys.stderr)
+        return 2
+
+    for source_name, extractor in (
+        ("tailwind config", from_tailwind),
+        ("CSS custom properties", from_css_variables),
+        ("theme.json", from_theme_json),
+    ):
+        tokens = extractor(root)
+        if tokens:
+            print("---")
+            print("colors:")
+            for key in sorted(tokens):
+                print(f'  {key}: "{tokens[key]}"')
+            print("---")
+            print()
+            print(f"<!-- extracted from {source_name} in {root.name} by extract-design-tokens.")
+            print("     Every value above appears literally in that source; nothing was inferred.")
+            print("     Add a `fonts:` block by hand -- font declarations are too varied to extract")
+            print("     literally, and a guessed font family is exactly what this script refuses. -->")
+            return 0
+
+    print(
+        "extract-design-tokens: found no colour tokens — no tailwind theme colours, "
+        "no --color-*/--brand-* custom properties, and no theme.json colors map in "
+        f"{root}. Nothing was invented; write DESIGN.md by hand, or leave the token "
+        "gate off.",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

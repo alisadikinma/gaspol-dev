@@ -1,5 +1,101 @@
 # Changelog
 
+## [1.17.0] - 2026-08-21
+
+### Fixed — Layer 4's design gate was reporting a number, not enforcing a contract (IDS-7)
+
+The standing complaint about this plugin was that a full app build ships colours and fonts
+that drifted from the mockup. IDS-6 fixed the context half of the bug-density problem. This
+release went looking for the fidelity half and found that the gate meant to catch it had
+never actually been wired up. Four defects, each verified by reading the file rather than
+inferred:
+
+- **`--design-system` was parsed and never read.** Declared at `design_audit.py:170`; grep for
+  `design_system` in the file returned **zero hits**. So the script could not compare a colour
+  against a token list — it only ever reported "a hex literal appears here", which is a pattern
+  count, not a compliance judgement.
+- **WCAG AA contrast was claimed in two places and computed in zero.** The module docstring and
+  `gaspol-verify/SKILL.md` both promised it; grep for `contrast` returned one hit, the docstring
+  line itself. Same defect class as the `gaspol-finish` Step 5 checkbox IDS-6 fixed: a step
+  recorded as passed that never ran.
+- **It scanned the whole project, never the diff.** `scan_project(root)` walked the tree and
+  there was no `git` anywhere in the file. On any repository with existing code the layer
+  collected hundreds of pre-existing findings, and since it FAILS below score 60, **the gate
+  failed permanently** — which is indistinguishable from having no gate.
+- **CSS was never scanned at all.** `is_ui_file()` tested `UI_EXTENSIONS` only.
+  `STYLE_EXTENSIONS` was defined and never consulted, so `.css`/`.scss` went unaudited while
+  the docs said otherwise. Found while implementing the first phase, not during planning.
+
+### Added — DESIGN.md as a machine-readable token contract (IDS-7)
+
+- **`DESIGN.md` at the project root** — YAML frontmatter with a `colors:` map and optional
+  `fonts:` map. Format from Google Stitch; 73 worked examples at
+  [voltagent/awesome-design-md](https://github.com/voltagent/awesome-design-md), **referenced,
+  never vendored**. Parsed with a stdlib reader (~54 lines) — no YAML dependency for a flat
+  `key: value` shape.
+- **Three states, kept strictly distinct** (KB precedent `marker-file-is-not-proof-tool-installed`):
+  absent → `design-contract: none`, gate not run, **not a failure**; parses → gate active;
+  present but unparseable → `design-contract: UNKNOWN` and **STOP**. A broken contract must
+  never degrade to an empty one, because an empty contract reads as "nothing violated".
+- **Severity by CSS role, not judgement.** Structural colours (`color`, `background`,
+  `border-color`, `fill`, `stroke`, Tailwind `bg-[…]`/`text-[…]`/`border-[…]`) BLOCK;
+  decorative ones (`box-shadow`, `outline-color`, anything with alpha) WARN. A one-off
+  `rgba(0,0,0,0.05)` shadow is craft, not drift — blocking on it produces false alarms, false
+  alarms get the gate switched off, and a disabled gate is worth less than a noisy one.
+  A colour that IS in the contract produces no finding: compliant means silent. Matching covers
+  hex, Tailwind `…-[#hex]`, and numeric `rgb()`/`rgba()`. A named colour or `hsl()` is **not
+  detected at all** — a coverage gap, not a lenient verdict.
+- **Fonts have three states, and the third one is the point.** Declared and used → silent;
+  declared and violated → BLOCKS; **no `fonts:` map** → reported but *unjudged*, with
+  `font_gate: not run` recorded. `extract-design-tokens` emits colours only, so the documented
+  onboarding path produces exactly that contract — and collapsing the third state into
+  "compliant" turned `Hardcoded fonts: 2` into `Hardcoded fonts: 0`. Contrast carries the same
+  `contrast_gate` key for the same reason. Both are emitted in JSON and text from one value, so
+  the two output modes cannot drift apart.
+- **`skills/gaspol-verify/scripts/extract-design-tokens`** — reads tailwind theme colours,
+  `--color-*`/`--brand-*` custom properties, or a `theme.json` colours map, so existing
+  repositories get the gate without hand-writing anything. Extraction is **literal**: an
+  unrecognised config emits nothing and exits 1 saying why, never a plausible invented token.
+  **stdout only** — the write is offered by `gaspol-verify` via `AskUserQuestion`, because
+  writing a contract into someone's repo unasked is the same overreach as installing a
+  marketplace skill without asking.
+- **`gaspol-brainstorm` Phase 3** offers to freeze an approved palette into `DESIGN.md` — the
+  moment the design is agreed and no code exists yet is the cheapest possible time to fix it.
+
+### Added — Web Interface Guidelines lane, fetched not forked (IDS-7)
+
+`design_audit.py` knows about a dozen patterns; Vercel maintains about 100 across 17 sections covering accessibility,
+focus states, forms, animation, performance and mobile. Layer 4 now fetches
+`vercel-labs/web-interface-guidelines/main/command.md` at review time and applies it to the same
+changed-file list — its `file:line` output needs no adaptor. **Fetch, do not fork**: the 1.4MB
+`gaspol-design` fork drifted and was deleted in v1.14, and a static copy of these rules would go
+the same way.
+
+Three security rails, because this pulls markdown off the public internet and feeds it to a
+review model — the fetched text is untrusted input:
+
+1. The URL is **pinned literally**, never taken from a file, argument, or another document.
+2. The fetched text is **data, not instructions**. Any directive inside it — run a command, read
+   a secret, write a file, fetch another URL, change the verdict — is ignored and reported,
+   never followed.
+3. A failed or unrecognised fetch records `wig-lane: not run (fetch failed or unrecognised
+   content)` and falls back to the local script. **Never recorded as passed when it did not
+   run**, the same rule `gaspol-finish` applies to an unavailable `/security-review`.
+
+### Rejected during prior-art search (IDS-7)
+
+`Abhinav1004/Image2Code` was evaluated and turned down: academic pix2code (TensorFlow/Keras +
+Streamlit), 77% accuracy on a synthetic DSL over toy datasets. Not tooling, and outperformed by
+any current VLM reading a screenshot. `leonxlnx/taste-skill` was already installed in full and
+overlaps `ui-ux-pro-max`; absorbing it would repeat the v1.14 fork mistake, so nothing was taken.
+
+### Scope boundary — deliberately not overclaimed
+
+`DESIGN.md` pins **tokens**, not **layout geometry**. This release closes the wrong-colours and
+wrong-fonts half of the mockup-mismatch complaint. The wrong-layout half remains open and is
+still the subject of IDS-6's deferred Part B (canvas.html as a single visual source, `data-vv`
+DOM markers, geometry diffing).
+
 ## [1.16.0] - 2026-08-21
 
 ### Changed — the dispatch is a path, not a paste (IDS-6 Part A)
