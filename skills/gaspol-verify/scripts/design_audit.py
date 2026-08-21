@@ -59,6 +59,98 @@ UI_EXTENSIONS = {".tsx", ".jsx", ".vue", ".svelte", ".astro", ".html"}
 STYLE_EXTENSIONS = {".css", ".scss", ".sass", ".module.css"}
 
 
+class DesignContractError(Exception):
+    """A DESIGN.md exists but cannot be read as a token contract.
+
+    Deliberately distinct from "no contract at all". A present-but-broken file
+    proves someone INTENDED a contract, so continuing without one would silently
+    drop a gate they asked for. Callers must stop and ask, never treat this as
+    an empty contract -- an empty contract reads as "nothing violated".
+    """
+
+
+def _normalise_hex(value: str) -> str:
+    """Lowercase a hex colour and expand the 3-digit form to 6 digits.
+
+    Without this, `#FFF` and `#ffffff` are the same colour stored under two
+    different keys, and half the contract silently fails to match.
+    Only hex is lowercased. Non-hex values (font names, `rgb(...)`) keep their
+    author casing -- `Poppins` is what appears in the source and in the report,
+    and folding it to `poppins` would make both harder to match and to read.
+    """
+    v = value.strip().strip("\"'")
+    if re.fullmatch(r"#[0-9a-fA-F]{3}", v):
+        return "#" + "".join(c * 2 for c in v[1:]).lower()
+    if re.fullmatch(r"#[0-9a-fA-F]{6,8}", v):
+        return v.lower()
+    return v
+
+
+def load_design_contract(project_root) -> dict | None:
+    """Read the token contract from <project_root>/DESIGN.md.
+
+    Expected shape -- YAML frontmatter delimited by `---` on its own line at the
+    very start of the file, with two recognised top-level keys:
+
+        ---
+        colors:
+          primary: "#2563EB"
+          text:    "#1F2937"
+        fonts:
+          heading: "Poppins"
+          body:    "Inter"
+        ---
+
+    Values may be quoted or bare. Any other top-level key is ignored rather than
+    rejected, so the file stays useful as human documentation. Format origin:
+    Google Stitch DESIGN.md, with 73 worked examples at
+    https://github.com/voltagent/awesome-design-md (referenced, never vendored).
+
+    Parsed with the stdlib on purpose: the shape is flat `key: value` under two
+    headings, so a real YAML dependency would buy nothing.
+
+    Three states, and they must stay distinct:
+      * file absent               -> None      (gate not run; NOT a failure)
+      * parses, has colors        -> dict      (gate active)
+      * present but unparseable   -> raises DesignContractError (caller STOPS)
+    """
+    path = Path(project_root) / "DESIGN.md"
+    if not path.is_file():
+        return None
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise DesignContractError(f"{path}: unreadable ({exc})") from exc
+
+    match = re.match(r"^---[ \t]*\n(.*?)\n---[ \t]*(?:\n|$)", text, re.S)
+    if not match:
+        raise DesignContractError(
+            f"{path}: no YAML frontmatter -- expected a '---' delimited block at the top of the file"
+        )
+
+    contract: dict[str, dict[str, str]] = {"colors": {}, "fonts": {}}
+    section = None
+    for raw in match.group(1).split("\n"):
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        top = re.fullmatch(r"([A-Za-z_][\w-]*):[ \t]*", raw)
+        if top:
+            key = top.group(1).lower()
+            section = key if key in contract else None
+            continue
+        entry = re.fullmatch(r"[ \t]+([A-Za-z_][\w-]*):[ \t]*(.+?)[ \t]*", raw)
+        if entry and section:
+            contract[section][entry.group(1).lower()] = _normalise_hex(entry.group(2))
+
+    if not contract["colors"]:
+        raise DesignContractError(
+            f"{path}: frontmatter has no non-empty 'colors:' map -- nothing to enforce"
+        )
+
+    return contract
+
+
 def scan_file(path: Path) -> dict:
     """Scan a single UI file for design system violations."""
     try:
