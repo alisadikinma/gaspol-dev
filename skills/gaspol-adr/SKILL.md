@@ -181,11 +181,13 @@ esac
 # Never continue with an empty $KB: git -C "" is a silent wrong answer.
 [ -n "$KB" ] || exit 1
 REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
+NOTE="$KB/$(date +%F)-<slug>.md"        # the file this ADR just wrote
 TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
   echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
 else
-  git -C "$KB" add . && git -C "$KB" commit -q -m "adr: <id> — <title>" || true
+  # PATHSPEC, never `add .` — see skills/_shared/kb-path.md (IDS-8, /security-review)
+  git -C "$KB" add -- "$NOTE" && git -C "$KB" commit -q -m "adr: <id> — <title>" -- "$NOTE" || true
   [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
 fi
 ```

@@ -1,4 +1,8 @@
 ---
+name: gaspol-kb-audit
+description: "Use quarterly, on-demand, or auto-triggered when KB size exceeds 500 entries."
+---
+
 > **Index caveat (IDS-8).** gaspol no longer writes an `INDEX.md` — captures are flat notes
 > carrying their own frontmatter and tags. Where this skill reads or updates an index, it applies
 > **only** to a store that maintains one; against a quarantine folder, grep the notes instead.
@@ -6,10 +10,6 @@
 > (scan → cluster → per-finding decision → apply → audit log) almost completely. Deferred
 > deliberately — one is public and agnostic, the other private and hardcoded to one vault, so
 > the replacement is not like-for-like.
-
-name: gaspol-kb-audit
-description: "Use quarterly, on-demand, or auto-triggered when KB size exceeds 500 entries."
----
 
 # gaspol-kb-audit
 

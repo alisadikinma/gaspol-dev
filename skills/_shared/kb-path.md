@@ -79,11 +79,12 @@ Before any `git commit` / `git push` against the store:
 
 ```bash
 KB="$(skills/_shared/kb-root)" || exit 1
+NOTE="$KB/$(date +%F)-<slug>.md"        # the ONE file this capture wrote
 TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
   echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
 else
-  git -C "$KB" add . && git -C "$KB" commit -q -m "<message>" || true
+  git -C "$KB" add -- "$NOTE" && git -C "$KB" commit -q -m "<message>" -- "$NOTE" || true
   [ -n "${REMOTE:-}" ] && git -C "$KB" push --quiet || true
 fi
 ```
@@ -96,6 +97,13 @@ Three properties this must keep:
 - **The skip is recorded, never silent.** `kb-sync: skipped` is an exact string. A silent skip is
   indistinguishable from a sync that ran, which is the reporting failure `gaspol-finish` already
   forbids for an unavailable `/security-review`.
+- **Stage by pathspec, never `git add .`** (IDS-8, `/security-review`). The comparison above asks
+  *"is `$KB` the repository ROOT?"*, and answers yes for two very different things: a dedicated KB
+  repository gaspol may commit, and somebody's **vault root** pointed at by a mis-set `kb_local`.
+  Structure alone cannot tell them apart, and it never will — so the guard is not the last line of
+  defence. Staging only the note just written is: a wrong ruling then commits one gaspol file
+  instead of the whole working tree, private and untracked files included. A symlinked `kb_local`
+  reaches the same place, since both sides are normalised with `pwd -P`.
 - **`$TOP` empty means not a repo at all** — that is the ordinary case for a plain KB directory,
   and committing is fine there. Only a *mismatch* triggers the refusal.
 

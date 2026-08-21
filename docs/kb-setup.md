@@ -71,12 +71,17 @@ REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os
 # before reads (synced only) — reads are always permitted:
 [ -n "$REMOTE" ] && git -C "$KB" pull --quiet 2>/dev/null || true
 
+NOTE="$KB/$(date +%F)-<slug>.md"     # the ONE file this capture wrote
+
 # OWNERSHIP GUARD — before ANY write-side git operation:
 TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
   echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
 else
-  git -C "$KB" add . 2>/dev/null && git -C "$KB" commit -q -m "<msg>" 2>/dev/null || true
+  # PATHSPEC, never `add .`: the guard asks "is $KB the repo ROOT?", which is true
+  # for a dedicated KB repo AND for a vault root a mis-set kb_local points at
+  # (kb_local is resolved by skills/_shared/kb-root — see skills/_shared/kb-path.md).
+  git -C "$KB" add -- "$NOTE" 2>/dev/null && git -C "$KB" commit -q -m "<msg>" -- "$NOTE" 2>/dev/null || true
   [ -n "$REMOTE" ] && git -C "$KB" push --quiet 2>/dev/null || true
 fi
 ```

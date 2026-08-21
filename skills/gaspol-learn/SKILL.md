@@ -193,11 +193,17 @@ esac
 # Never continue with an empty $KB: git -C "" is a silent wrong answer.
 [ -n "$KB" ] || exit 1
 REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
+NOTE="$KB/$(date +%F)-<slug>.md"        # the file this capture just wrote
 TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
   echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
 else
-  git -C "$KB" add . && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" || true
+  # PATHSPEC, never `add .` (IDS-8, /security-review). The guard above asks "is
+  # $KB the repo ROOT?", which is the right question for a dedicated KB repo and
+  # the WRONG one for somebody's vault root — and a wrong answer there staged the
+  # entire working tree. Staging only the note gaspol just wrote bounds the damage
+  # to gaspol's own file no matter how the guard rules.
+  git -C "$KB" add -- "$NOTE" && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" -- "$NOTE" || true
   # push ONLY if a remote is configured (kb_remote / $GASPOL_KB_REMOTE):
   [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
 fi

@@ -15,6 +15,14 @@
 # resolver was right; its three callers were wrong. So this test extracts the
 # fenced bash out of the SKILL.md files and EXECUTES it under an isolated HOME.
 # Text assertions cannot catch a control-flow bug.
+#
+# READ THIS BEFORE EDITING A KB BLOCK: in this repository a fenced ```bash block
+# in a SKILL.md is not documentation, it is the instruction an agent runs -- and
+# this test runs it too. So a pull request that "only touches markdown" is a pull
+# request that changes code the suite executes on a maintainer's machine. The
+# extractor is anchored on the block's FIRST line and asserts exactly one match,
+# so it cannot be silently pointed at a different block; it cannot make the block
+# itself safe, and nothing can. Review these blocks as code.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,8 +39,22 @@ SKILLS=(gaspol-learn gaspol-adr gaspol-research)
 # the author's machine is not a gate.
 must_create() { case "$1" in gaspol-learn|gaspol-adr) echo yes ;; *) echo no ;; esac; }
 
-extract() {   # the ONE fenced bash block that calls the resolver
-    awk '/^```bash$/{inb=1;buf="";next} /^```$/{if(inb&&buf ~ /kb-root/)print buf; inb=0; next} inb{buf=buf"\n"$0}' "$1"
+# The ONE fenced bash block whose FIRST line assigns from the resolver. Anchored
+# on that opening line rather than on "contains kb-root anywhere", because this
+# function EXECUTES what it returns: a substring match would run any block that
+# merely mentions the resolver in a comment, so a PR that only edits prose would
+# become code the suite runs. Anchoring means the author has to change the
+# block's first line -- a line a reviewer reads as code -- to redirect it.
+extract() {
+    awk '/^```bash$/{inb=1;first=1;buf="";next}
+         /^```$/{if(inb&&hit)print buf; inb=0; hit=0; next}
+         inb{if(first){hit=($0 ~ /^KB="\$\(.*kb-root/); first=0}; buf=buf"\n"$0}' "$1"
+}
+count_blocks() {   # how many blocks the anchor matched, so "exactly one" is asserted, not assumed
+    awk '/^```bash$/{inb=1;first=1;next}
+         /^```$/{if(inb&&hit)c++; inb=0; hit=0; next}
+         inb{if(first){hit=($0 ~ /^KB="\$\(.*kb-root/); first=0}}
+         END{print c+0}' "$1"
 }
 
 for s in "${SKILLS[@]}"; do
@@ -46,6 +68,9 @@ for s in "${SKILLS[@]}"; do
     [ -n "$blk" ] || fail "$f — extracted no bash block calling kb-root; the extractor is broken, so every verdict below would be vacuous"
     printf '%s' "$blk" | grep -q 'kb-root' \
         || fail "$f — extracted block does not call kb-root; wrong block matched"
+    nb="$(count_blocks "$f")"
+    [ "$nb" = "1" ] \
+        || fail "$f — the anchor matched $nb blocks, expected exactly 1. This function's output is EXECUTED; an ambiguous match means the suite runs a block nobody chose"
 
     # ---- state 4: nothing configured, no default dir. NOT a failure. ----
     H="$(mktemp -d)"
