@@ -68,10 +68,15 @@ done
 
 # --- the gate that must survive the restructure -----------------------------
 echo "test-kb-write-format: the quality gate survived..."
-grep -qE '200[ -]word|>= ?200|≥ ?200|min.{0,10}200' "$LEARN" \
-    || fail "gaspol-learn's >=200-word quality gate is gone — it is the ONLY thing gaspol adds that memory-extract.sh does not, so losing it turns this merge into a pure downgrade"
-grep -qiE 'reject' "$LEARN" \
-    || fail "gaspol-learn no longer describes rejecting a capture — a gate that cannot reject is not a gate"
+# BOTH halves, separately. A single "does 200 appear anywhere" check passed a
+# sabotage that halved the threshold, because the OTHER gate line still carried
+# the digits. Weakening either half must fail.
+grep -qE '(≥|>=) ?200 ?word' "$LEARN" \
+    || fail "the ACCEPT threshold (body ≥200 words) is gone or weakened — it is the ONLY thing gaspol adds that memory-extract.sh does not, so losing it turns this merge into a pure downgrade"
+grep -qiE '< ?200 ?word.*reject|reject.*< ?200 ?word' "$LEARN" \
+    || fail "the REJECT rule for a body under 200 words is gone — a threshold with no rejection is a suggestion, not a gate"
+grep -c '200' "$LEARN" | grep -qE '^[2-9]|^[0-9]{2,}' \
+    || fail "fewer than two 200-word gate references remain — the accept threshold and the reject rule are separate lines and both must survive"
 
 # --- sole-promoter rule stated where a reader will meet it ------------------
 echo "test-kb-write-format: the sole-promoter rule is written down..."
