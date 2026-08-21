@@ -63,7 +63,7 @@ If `gaspol-worktree` reports you are already in a linked worktree, proceed — d
 Once the task list is confirmed and the workspace is isolated, **execute all tasks continuously — do not pause to check in between tasks.** Fresh subagent per task already prevents context drift; mid-run "Should I continue?" prompts and per-task progress summaries waste the user's time. The user asked you to execute the plan, so execute it.
 
 **The only reasons to stop mid-run:**
-- A spec/quality review fails after 3 fix attempts (escalate — see Handling Failures).
+- The fix loop trips its round-5 breaker AND adjudicating the open findings still leaves every path forward a guess (see The Fix Loop).
 - A genuine ambiguity in a task blocks progress (ask via AskUserQuestion).
 - An Iron Law violation or destructive operation is required (always pause).
 - All tasks complete.
@@ -280,10 +280,8 @@ Dispatch the spec reviewer using `spec-reviewer-prompt.md` (pass the review-pack
 - Checks for placeholder data (CRITICAL)
 - Returns: spec-compliant OR list of issues
 
-**Fix → re-review loop:** if issues are found, dispatch a fix (yourself or a fresh implementer
-subagent) and then **RE-RUN the spec review** — do not accept "I fixed it" without a clean
-re-review. Loop until spec passes; do NOT proceed to quality review until it does. After 3
-loops still failing → escalate (see Handling Failures).
+**Fix → re-review loop:** if issues are found, run **The Fix Loop** below — do not accept
+"I fixed it" without a clean re-review. Do NOT proceed to quality review until spec passes.
 
 #### Step 6: Code Quality Review
 
@@ -298,9 +296,41 @@ finding, dispatch one refuter subagent per finding (default REFUTED) to kill fal
 otherwise the fix → re-review loop below burns turns chasing hallucinated bugs. Drop REFUTED
 findings; only CONFIRMED (or unverifiable) ones proceed.
 
-**Fix → re-review loop:** for surviving Critical/Important findings, dispatch a fix subagent then
-**RE-RUN the quality review** until clean. Note Minor issues (fix if quick, else track). Do not
-mark the task complete with unresolved Critical/Important findings.
+**Fix → re-review loop:** surviving Critical/Important findings go through **The Fix Loop**
+below. Note Minor issues in the ledger (`Task <N>: minor (deferred): <one-liner>`) and point
+the final review at that list — a roll-up nobody reads is a silent discard. Minor findings
+never enter the loop. Do not mark the task complete with unresolved Critical/Important
+findings.
+
+##### The Fix Loop
+
+A fix round is one fix dispatch plus one scoped re-review. **Five rounds maximum per task.**
+
+**Rounds 1-3 — resume the original implementer.** Send it the open findings verbatim. Its
+context is intact: it knows the task, the code, and its own choices. If your harness cannot
+message a live subagent, dispatch a fresh one carrying the brief path, the report-file path,
+and the findings — the report file is the persistent memory either way.
+
+**Rounds 4-5 — dispatch a fresh implementer one model tier above** the one that got stuck
+(see `docs/rubric-model-switching.md`), framed as: "a prior implementer attempted this task
+N times; you own it now — read the report file for what was tried." A loop that survives
+three resumes usually means the implementer cannot see its own problem. Fresh eyes and a
+capability bump, in one move.
+
+**Every round, either way:** the implementer fixes, re-runs the tests covering the amended
+code, and appends its fix report to the same report file. Before re-dispatching the
+reviewer, confirm the fix report contains **the covering tests, the command run, and its
+output** — all three. Name the covering test files in the fix message; a one-line fix does
+not need the whole suite.
+
+**Round 5 is the breaker, not a wall.** When it trips, **adjudicate** each still-open
+finding yourself: weigh it against the plan text with the spec as the binding authority,
+record the ruling in the ledger, and continue. Stop and ask the user only when every path
+forward is a guess.
+
+**A finding that conflicts with what the plan mandates is yours to rule on** before you act
+on it. Do not dismiss the finding because the plan mandates it, and do not dispatch a fix
+that contradicts the plan without a recorded ruling.
 
 #### Step 7: Mark Complete
 
@@ -466,9 +496,12 @@ Task 2/5: Add session persistence hook
 - If task is genuinely blocked by missing infrastructure, skip and note for user
 
 ### Spec Review Keeps Failing
-- After 3 attempts, stop and escalate to user
-- Something may be wrong with the spec, not the implementation
-- Present: what was attempted, what keeps failing, proposed resolution
+- Run The Fix Loop: rounds 1-3 resume the implementer, rounds 4-5 bring fresh eyes one model
+  tier up. Do not blind-retry the same model with nothing changed.
+- If the round-5 breaker trips, something may be wrong with the spec rather than the
+  implementation. Adjudicate each open finding and record the ruling.
+- Escalate to the user only when adjudication leaves every path forward a guess. Present:
+  what was attempted across the rounds, what keeps failing, proposed resolution.
 
 ### Quality Review Finds Architectural Issues
 - If the architecture was specified in the plan, this is a spec issue (go back to spec)
