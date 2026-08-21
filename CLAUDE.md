@@ -357,6 +357,12 @@ reader; no YAML dependency for a flat `key: value` shape.
 | parses | gate active |
 | present but unparseable | `design-contract: UNKNOWN` → **STOP and ask**. A broken contract must never degrade to an empty one — an empty contract reads as "nothing violated". |
 
+**Fonts have their own three states.** Declared and used → silent; declared and violated →
+BLOCKS; **no `fonts:` map at all** → reported but unjudged, with `font-gate: not run` recorded.
+The third state exists because collapsing it into "compliant" was this ticket's own defect one
+layer down — `extract-design-tokens` emits colours only, so adopting a contract via the
+documented path turned `Hardcoded fonts: 2` into `Hardcoded fonts: 0`.
+
 **Severity by CSS role, not judgement.** Structural (`color`, `background`, `border-color`,
 `fill`, `stroke`, Tailwind `bg-[…]`/`text-[…]`/`border-[…]`) **BLOCKS**; decorative
 (`box-shadow`, `outline-color`, anything with alpha) **WARNs**. A colour that IS in the contract

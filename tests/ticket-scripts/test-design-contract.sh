@@ -232,6 +232,38 @@ if echo "$OUT" | grep -qi 'poppins'; then
     fail "Poppins IS in the contract and must produce no finding — compliant means silent. Got: $OUT"
 fi
 
+# --- A colors-only contract must not SILENCE font findings ------------------
+#     extract-design-tokens emits colours only, so this is the documented
+#     onboarding path. Before this guard, adopting a contract turned
+#     "Hardcoded fonts: 2" into "Hardcoded fonts: 0" — which reads as
+#     checked-and-clean when nothing was checked. Three states, like colours:
+#     declared+used -> silent, declared+violated -> BLOCKING, no fonts map ->
+#     reported unjudged AND recorded as a gate that did not run.
+
+echo "test-design-contract: colors-only contract does not silence fonts..."
+CONLY="$TMP_DIR/colorsonly"
+mkdir -p "$CONLY/src"
+printf -- '---\ncolors:\n  primary: "#2563eb"\n---\n' >"$CONLY/DESIGN.md"
+printf '.h { font-family: Poppins; }\n.x { font-family: Comic Sans; }\n' >"$CONLY/src/t.css"
+
+NO_CONTRACT_FONTS="$(cd "$CONLY" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d
+print(sum(len(f['hardcoded_fonts']) for f in d.scan_files(['src/t.css'])))
+")"
+WITH_CONTRACT_FONTS="$(cd "$CONLY" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d
+c = d.load_design_contract('.')
+print(sum(len(f['hardcoded_fonts']) for f in d.scan_files(['src/t.css'], contract=c)))
+")"
+[ "$WITH_CONTRACT_FONTS" = "$NO_CONTRACT_FONTS" ] \
+    || fail "adopting a colors-only DESIGN.md changed font findings from $NO_CONTRACT_FONTS to $WITH_CONTRACT_FONTS — a contract with no fonts: map must leave font reporting exactly as it was, not silence it"
+
+# ...and the report must SAY the font gate did not run, rather than printing
+# "Hardcoded fonts: N" as though it had been judged.
+OUT="$(cd "$CONLY" && python3 "$AUDIT_DIR/design_audit.py" . 2>&1 || true)"
+echo "$OUT" | grep -qi 'font-gate: not run' \
+    || fail "a contract with no fonts: map must record 'font-gate: not run' — otherwise the font count reads as judged. Got: $OUT"
+
 # --- Phase C: no DESIGN.md must behave exactly as before --------------------
 
 echo "test-design-contract: no-contract regression..."
@@ -243,7 +275,19 @@ import json, design_audit as d
 print(json.dumps(d.scan_files(['src/App.tsx']), sort_keys=True))
 ")"
 echo "$BEFORE" | grep -q 'severity' \
-    && fail "with no DESIGN.md, findings gained a severity field — the no-contract path must stay byte-identical to pre-IDS-7 output"
+    && fail "with no DESIGN.md, findings gained a severity field — the no-contract path must stay unchanged from pre-IDS-7 output"
+
+# The checkbox excludes style files because D4 makes them scanned for the first
+# time. That exclusion has to be a TESTED claim, not a loophole: prove a .css
+# file really is scanned now, so "style files may differ" means D4 works rather
+# than that nobody looked.
+printf '.q { background: #abcdef; }\n' >"$NOC/src/s.css"
+STYLE_SCANNED="$(cd "$NOC" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d
+print(len(d.scan_files(['src/s.css'])))
+")"
+[ "$STYLE_SCANNED" = "1" ] \
+    || fail "a .css file is still not scanned — the plan checkbox excludes style files on the grounds that D4 changed them, so if D4 does not work the exclusion is a loophole"
 
 # --- Phase C: the --design-system flag is read, or gone. Never both. --------
 

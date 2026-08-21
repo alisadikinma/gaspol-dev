@@ -238,13 +238,19 @@ gate is worth less than a noisy one.
 - [ ] Colour present in the contract → 0 findings (not "a finding with low severity")
 - [ ] Off-contract `bg-[#…]` → BLOCKING; off-contract `shadow-[…]` → WARN; `rgba(...,0.05)` → WARN
 - [ ] `grep -n "design_system" skills/gaspol-verify/scripts/design_audit.py` shows it either genuinely read or entirely gone — a parsed-but-unread flag is the defect this phase exists to kill
-- [ ] With no `DESIGN.md`, the VERDICT, the findings list and the exit code are unchanged from
-      pre-IDS-7 for the same input, and no finding gains a `severity` field.
-      **DEVIATION (recorded 2026-08-21, plan-verifier finding 3):** the original wording said
-      "byte-identical", which Phase D4 made unsatisfiable in the same ticket — scanning `.css`
-      for the first time necessarily changes output for any project with stylesheets, and the
-      report gains a `design-contract:` line by design. The checkbox contradicted the plan's
-      own D4 fix; it is narrowed to the behaviour that actually needs guarding.
+- [ ] With no `DESIGN.md`, for a **non-style** input file (`.tsx/.jsx/.vue/.svelte/.astro/.html`)
+      the per-file findings, the verdict and the exit code are unchanged from pre-IDS-7, and no
+      finding gains a `severity` field. Style files (`.css/.scss/.sass`) are **expected** to
+      differ — D4 makes them scanned for the first time.
+
+      **DEVIATION (recorded 2026-08-21, plan-verifier findings 3 and 4):** the original wording
+      said "byte-identical", which Phase D4 made unsatisfiable inside the same ticket — a
+      project with stylesheets necessarily produces different output once `.css` is scanned,
+      and the report gains a `design-contract:` line by design. The first narrowing still said
+      "the findings list is unchanged", which contradicts D4 on the very axis it cited; the
+      re-review caught that the guarding fixture was `.tsx`-only, so nothing tested the
+      contradiction. This wording excludes style files explicitly instead of implying they are
+      covered.
 - [ ] No placeholder/TODO comments in new code
 
 ---

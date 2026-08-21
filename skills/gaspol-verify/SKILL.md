@@ -344,8 +344,13 @@ marketplace skill without asking.
 Stated precisely, because until v1.17 this list claimed a contrast check the script did not
 contain:
 
-- **Design tokens** — colours and fonts against `DESIGN.md`, severity split by CSS role.
-  Without a contract, it reports hex/font literals without judging them.
+- **Design tokens** — colours against `DESIGN.md`'s `colors:` map, severity split by CSS role.
+  Fonts against its `fonts:` map, if it declares one: an undeclared family BLOCKS. When the
+  contract declares **no** `fonts:` map — which is what `extract-design-tokens` produces, since
+  it extracts colours only — font findings are still reported but **unjudged**, and the run
+  records `font-gate: not run`. They are never silenced: a `Hardcoded fonts: 0` that nobody
+  computed reads as checked-and-clean.
+  Without any contract, it reports hex/font literals without judging either.
 - **Contrast** — WCAG 2.1 AA ratios computed for the **contract's own** foreground/background
   token pairs (4.5:1 body, 3:1 large text). Where no pairing can be determined it reports
   `no declared pairing` rather than grading an assumed pair. It does **not** compute contrast

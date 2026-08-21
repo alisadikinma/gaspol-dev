@@ -290,11 +290,24 @@ def _font_severity(line_text: str, contract: dict | None) -> str | None:
     defect D1's shape -- a contract key consulted only by len() -- rebuilt
     inside the fix for D1.
 
-    Returns None when there is no contract, when the contract declares no fonts
-    (nothing to enforce), or when a declared family is used: compliant is silent.
+    Three outcomes, and the middle one is the whole point of this docstring:
+
+      * "BLOCKING"  -- a family is declared and this is not it
+      * None        -- a declared family is used: compliant means silent
+      * "UNJUDGED"  -- the contract has NO `fonts:` map, so nothing can be
+                       judged. The finding is still REPORTED, exactly as it was
+                       before any contract existed.
+
+    `UNJUDGED` exists because collapsing it into None was the same defect this
+    ticket exists to kill, one layer down. `extract-design-tokens` emits colours
+    only, so the documented onboarding path produces a colours-only contract --
+    and adopting one turned `Hardcoded fonts: 2` into `Hardcoded fonts: 0`. A
+    count of zero reads as checked-and-clean; nothing had been checked.
     """
-    if not contract or not contract.get("fonts"):
+    if not contract:
         return None
+    if not contract.get("fonts"):
+        return "UNJUDGED"
 
     declared = {v.strip().strip("\"'").lower() for v in contract["fonts"].values()}
     used = re.search(r"font-family\s*[:=]\s*(.+?)(?:;|}|$)", line_text)
@@ -380,8 +393,11 @@ def scan_file(path: Path, contract: dict | None = None) -> dict:
             if contract:
                 severity = _font_severity(content.split("\n")[line_num - 1], contract)
                 if severity is None:
-                    continue  # the family IS declared -- compliant means silent
-                item["severity"] = severity
+                    continue  # a declared family is used -- compliant means silent
+                if severity != "UNJUDGED":
+                    item["severity"] = severity
+                # UNJUDGED: no fonts: map, so report it exactly as the
+                # no-contract path does -- unjudged, but never silenced.
             findings["hardcoded_fonts"].append(item)
 
     findings["responsive_breakpoints"] = bool(RESPONSIVE_INDICATORS.search(content))
@@ -605,6 +621,8 @@ def main():
             if contract is None
             else f"design-contract: loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
         )
+        if contract and not contract.get("fonts"):
+            print("font-gate: not run — DESIGN.md declares no fonts: map, font findings below are unjudged")
         for f in contrast_findings:
             print(f"  {f['severity']}: {f['message']}")
         print()
