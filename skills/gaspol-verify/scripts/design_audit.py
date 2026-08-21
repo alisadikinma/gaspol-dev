@@ -38,6 +38,11 @@ HARDCODED_COLOR_PATTERNS = [
     re.compile(r"(?:color|background|bg|border|fill|stroke)[:=][\s'\"`]*rgba?\("),
     # Tailwind arbitrary values
     re.compile(r"\b(?:bg|text|border)-\[#[0-9a-fA-F]{3,8}\]"),
+    # Decorative colour carriers. Detected so they can be classified WARN --
+    # before IDS-7 they were invisible, so the docs promised a WARN for
+    # shadows that the scanner could never emit.
+    re.compile(r"\b(?:shadow|drop-shadow|ring)-\[[^\]]*#[0-9a-fA-F]{3,8}[^\]]*\]"),
+    re.compile(r"(?:box-shadow|text-shadow)\s*:[^;}]*(?:#[0-9a-fA-F]{3,8}|rgba?\()"),
 ]
 
 HARDCODED_FONT_PATTERNS = [
@@ -252,6 +257,65 @@ def check_contract_contrast(contract: dict | None) -> list[dict]:
     return findings
 
 
+def _declaration_at(line_text: str, match_text: str) -> str:
+    """The single declaration containing `match_text`, not the whole line.
+
+    Classifying on the whole line was a real hole: one minified rule such as
+    `.a { background: #ff0000; box-shadow: 0 1px 2px rgba(0,0,0,.05) }` reported
+    the structural violation as WARN because a decorative property shared the
+    line -- and so did any Tailwind `className="shadow-[…] bg-[…]"`. Classifying
+    on the bare match is the opposite error: the property name sits outside the
+    matched fragment, so the WARN branch becomes unreachable.
+
+    A Tailwind arbitrary value is bounded by whitespace or a quote; a CSS
+    declaration is bounded by `;`, `{` or `}`.
+    """
+    idx = line_text.find(match_text)
+    if idx < 0:
+        return match_text
+
+    delims = " \t\"'`" if "-[" in match_text else ";{}"
+    start = max((line_text.rfind(d, 0, idx) for d in delims), default=-1)
+    end_candidates = [line_text.find(d, idx + len(match_text)) for d in delims]
+    end_candidates = [e for e in end_candidates if e != -1]
+    end = min(end_candidates) if end_candidates else len(line_text)
+    return line_text[start + 1 : end]
+
+
+def _font_severity(line_text: str, contract: dict | None) -> str | None:
+    """Classify a font declaration against the contract's `fonts:` map.
+
+    Typography drift is exactly the complaint this gate exists for, so an
+    off-contract family BLOCKS. Parsing `fonts:` and never reading it would be
+    defect D1's shape -- a contract key consulted only by len() -- rebuilt
+    inside the fix for D1.
+
+    Returns None when there is no contract, when the contract declares no fonts
+    (nothing to enforce), or when a declared family is used: compliant is silent.
+    """
+    if not contract or not contract.get("fonts"):
+        return None
+
+    declared = {v.strip().strip("\"'").lower() for v in contract["fonts"].values()}
+    used = re.search(r"font-family\s*[:=]\s*(.+?)(?:;|}|$)", line_text)
+    if not used:
+        used = re.search(r"font-\[([^\]]+)\]", line_text)
+    if not used:
+        return "BLOCKING"
+
+    families = [
+        f.strip().strip("\"'").replace("_", " ").lower()
+        for f in used.group(1).split(",")
+    ]
+    # Generic fallbacks are not brand fonts; a stack is compliant when its FIRST
+    # real family is declared.
+    generics = {"sans-serif", "serif", "monospace", "cursive", "fantasy", "system-ui", "inherit"}
+    real = [f for f in families if f and f not in generics]
+    if real and real[0] in declared:
+        return None
+    return "BLOCKING"
+
+
 def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> str | None:
     """Classify one colour occurrence against the token contract.
 
@@ -275,7 +339,8 @@ def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> 
     if literals and all(lit in allowed for lit in literals):
         return None
 
-    if DECORATIVE_COLOR_ROLE.search(line_text) or TRANSPARENT_COLOR.search(line_text):
+    scope = _declaration_at(line_text, match_text)
+    if DECORATIVE_COLOR_ROLE.search(scope) or TRANSPARENT_COLOR.search(scope):
         return "WARN"
     return "BLOCKING"
 
@@ -311,7 +376,13 @@ def scan_file(path: Path, contract: dict | None = None) -> dict:
     for pattern in HARDCODED_FONT_PATTERNS:
         for match in pattern.finditer(content):
             line_num = content[: match.start()].count("\n") + 1
-            findings["hardcoded_fonts"].append({"line": line_num, "match": match.group()})
+            item = {"line": line_num, "match": match.group()}
+            if contract:
+                severity = _font_severity(content.split("\n")[line_num - 1], contract)
+                if severity is None:
+                    continue  # the family IS declared -- compliant means silent
+                item["severity"] = severity
+            findings["hardcoded_fonts"].append(item)
 
     findings["responsive_breakpoints"] = bool(RESPONSIVE_INDICATORS.search(content))
 
@@ -409,6 +480,11 @@ def summarize(findings: list[dict]) -> dict:
         1
         for f in findings
         for c in f.get("hardcoded_colors", [])
+        if c.get("severity") == "BLOCKING"
+    ) + sum(
+        1
+        for f in findings
+        for c in f.get("hardcoded_fonts", [])
         if c.get("severity") == "BLOCKING"
     )
     total_hardcoded_fonts = sum(len(f.get("hardcoded_fonts", [])) for f in findings)

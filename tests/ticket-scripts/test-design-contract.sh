@@ -170,6 +170,68 @@ if echo "$OUT" | grep -qi '1f2937'; then
     fail "matching is case-sensitive — #1F2937 in source did not match #1f2937 in the contract"
 fi
 
+# --- Phase C: a decorative token on the SAME LINE must not downgrade a
+#     structural violation. Classifying on the whole line turned every minified
+#     stylesheet and every Tailwind className string into a free pass:
+#     `.a { background: #ff0000; box-shadow: 0 1px 2px #000 }` reported WARN.
+#     Scope is the DECLARATION, not the line and not the bare match.
+
+echo "test-design-contract: declaration scoping..."
+MIX="$TMP_DIR/mixed"
+mkdir -p "$MIX/src"
+cp "$GOOD/DESIGN.md" "$MIX/DESIGN.md"
+cat >"$MIX/src/min.css" <<'EOF'
+.a { background: #ff0000; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+EOF
+cat >"$MIX/src/Tw.tsx" <<'EOF'
+export const T = () => <div className="shadow-[#654321] bg-[#999999]">x</div>;
+EOF
+OUT="$(cd "$MIX" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d
+c = d.load_design_contract('.')
+for f in d.scan_files(['src/min.css', 'src/Tw.tsx'], contract=c):
+    for i in f['hardcoded_colors']:
+        print(i['severity'], i['match'])
+")"
+echo "$OUT" | grep -q 'BLOCKING.*#ff0000' \
+    || fail "background: #ff0000 downgraded to WARN because a box-shadow shared its line — one minified CSS line then defeats the whole gate. Got: $OUT"
+echo "$OUT" | grep -q 'BLOCKING.*bg-\[#999999\]' \
+    || fail "bg-[#999999] downgraded because shadow-[…] sat in the same className string. Got: $OUT"
+# And the decorative ones on those very same lines stay WARN, so the fix
+# narrowed the scope rather than deleting the WARN branch.
+echo "$OUT" | grep -qi 'WARN.*rgba' \
+    || fail "the box-shadow rgba() on the same line should still be WARN — the fix removed the WARN branch instead of scoping it. Got: $OUT"
+echo "$OUT" | grep -q 'WARN.*shadow-\[#654321\]' \
+    || fail "shadow-[#654321] is not detected at all — the docs promise it WARNs, so either detect it or stop promising it. Got: $OUT"
+
+# --- Phase C: FONTS are enforced too, not just parsed -----------------------
+#     The contract has a `fonts:` map and the docs claim fonts are checked.
+#     Parsing it and never reading it is defect D1's exact shape, rebuilt
+#     inside the fix for D1.
+
+echo "test-design-contract: fonts are enforced..."
+FNT="$TMP_DIR/fonts"
+mkdir -p "$FNT/src"
+cp "$GOOD/DESIGN.md" "$FNT/DESIGN.md"   # fonts: heading Poppins, body Inter
+cat >"$FNT/src/type.css" <<'EOF'
+.h { font-family: Poppins, sans-serif; }
+.x { font-family: "Comic Sans MS", cursive; }
+EOF
+OUT="$(cd "$FNT" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d
+c = d.load_design_contract('.')
+for f in d.scan_files(['src/type.css'], contract=c):
+    for i in f['hardcoded_fonts']:
+        print(i.get('severity', 'NO-SEVERITY'), i['match'])
+")"
+echo "$OUT" | grep -q 'NO-SEVERITY' \
+    && fail "font findings carry no severity — the contract's fonts: map is parsed and never read, which is exactly the --design-system defect this ticket exists to kill. Got: $OUT"
+echo "$OUT" | grep -qi 'BLOCKING' \
+    || fail "an off-contract font (Comic Sans MS) was not BLOCKED. Got: $OUT"
+if echo "$OUT" | grep -qi 'poppins'; then
+    fail "Poppins IS in the contract and must produce no finding — compliant means silent. Got: $OUT"
+fi
+
 # --- Phase C: no DESIGN.md must behave exactly as before --------------------
 
 echo "test-design-contract: no-contract regression..."
@@ -229,7 +291,12 @@ for f in d.check_contract_contrast(d.load_design_contract('$LOWC')):
 ")" || fail "check_contract_contrast is missing"
 echo "$OUT" | grep -qi 'text' || fail "the low-contrast finding does not name the text token: $OUT"
 echo "$OUT" | grep -qi 'surface' || fail "the low-contrast finding does not name the surface token: $OUT"
-echo "$OUT" | grep -q '4\.4\|4\.5' || fail "the finding does not quote the measured ratio: $OUT"
+# Assert the MEASURED ratio, not the AA constant. `grep '4\.5'` passed
+# unconditionally because "below WCAG AA 4.5:1" contains it whatever the
+# computation did — a vacuous assertion (KB: vacuous-assertion-proves-nothing).
+# #777777 on #ffffff measures 4.48, a number that appears only if it was computed.
+echo "$OUT" | grep -q '4\.48:1' \
+    || fail "the finding does not quote the MEASURED ratio (expected 4.48:1 for #777777 on white): $OUT"
 
 # No determinable pairing -> say so. Never invent a pairing and grade it.
 NOPAIR="$TMP_DIR/nopair"

@@ -238,7 +238,13 @@ gate is worth less than a noisy one.
 - [ ] Colour present in the contract → 0 findings (not "a finding with low severity")
 - [ ] Off-contract `bg-[#…]` → BLOCKING; off-contract `shadow-[…]` → WARN; `rgba(...,0.05)` → WARN
 - [ ] `grep -n "design_system" skills/gaspol-verify/scripts/design_audit.py` shows it either genuinely read or entirely gone — a parsed-but-unread flag is the defect this phase exists to kill
-- [ ] With no `DESIGN.md`, output is byte-identical to pre-IDS-7 behaviour for the same input
+- [ ] With no `DESIGN.md`, the VERDICT, the findings list and the exit code are unchanged from
+      pre-IDS-7 for the same input, and no finding gains a `severity` field.
+      **DEVIATION (recorded 2026-08-21, plan-verifier finding 3):** the original wording said
+      "byte-identical", which Phase D4 made unsatisfiable in the same ticket — scanning `.css`
+      for the first time necessarily changes output for any project with stylesheets, and the
+      report gains a `design-contract:` line by design. The checkbox contradicted the plan's
+      own D4 fix; it is narrowed to the behaviour that actually needs guarding.
 - [ ] No placeholder/TODO comments in new code
 
 ---

@@ -42,6 +42,17 @@ grep -qF "wig-lane: not run" "$VERIFY" \
 has "$VERIFY" "never.*passed\|not.*as passed" \
     "expected an explicit prohibition on recording the lane as passed when it did not run"
 
+# The presence check above proves a prohibition EXISTS. It cannot fail if text
+# CONTRADICTING it is added later, which is the failure mode that actually
+# matters. This is the genuinely negative half.
+# Find any sentence that records the lane as passed, EXCLUDING the negated ones
+# — "Never record the lane as passed" is the prohibition itself, and a pattern
+# that cannot tell it from an endorsement flags the correct file.
+if grep -iE 'record[a-z]* .{0,40}as passed|wig-lane: passed' "$VERIFY" \
+     | grep -qivE 'never|not |must not|prohibit'; then
+    fail "gaspol-verify/SKILL.md contains an UNNEGATED instruction recording the WIG lane as passed — a lane that did not run must never be recorded as passing"
+fi
+
 echo "test-wig-lane: fetch-don't-fork..."
 if grep -rqi "prefers-reduced-motion" "$REPO_ROOT/skills/gaspol-verify/rules/" 2>/dev/null; then
     fail "the Web Interface Guidelines look vendored into skills/gaspol-verify/rules/ — the whole point is fetch-don't-fork; the 1.4MB gaspol-design fork drifted and was deleted in v1.14"
