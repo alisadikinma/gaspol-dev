@@ -91,6 +91,13 @@ Three properties this must keep:
 - **`$TOP` empty means not a repo at all** — that is the ordinary case for a plain KB directory,
   and committing is fine there. Only a *mismatch* triggers the refusal.
 
+**The guard stops gaspol, not the host.** Observed during IDS-8's own migration: seventeen files
+were written into a vault and, minutes later, appeared in a commit titled `vault: auto-sync` —
+made and pushed by the vault's own timer, not by gaspol. So the guard prevents gaspol from
+authoring a commit; it does **not** buy the user a review window, and must never be described as
+if it did. Where that matters, say what was written and let the person decide what to do about it
+before their own sync runs.
+
 The hazard is inert today: with no `gaspol-config.json` the mode is local-only and there is no
 remote to push to. It arms itself the day `kb_remote` is set, which is exactly when nobody will
 remember the connection.

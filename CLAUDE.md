@@ -454,6 +454,9 @@ like `ui-ux-pro-max`: say so, name the setting, continue.
 repository — record `kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)`
 and continue. **Reads stay allowed**; refusing them would disable the very lookup this change
 strengthens. Verified live: `TOP` resolves to the vault root, not the inbox folder.
+**The guard stops gaspol, not the host** — IDS-8's own migration was committed and pushed minutes
+later by the vault's own `auto-sync` timer. It prevents gaspol from authoring a commit; it does not
+give the user a review window, and must not be described as if it did.
 
 **Code index lane** (`gaspol-sync-docs`, which `gaspol-finish` already calls at Step 5 — no new
 gate): `graphify-out/` + CLI on PATH → `graphify update .`, record `graphify: updated`; marker
