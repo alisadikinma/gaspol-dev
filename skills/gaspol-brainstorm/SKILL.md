@@ -54,8 +54,10 @@ BEFORE asking clarifying questions, query cross-project KB for precedent.
 KB works out of the box (local-only). It only disables on explicit "kb_mode": "off".
 ```
 
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
 0. **Resolve KB mode** (see [docs/kb-setup.md](../../docs/kb-setup.md)): `off` (config has `"kb_mode":"off"`) → skip Phase 0.5 silently. Otherwise auto-init the local KB if missing (mkdir structure + `git init`) and proceed — no config needed.
-1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C ~/.claude/gaspol-knowledge pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
+1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C <KB_ROOT> pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
 3. **Grep INDEX.md** — `grep -i "<tag1>|<tag2>" INDEX.md`
 4. **Filter by status** — default show only `status: accepted` entries; optionally include `proposed`
@@ -407,6 +409,6 @@ Before finalizing:
   - `gaspol-research` (Phase 1.5 when novelty = NEW)
   - `ui-ux-pro-max` plugin skill (Phase 2.5/3 for UI work)
   - `gaspol-adr` (Phase 2 when user picks approach from 2+ options)
-- **Reads from KB:** `gaspol-knowledge/` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
+- **Reads from KB:** `<KB_ROOT>` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
 - **Writes to KB:** via `gaspol-adr` (decisions) and (after gaspol-finish) `gaspol-learn` (patterns)
 - **Leads to:** `gaspol-plan` (after design approved — writes a separate `-plan.md` file, same ticket)

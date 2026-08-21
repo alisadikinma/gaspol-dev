@@ -18,23 +18,21 @@ Stop at the first rung that yields a path:
 2. **`kb_local`** in `~/.claude/gaspol-config.json` — the durable, machine-wide setting.
 3. **`~/.claude/gaspol-knowledge`** — the default, used when nothing is configured.
 
+**Use the script, not a hand-rolled snippet:** `skills/_shared/kb-root` prints the resolved path
+on stdout and reports the state through its exit code.
+
 ```bash
-kb_root() {
-  if [ -n "${GASPOL_KB_LOCAL:-}" ]; then
-    printf '%s\n' "${GASPOL_KB_LOCAL/#\~/$HOME}"; return
-  fi
-  cfg="$HOME/.claude/gaspol-config.json"
-  if [ -f "$cfg" ]; then
-    v=$(python3 -c 'import json,os,sys
-try: d=json.load(open(sys.argv[1]))
-except Exception: sys.exit(0)
-p=d.get("kb_local")
-if p: print(os.path.expanduser(p))' "$cfg" 2>/dev/null)
-    [ -n "$v" ] && { printf '%s\n' "$v"; return; }
-  fi
-  printf '%s\n' "$HOME/.claude/gaspol-knowledge"
-}
+KB="$(skills/_shared/kb-root)" || {   # 0=available  3=UNKNOWN (STOP+ask)  4=none (report+continue)
+  echo "resolve the state before continuing — see the table below"; exit 1; }
 ```
+
+It is a script rather than a documented shell function for a concrete reason found while wiring
+this up: the KB skills contain runnable bash that does `git -C "$KB" commit`. A function defined
+only inside a markdown file is not in scope when that block runs, so `KB="$(kb_root)"` resolves to
+the **empty string** and `git -C ""` becomes a silent wrong answer — the exact failure class this
+ticket exists to remove. Exit codes make the three states impossible to conflate; an empty stdout
+can never be mistaken for a path.
+
 
 **Rung 2 is the one that matters for relocation, and it is the one that used to be fiction.**
 `kb_local` was documented in `README.md`, `CLAUDE.md`, and `docs/kb-setup.md` while no skill read

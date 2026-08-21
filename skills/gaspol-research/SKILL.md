@@ -53,7 +53,9 @@ Don't start broad research without defined question.
 Before fetching anything, query KB (auto-init local dir if missing; see [docs/kb-setup.md](../../docs/kb-setup.md)):
 
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
+  # Never continue with an empty $KB: git -C "" is a silent wrong answer.
+  echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
 [ -n "$REMOTE" ] && git -C "$KB" pull --quiet || true   # synced mode only
 # Grep $KB/INDEX.md for matching tags (local-only mode reads local cache directly)
 ```
@@ -114,7 +116,9 @@ If any gate fails → fix or escalate to user before caching.
 
 ### Phase 6: Cache Write
 
-Write to `~/.claude/gaspol-knowledge/research/<slug>.md` with frontmatter:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+Write to `<KB_ROOT>/research/<slug>.md` with frontmatter:
 
 ```yaml
 ---

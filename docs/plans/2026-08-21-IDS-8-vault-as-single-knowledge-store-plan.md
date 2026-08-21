@@ -70,9 +70,17 @@ Every row is a real file, a real command, or a real environment variable. No pla
 
 ## Laziness notes
 
-- `ponytail:` one shared reference file (`skills/_shared/kb-path.md`), not a script — the KB skills
-  are prose that an agent executes, and prose is what needs correcting. A script would add a second
-  place for the path to be wrong.
+- ~~`ponytail:` one shared reference file (`skills/_shared/kb-path.md`), not a script~~
+  **DEVIATION (Phase B, 2026-08-21): a script was required after all.** The premise was that the
+  KB skills are prose an agent reads. Three of them are not — they contain runnable bash that
+  does `git -C "$KB" commit`. With the resolver documented only as a shell function in a
+  markdown file, `KB="$(kb_root)"` is not in scope when that block runs: it resolves to the
+  **empty string**, and `git -C ""` is a silent wrong answer — the exact failure class this
+  ticket exists to remove. `skills/_shared/kb-root` (stdlib, ~55 lines) now reports the three
+  states through exit codes 0/3/4, which cannot be conflated the way an empty stdout can. The
+  doc keeps the order and the states; the script executes them. Still one source of truth, and
+  the allow-list in Phase B's test is pinned to exactly those two files so the exemption cannot
+  grow.
 - No new skill. Every change lands in a skill that already exists.
 - Soft-reference only: **no** `dependencies` key in `plugin.json`, matching the `ui-ux-pro-max`
   decision in v1.14.

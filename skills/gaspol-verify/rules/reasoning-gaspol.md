@@ -53,10 +53,12 @@ Never output React code for a Vue project.
 
 ### Rule G5: Query KB Before Proposing
 
-**BEFORE** proposing any UI pattern, query `~/.claude/gaspol-knowledge/ui-patterns/` for similar past patterns:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+**BEFORE** proposing any UI pattern, query `<KB_ROOT>/ui-patterns/` for similar past patterns:
 
 ```bash
-cd ~/.claude/gaspol-knowledge/
+cd <KB_ROOT>/
 grep -i "<domain>" INDEX.md
 # Read matched patterns
 ```

@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""
+kb-root -- print the resolved knowledge-base root, or fail loudly.
+
+Why this is a script and not only prose: the KB skills contain runnable bash
+that does `git -C "$KB" commit`. With the resolver documented as a shell
+function that lives in a markdown file, `KB="$(kb_root)"` resolves to the empty
+string when the function is not in scope -- and `git -C "" ...` is a silent
+wrong answer, which is the failure mode this whole ticket exists to remove.
+
+Resolution order (see skills/_shared/kb-path.md):
+  1. $GASPOL_KB_LOCAL                                 -- override, for CI
+  2. "kb_local" in ~/.claude/gaspol-config.json       -- durable, machine-wide
+  3. ~/.claude/gaspol-knowledge                        -- default
+
+Three states, reported through the EXIT CODE so a caller cannot mistake one for
+another (KB: marker-file-is-not-proof-tool-installed):
+
+  0  available -- the path exists; it is printed on stdout
+  3  UNKNOWN   -- something was CONFIGURED and is unreadable. Caller must STOP
+                  and ask. Never treat this as an empty store: an empty store
+                  reads as "no precedent exists", which is exactly when a
+                  documented mistake gets repeated.
+  4  none      -- nothing configured and no default directory. NOT a failure.
+                  Caller reports it and continues; a public plugin cannot
+                  require anyone to keep a knowledge base.
+
+stdout carries the path and nothing else, so `KB="$(kb-root)"` is safe.
+Diagnostics go to stderr.
+"""
+
+import json
+import os
+import sys
+
+DEFAULT = "~/.claude/gaspol-knowledge"
+CONFIG = "~/.claude/gaspol-config.json"
+
+
+def _expand(p: str) -> str:
+    return os.path.abspath(os.path.expanduser(p))
+
+
+def _from_config() -> str | None:
+    cfg = _expand(CONFIG)
+    if not os.path.isfile(cfg):
+        return None
+    try:
+        with open(cfg, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        # A config file that exists and does not parse is NOT "no config".
+        # Saying "not configured" here would silently ignore a relocation the
+        # user wrote down, and send every write back to the default folder.
+        print(f"kb-root: {cfg} exists but does not parse: {exc}", file=sys.stderr)
+        print("knowledge-store: UNKNOWN — configured path unreadable: " + cfg, file=sys.stderr)
+        sys.exit(3)
+    value = data.get("kb_local")
+    return _expand(value) if isinstance(value, str) and value.strip() else None
+
+
+def main() -> int:
+    env = os.environ.get("GASPOL_KB_LOCAL", "").strip()
+    if env:
+        path, configured = _expand(env), True
+    else:
+        cfg_path = _from_config()
+        if cfg_path:
+            path, configured = cfg_path, True
+        else:
+            path, configured = _expand(DEFAULT), False
+
+    if os.path.isdir(path):
+        print(path)
+        return 0
+
+    if configured:
+        print(f"knowledge-store: UNKNOWN — configured path unreadable: {path}", file=sys.stderr)
+        return 3
+
+    print("knowledge-store: none — not configured", file=sys.stderr)
+    return 4
+
+
+if __name__ == "__main__":
+    sys.exit(main())

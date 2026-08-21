@@ -94,4 +94,33 @@ if offenders:
     sys.exit(1)
 PYEOF
 
+# --- the executable half -----------------------------------------------------
+# The doc states the order; the script is what runnable bash actually calls.
+# Documented-but-unexecutable is the defect class this ticket opened with.
+KBROOT="$REPO_ROOT/skills/_shared/kb-root"
+echo "test-kb-path-resolver: resolver script exists and is executable AS GIT RECORDS IT..."
+[ -f "$KBROOT" ] || fail "skills/_shared/kb-root does not exist — the bash blocks in the KB skills would call a function that is not in scope and resolve to an empty path"
+MODE="$(git -C "$REPO_ROOT" ls-files -s skills/_shared/kb-root | cut -d' ' -f1)"
+[ "$MODE" = "100755" ] \
+    || fail "kb-root is recorded in git as '${MODE:-<untracked>}', not 100755 — it will not be executable on checkout (IDS-6 shipped task-brief exactly this way)"
+
+echo "test-kb-path-resolver: three states are reported by EXIT CODE, not by text..."
+set +e
+OUT_UNKNOWN=$(GASPOL_KB_LOCAL=/tmp/gaspol-nonexistent-$$ "$KBROOT" 2>&1); RC_UNKNOWN=$?
+TMPHOME=$(mktemp -d); OUT_NONE=$(env -u GASPOL_KB_LOCAL HOME="$TMPHOME" "$KBROOT" 2>&1); RC_NONE=$?
+BADHOME=$(mktemp -d); mkdir -p "$BADHOME/.claude"; printf '{not json' > "$BADHOME/.claude/gaspol-config.json"
+OUT_BAD=$(env -u GASPOL_KB_LOCAL HOME="$BADHOME" "$KBROOT" 2>&1); RC_BAD=$?
+GOODHOME=$(mktemp -d); mkdir -p "$GOODHOME/.claude" "$GOODHOME/store"
+printf '{"kb_local": "%s/store"}' "$GOODHOME" > "$GOODHOME/.claude/gaspol-config.json"
+OUT_CFG=$(env -u GASPOL_KB_LOCAL HOME="$GOODHOME" "$KBROOT" 2>/dev/null); RC_CFG=$?
+set -e
+rm -rf "$TMPHOME" "$BADHOME" "$GOODHOME"
+
+[ "$RC_UNKNOWN" = "3" ] || fail "a configured-but-missing path exited $RC_UNKNOWN, expected 3 (UNKNOWN) — it must never share an exit code with 'none'"
+[ "$RC_NONE" = "4" ]    || fail "an unconfigured store with no default exited $RC_NONE, expected 4 (none) — not a failure, but distinct from UNKNOWN"
+[ "$RC_UNKNOWN" != "$RC_NONE" ] || fail "UNKNOWN and none share an exit code — a caller cannot tell a broken store from an absent one, which is the entire point"
+[ "$RC_BAD" = "3" ]     || fail "an unparseable gaspol-config.json exited $RC_BAD, expected 3 — silently ignoring it would send every write back to the default folder"
+[ "$RC_CFG" = "0" ]     || fail "a valid kb_local pointing at a real directory exited $RC_CFG, expected 0 — the config rung must actually resolve, which is the defect that opened this ticket"
+case "$OUT_CFG" in */store) : ;; *) fail "kb_local resolved to '$OUT_CFG', expected the configured directory — stdout must carry the path and nothing else" ;; esac
+
 echo "PASS: test-kb-path-resolver"

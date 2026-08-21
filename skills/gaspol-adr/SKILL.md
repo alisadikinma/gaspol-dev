@@ -49,7 +49,9 @@ Input:
 
 Resolve KB mode first (see [docs/kb-setup.md](../../docs/kb-setup.md)): skip only on explicit `"kb_mode":"off"`; otherwise auto-init the local KB dir if missing and continue. **No GitHub config needed — local-only is the default.**
 
-Query `~/.claude/gaspol-knowledge/design-decisions/` for similar decisions:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+Query `<KB_ROOT>/design-decisions/` for similar decisions:
 - Grep by tags extracted from context
 - Grep by domain (auth, state-mgmt, image-gen, etc.)
 
@@ -61,7 +63,7 @@ If no precedent, proceed as fresh ADR.
 
 ### Step 3: Generate MADR File
 
-Write to `~/.claude/gaspol-knowledge/design-decisions/YYYY-MM-DD-<slug>.md`:
+Write to `<KB_ROOT>/design-decisions/YYYY-MM-DD-<slug>.md`:
 
 ```markdown
 ---
@@ -150,7 +152,7 @@ If new ADR conflicts with existing accepted ADR on same tag/domain (not divergen
 
 ### Step 6: Update INDEX.md + Git
 
-Add to `~/.claude/gaspol-knowledge/INDEX.md`:
+Add to `<KB_ROOT>/INDEX.md`:
 
 ```markdown
 - title: <Title>
@@ -164,7 +166,9 @@ Add to `~/.claude/gaspol-knowledge/INDEX.md`:
 Commit locally (always), push only in synced mode — see [docs/kb-setup.md](../../docs/kb-setup.md):
 
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
+  # Never continue with an empty $KB: git -C "" is a silent wrong answer.
+  echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
 git -C "$KB" add . && git -C "$KB" commit -q -m "adr: <id> — <title>" || true
 [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
 ```

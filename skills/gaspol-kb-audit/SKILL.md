@@ -100,7 +100,9 @@ Entries with `status: proposed` > 90 days without promotion to `accepted`:
 
 ### Step 3: Generate Audit Report
 
-Write to `~/.claude/gaspol-knowledge/_audit/audit-YYYY-MM-DD.md`:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+Write to `<KB_ROOT>/_audit/audit-YYYY-MM-DD.md`:
 
 ```markdown
 # KB Audit Report — 2026-04-17
@@ -221,7 +223,7 @@ EOF
 
 ### Step 6: Update Health Metrics
 
-Track in `~/.claude/gaspol-knowledge/_audit/health-metrics.md`:
+Track in `<KB_ROOT>/_audit/health-metrics.md`:
 
 ```markdown
 # KB Health Metrics

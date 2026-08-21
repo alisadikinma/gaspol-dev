@@ -81,7 +81,9 @@ Before writing to KB, validate:
 | Source citation (research type) | ≥2 URLs if entry type is `research` | Reject, demand sources |
 | Body structure | Has sections: Context, Pattern, When to Use, Example, Variations | Reject if bare dump |
 
-Failed quality gate → log to `~/.claude/gaspol-knowledge/.rejected-log`:
+> **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
+
+Failed quality gate → log to `<KB_ROOT>/.rejected-log`:
 
 ```
 [2026-04-17 14:32] Rejected: "Image generation 3-pane layout"
@@ -104,7 +106,7 @@ Determine target directory:
 
 ### Step 5: Write Entry
 
-File: `~/.claude/gaspol-knowledge/<category>/<slug>.md`
+File: `<KB_ROOT>/<category>/<slug>.md`
 
 ```yaml
 ---
@@ -160,7 +162,9 @@ last_validated: YYYY-MM-DD              # initial = date created
 See [docs/kb-setup.md](../../docs/kb-setup.md) for mode resolution. Auto-init the local KB dir if missing. **Always commit locally; push only in synced mode.**
 
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
+  # Never continue with an empty $KB: git -C "" is a silent wrong answer.
+  echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
 git -C "$KB" add . && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" || true
 # push ONLY if a remote is configured (kb_remote / $GASPOL_KB_REMOTE):
 [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
@@ -172,7 +176,7 @@ In **local-only mode** (default) there is no remote — the local commit IS the 
 
 ## Quality Gate — Capture Rejection Log
 
-Path: `~/.claude/gaspol-knowledge/.rejected-log`
+Path: `<KB_ROOT>/.rejected-log`
 
 Contents: chronological rejected captures with reasons. NOT indexed, NOT committed to git (user can gitignore or not).
 
