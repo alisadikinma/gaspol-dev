@@ -88,34 +88,44 @@ for s in gaspol-learn gaspol-adr gaspol-research gaspol-kb-audit gaspol-brainsto
 done
 
 # --- documentation must not SHIP the hazard it describes ---------------------
-# BLOCK-scoped, not file-scoped. The first version grepped the whole file for
-# 'rev-parse --show-toplevel', so deleting the guard from the runnable block and
-# leaving the phrase in a prose sentence kept the suite green with an unguarded
-# commit shipping. A doc may DESCRIBE the default path; it may not EXECUTE it.
-echo "test-kb-no-hardcoded-path: fenced bash in docs carries no hazard..."
-python3 - "$REPO_ROOT" <<'PYEOF' || fail "a documentation code block ships the hazard it describes — see the offending block above"
+# TWO checks, deliberately, because they need different scopes and trading one
+# for the other has now cost a regression twice:
+#
+#   * four hazards are unconditional — they are wrong wherever they appear, so
+#     they stay on FILE-WIDE greps and cannot be hidden in an exotic fence.
+#     Round 3 caught them escaping into ```console and ~~~bash after a block
+#     parser replaced the greps.
+#   * one hazard is contextual — a write-side git command is fine WITH the guard
+#     beside it — so it needs BLOCK scope. A file-wide grep for the guard phrase
+#     was defeated by moving the phrase into a prose sentence.
+echo "test-kb-no-hardcoded-path: unconditional hazards, fence-independent..."
+for d in "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md"; do
+    [ -f "$d" ] || continue
+    n=$(basename "$d")
+    grep -qE 'git -C "\$KB" init'   "$d" && fail "$n instructs 'git init' on the store — with kb_local pointing into a vault that creates a repository inside it"
+    grep -qE 'mkdir -p "\$KB"/\{'   "$d" && fail "$n recreates the category directories abolished in v1.18"
+    grep -qE 'GASPOL_KB_LOCAL:-'    "$d" && fail "$n inlines the two-rung resolver — it skips the config rung, the only durable way to relocate the store"
+    grep -qE '> *"\$KB/INDEX[.]md"' "$d" && fail "$n writes an INDEX.md gaspol does not maintain"
+done
+
+echo "test-kb-no-hardcoded-path: write-side git needs the guard IN THE SAME BLOCK..."
+python3 - "$REPO_ROOT" <<'PYEOF' || fail "a documentation code block runs write-side git with no ownership guard beside it"
 import re, sys, pathlib
 root = pathlib.Path(sys.argv[1])
+# Every fence flavour, plus tilde fences. A parser that only knows ```bash is a
+# parser an exotic fence walks straight past.
+FENCE = re.compile(r"(?:```|~~~)[a-zA-Z]*\n(.*?)(?:```|~~~)", re.S)
 bad = []
 for rel in ["docs/kb-setup.md", "README.md", "CLAUDE.md"]:
     f = root / rel
     if not f.is_file():
         continue
-    for block in re.findall(r"```(?:bash|sh)?\n(.*?)```", f.read_text(encoding="utf-8"), re.S):
-        if re.search(r'git -C "\$KB" init', block):
-            bad.append((rel, "git init against the store"))
-        if re.search(r'mkdir -p "\$KB"/\{', block):
-            bad.append((rel, "recreates the abolished category directories"))
-        if re.search(r'GASPOL_KB_LOCAL:-', block):
-            bad.append((rel, "inlined two-rung resolver — skips the config rung"))
-        if re.search(r'>\s*"\$KB/INDEX\.md"', block):
-            bad.append((rel, "writes an INDEX.md gaspol does not maintain"))
+    for block in FENCE.findall(f.read_text(encoding="utf-8")):
         if re.search(r'git -C "\$KB" (add|commit|push)', block):
-            # the guard must live in THIS block, with its record string and branch
             if not (re.search(r"rev-parse --show-toplevel", block)
                     and "kb-sync: skipped" in block
                     and re.search(r"^\s*else\s*$", block, re.M)):
-                bad.append((rel, "write-side git with no ownership guard IN THE SAME BLOCK"))
+                bad.append((rel, "write-side git with no guard in the same block"))
 for rel, why in bad:
     print(f"    {rel}: {why}", file=sys.stderr)
 sys.exit(1 if bad else 0)
