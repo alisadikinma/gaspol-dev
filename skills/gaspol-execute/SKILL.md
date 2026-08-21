@@ -146,6 +146,31 @@ Document which existing code will be used in each phase.
 
 ---
 
+### Step 6: Pre-Flight Conflict Matrix (BLOCKING — before Phase A runs)
+
+Scan the plan once for conflicts **before Phase A runs**, writing down what you
+checked as you check it. A contradiction found before task 1 costs a ruling; the same
+contradiction found at Phase H costs everything built on top of it.
+
+The scan's output is a **table, not a verdict**. Two kinds of row, both required:
+
+| Kind | One row for | Columns |
+|---|---|---|
+| Cross-task | every pair of tasks that **share a file** or an interface | the two tasks · what one produces against what the other consumes · the finding |
+| Self-consistency | every task — whether its own text **agrees with itself** | the task · its tests against the code it specifies, the files it creates against the files it later touches · the finding |
+
+Also flag anything the plan explicitly mandates that the review rubric treats as a defect
+(a test that asserts nothing, a verbatim-duplicated logic block).
+
+**"The scan is clean" without those rows is not a scan that ran.** Write the table to the
+ledger — **above `## Log`**, never below it, because `scan-active-ledgers` reads the file's
+last non-empty line and anything under `## Log` breaks active-vs-done detection.
+
+Rule on every finding before execution begins: weigh it against the plan text with the spec
+as the binding authority, and record the **ruling** beside its row. If the scan is genuinely
+clean — rows written, nothing found — proceed without further comment. The review loop
+remains the net for conflicts that only emerge from implementation.
+
 ## CLAUDE.md-First Rule
 
 Before starting ANY phase, consult CLAUDE.md. This is not optional.
