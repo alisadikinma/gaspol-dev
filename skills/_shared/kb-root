@@ -80,8 +80,17 @@ def main() -> int:
         return 3
 
     if init:
-        os.makedirs(path, exist_ok=True)   # a BARE directory: no git init, no
-        print(path)                        # category dirs, no INDEX.md (IDS-8)
+        try:
+            os.makedirs(path, exist_ok=True)   # a BARE directory: no git init, no
+        except OSError as exc:                 # category dirs, no INDEX.md (IDS-8)
+            # Something is in the way -- most plausibly a plain FILE sitting where
+            # the store belongs. That is UNKNOWN, not "none": a traceback would
+            # break the 0/3/4 contract this file exists to make unmistakable, and
+            # returning 4 would report "no store" for a path that is occupied.
+            print(f"kb-root: cannot create {path}: {exc}", file=sys.stderr)
+            print(f"knowledge-store: UNKNOWN — configured path unreadable: {path}", file=sys.stderr)
+            return 3
+        print(path)
         return 0
 
     print("knowledge-store: none — not configured", file=sys.stderr)

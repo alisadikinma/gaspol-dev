@@ -144,6 +144,18 @@ env HOME="$H3" GASPOL_KB_LOCAL="$H3/relocated-and-gone" "$KBROOT" --init >/dev/n
 [ "$rc" -eq 3 ] || { rm -rf "$H3"; fail "--init on a CONFIGURED unreadable path exited $rc, expected 3 — it must never create a store over a broken relocation"; }
 [ ! -d "$H3/relocated-and-gone" ] || { rm -rf "$H3"; fail "--init created the configured-but-unreadable path; state 3 must stop, not repair"; }
 rm -rf "$H3"
+# A plain FILE sitting where the store belongs must stay inside the exit
+# contract. An unhandled traceback here would exit 1 -- a code the three states
+# do not define -- and reporting 4 ("none") for an OCCUPIED path would be the
+# blurring this whole resolver exists to prevent.
+HF="$(mktemp -d)"
+mkdir -p "$HF/.claude"; : > "$HF/.claude/gaspol-knowledge"
+rc=0
+ERR="$(env -u GASPOL_KB_LOCAL HOME="$HF" "$KBROOT" --init 2>&1 >/dev/null)" || rc=$?
+[ "$rc" -eq 3 ] || { rm -rf "$HF"; fail "--init over a plain file exited $rc, expected 3 — 0/3/4 is the whole contract, and 1 is not one of them"; }
+printf '%s' "$ERR" | grep -q "UNKNOWN" || { rm -rf "$HF"; fail "--init over a plain file did not report UNKNOWN; an occupied path is not an empty store"; }
+rm -rf "$HF"
+
 echo "test-kb-path-resolver: --init creates on state 4, refuses on state 3"
 
 echo "PASS: test-kb-path-resolver"
