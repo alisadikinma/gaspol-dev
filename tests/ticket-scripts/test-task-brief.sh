@@ -67,6 +67,13 @@ EOF
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+# The mode git RECORDS, not just the mode this working tree happens to have.
+# A local chmod makes every test pass while the committed file ships 100644 —
+# which is exactly what happened once: the branch was green, and the script was
+# non-executable for anyone who checked it out.
+MODE="$(git -C "$REPO_ROOT" ls-files -s skills/gaspol-parallel/scripts/task-brief | cut -d' ' -f1)"
+[ "$MODE" = "100755" ] || fail "task-brief is recorded in git as $MODE, not 100755 — it will not be executable on checkout"
+
 # --- 1. happy path: phase 2 extracted, printed path is the only stdout line ---
 echo "test-task-brief: extracting phase 2..."
 OUT="$("$TASK_BRIEF" "$PLAN" 2)"
