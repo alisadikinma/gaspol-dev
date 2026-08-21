@@ -13,7 +13,7 @@ is not new construction. It is finishing something that was declared done and ne
 
 ## What the audit actually found (2026-08-21)
 
-Reading `skills/gaspol-verify/scripts/design_audit.py` (205 lines) against what
+Reading `skills/gaspol-verify/scripts/design_audit.py` (205 lines at the time of the audit) against what
 `skills/gaspol-verify/SKILL.md` Layer 4 claims it does surfaced three defects. All three are
 verified by reading the file, not inferred:
 
@@ -194,7 +194,7 @@ and nothing here should be reported as having solved it.
 
 ## Laziness ladder notes
 
-- No new dependency. YAML frontmatter is parsed with a ~20-line stdlib reader for the flat
+- No new dependency. YAML frontmatter is parsed with a stdlib reader (~54 lines) for the flat
   `key: "value"` shape actually used — pulling in PyYAML for that would fail rung 4.
 - No new skill. This is an upgrade to `gaspol-verify` Layer 4 plus one extractor script.
 - No vendored data. Both upstreams are referenced, not copied.

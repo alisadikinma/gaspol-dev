@@ -26,7 +26,7 @@ Pulled from this repo's `CLAUDE.md` (v1.16.0):
 - `skills/gaspol-verify/SKILL.md` — 4-layer verification. **Layer 4** is
   "Integration + Design Compliance". Its "Design Compliance Sub-Check (NEW in v1.2 — for UI
   changesets only)" is the block this plan rewrites.
-- `skills/gaspol-verify/scripts/design_audit.py` — 205 lines, stdlib only. Moved here in v1.14
+- `skills/gaspol-verify/scripts/design_audit.py` — 205 lines at plan time, stdlib only. Moved here in v1.14
   when `gaspol-design` was deleted, because `ui-ux-pro-max`'s own audit drives Chromium via
   Playwright against a **running URL** and cannot run offline pre-merge. Existing internals this
   plan reuses rather than rewrites:
@@ -50,7 +50,7 @@ Pulled from this repo's `CLAUDE.md` (v1.16.0):
 
 - **Python 3 stdlib only** for `design_audit.py`. Confirmed available: Python 3.14.6.
   **No new dependency.** In particular: do NOT add PyYAML. The frontmatter shape actually used
-  is flat `key: "value"` under two-level headings; a ~25-line reader covers it (Laziness Ladder
+  is flat `key: "value"` under two-level headings; a stdlib reader (~54 lines) covers it (Laziness Ladder
   rung 2 — stdlib before dependency).
 - **Bash** for tests, matching every existing file in `tests/ticket-scripts/`. No pytest (no
   marker file declares it, and `detect-stack` prints nothing for this repo).
@@ -238,10 +238,10 @@ gate is worth less than a noisy one.
 - [ ] Colour present in the contract → 0 findings (not "a finding with low severity")
 - [ ] Off-contract `bg-[#…]` → BLOCKING; off-contract `shadow-[…]` → WARN; `rgba(...,0.05)` → WARN
 - [ ] `grep -n "design_system" skills/gaspol-verify/scripts/design_audit.py` shows it either genuinely read or entirely gone — a parsed-but-unread flag is the defect this phase exists to kill
-- [ ] With no `DESIGN.md`, for a **non-style** input file (`.tsx/.jsx/.vue/.svelte/.astro/.html`)
-      the per-file findings, the verdict and the exit code are unchanged from pre-IDS-7, and no
-      finding gains a `severity` field. Style files (`.css/.scss/.sass`) are **expected** to
-      differ — D4 makes them scanned for the first time.
+- [ ] With no `DESIGN.md`, no finding gains a `severity` field and no contract-derived
+      judgement is made. The findings LIST is **not** guaranteed unchanged: style files
+      (`.css/.scss/.sass`) are newly scanned by D4, and the new decorative-carrier and
+      border/outline shorthand patterns fire with or without a contract.
 
       **DEVIATION (recorded 2026-08-21, plan-verifier findings 3 and 4):** the original wording
       said "byte-identical", which Phase D4 made unsatisfiable inside the same ticket — a
@@ -462,7 +462,7 @@ runs — `scan-active-ledgers` reads the file's last non-empty line, so nothing 
 | F ↔ G | both edit markdown; G edits `CLAUDE.md`, F edits skill files | No | Disjoint files |
 | A self | tests vs code | — | New test file, new functions; touches no existing assertion |
 | B self | `scan_project` refactor vs its existing callers | **Yes** | `gaspol-verify/SKILL.md` invokes the old form; F updates it. Until F lands, the old invocation must keep working — B's verification asserts exactly that |
-| C self | contract-absent path vs existing behaviour | **Yes** | C's verification requires byte-identical output with no `DESIGN.md`; this is the regression guard for every existing consumer |
+| C self | contract-absent path vs existing behaviour | **Yes** | See the DEVIATION in Phase C's Verification block. NOT byte-identical: D4 newly scans style files, and the decorative + shorthand patterns fire with or without a contract. The guarantee is: no `severity` field, no contract-derived judgement |
 | D self | formula vs threshold test | — | Boundary tested at `#767676`/`#777777`, not only the trivial white/black case |
 | E self | file mode vs tests passing locally | **Yes** | IDS-6's exact failure. Assert `git ls-files -s` mode, not the working-tree bit |
 | F self | negative assertions vs their own truth | **Yes** | Break each negative assertion once and confirm it fails; a negative test never observed failing proves nothing (KB `vacuous-assertion-proves-nothing`) |

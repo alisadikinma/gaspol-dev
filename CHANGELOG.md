@@ -31,7 +31,7 @@ inferred:
 - **`DESIGN.md` at the project root** — YAML frontmatter with a `colors:` map and optional
   `fonts:` map. Format from Google Stitch; 73 worked examples at
   [voltagent/awesome-design-md](https://github.com/voltagent/awesome-design-md), **referenced,
-  never vendored**. Parsed with a ~55-line stdlib reader — no YAML dependency for a flat
+  never vendored**. Parsed with a stdlib reader (~54 lines) — no YAML dependency for a flat
   `key: value` shape.
 - **Three states, kept strictly distinct** (KB precedent `marker-file-is-not-proof-tool-installed`):
   absent → `design-contract: none`, gate not run, **not a failure**; parses → gate active;
@@ -42,7 +42,16 @@ inferred:
   decorative ones (`box-shadow`, `outline-color`, anything with alpha) WARN. A one-off
   `rgba(0,0,0,0.05)` shadow is craft, not drift — blocking on it produces false alarms, false
   alarms get the gate switched off, and a disabled gate is worth less than a noisy one.
-  A colour that IS in the contract produces no finding: compliant means silent.
+  A colour that IS in the contract produces no finding: compliant means silent. Matching covers
+  hex, Tailwind `…-[#hex]`, and numeric `rgb()`/`rgba()`; a named colour or `hsl()` cannot be
+  compared to a hex token and is treated as off-contract.
+- **Fonts have three states, and the third one is the point.** Declared and used → silent;
+  declared and violated → BLOCKS; **no `fonts:` map** → reported but *unjudged*, with
+  `font_gate: not run` recorded. `extract-design-tokens` emits colours only, so the documented
+  onboarding path produces exactly that contract — and collapsing the third state into
+  "compliant" turned `Hardcoded fonts: 2` into `Hardcoded fonts: 0`. Contrast carries the same
+  `contrast_gate` key for the same reason. Both are emitted in JSON and text from one value, so
+  the two output modes cannot drift apart.
 - **`skills/gaspol-verify/scripts/extract-design-tokens`** — reads tailwind theme colours,
   `--color-*`/`--brand-*` custom properties, or a `theme.json` colours map, so existing
   repositories get the gate without hand-writing anything. Extraction is **literal**: an
@@ -55,7 +64,7 @@ inferred:
 
 ### Added — Web Interface Guidelines lane, fetched not forked (IDS-7)
 
-`design_audit.py` knows ten patterns; Vercel maintains roughly 150 covering accessibility,
+`design_audit.py` knows about a dozen patterns; Vercel maintains about 100 across 17 sections covering accessibility,
 focus states, forms, animation, performance and mobile. Layer 4 now fetches
 `vercel-labs/web-interface-guidelines/main/command.md` at review time and applies it to the same
 changed-file list — its `file:line` output needs no adaptor. **Fetch, do not fork**: the 1.4MB

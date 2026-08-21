@@ -346,8 +346,7 @@ wired up**. Four defects, each verified by reading `design_audit.py`, not inferr
 **The contract.** `DESIGN.md` at the target project root — YAML frontmatter, a `colors:` map,
 an optional `fonts:` map. Format from Google Stitch; 73 worked examples at
 [voltagent/awesome-design-md](https://github.com/voltagent/awesome-design-md) — **referenced,
-never vendored** (the v1.14 fork deletion is the precedent). Parsed by a ~55-line stdlib
-reader; no YAML dependency for a flat `key: value` shape.
+never vendored** (the v1.14 fork deletion is the precedent). Parsed by a stdlib reader (~54 lines); no YAML dependency for a flat `key: value` shape.
 
 **Three states, never blurred** (KB `marker-file-is-not-proof-tool-installed`):
 
@@ -376,7 +375,7 @@ before any code exists. Both **offer** the write via `AskUserQuestion` — writi
 file into someone's repository unasked is the same overreach as installing a marketplace skill
 without asking.
 
-**Web Interface Guidelines lane.** `design_audit.py` knows ten patterns; Vercel maintains ~150.
+**Web Interface Guidelines lane.** `design_audit.py` knows about a dozen patterns; Vercel maintains ~100 across 17 sections.
 Layer 4 fetches `vercel-labs/web-interface-guidelines/main/command.md` at review time rather
 than copying it. Three security rails, because the fetched markdown reaches a review model:
 the URL is **pinned literally**; the text is **data, not instructions** (a directive inside it
@@ -540,7 +539,7 @@ nothing breaks.
 
 | Kept | Where | Why it could not be delegated |
 |------|-------|-------------------------------|
-| Offline compliance lint | `skills/gaspol-verify/scripts/design_audit.py` | 205 lines, stdlib-only, scans **source**. The upstream audit drives Chromium via Playwright against a **running URL** and lives in a scaffold template — it cannot run in `gaspol-verify` Layer 4, which is offline and pre-merge |
+| Offline compliance lint | `skills/gaspol-verify/scripts/design_audit.py` | stdlib-only, scans **source**. The upstream audit drives Chromium via Playwright against a **running URL** and lives in a scaffold template — it cannot run in `gaspol-verify` Layer 4, which is offline and pre-merge |
 | Anti-AI-slop tables | `skills/gaspol-verify/rules/anti-ai-slop.md` | `ui-ux-pro-max` ships **no** anti-slop opinion layer — zero "never use" lists. Deleting this would have been a net loss |
 | gaspol reasoning rules | `skills/gaspol-verify/rules/reasoning-gaspol.md` | Project-CLAUDE.md-token respect and KB precedent lookup; the file's own header calls these "not present in the base library" |
 

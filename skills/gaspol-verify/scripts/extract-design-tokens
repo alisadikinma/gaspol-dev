@@ -9,7 +9,7 @@ that went through a gaspol brainstorm, and every other project waits for a
 contract nobody is going to hand-write.
 
 Sources, in order, first hit wins:
-  1. tailwind.config.{js,ts,cjs,mjs}  -- colour values inside the theme block
+  1. tailwind.config.{js,ts,cjs,mjs}  -- any `name: "#hex"` pair in the file (not theme-scoped)
   2. CSS custom properties            -- --color-*, --brand-*, --c-* in .css/.scss
   3. theme.json                       -- a top-level "colors" object
 

@@ -38,6 +38,12 @@ HARDCODED_COLOR_PATTERNS = [
     re.compile(r"(?:color|background|bg|border|fill|stroke)[:=][\s'\"`]*rgba?\("),
     # Tailwind arbitrary values
     re.compile(r"\b(?:bg|text|border)-\[#[0-9a-fA-F]{3,8}\]"),
+    # SHORTHAND. `border: 1px solid #999` is the standard border syntax and was
+    # invisible to every pattern above, which require the literal to sit
+    # immediately after the property name. The blocking verdict rests on this
+    # detector, so its blind spots decided what silently passed -- and this was
+    # the commonest form of all.
+    re.compile(r"\b(?:border|outline)(?:-(?:top|right|bottom|left|block|inline))?\s*:[^;{}\n]*?(?:#[0-9a-fA-F]{3,8}|rgba?\()"),
     # Decorative colour carriers. Detected so they can be classified WARN --
     # before IDS-7 they were invisible, so the docs promised a WARN for
     # shadows that the scanner could never emit.
@@ -65,7 +71,13 @@ DECORATIVE_COLOR_ROLE = re.compile(
 )
 # Any colour carrying transparency is decorative by construction: a token map
 # holds opaque brand colours, so an alpha value can never match one.
-TRANSPARENT_COLOR = re.compile(r"rgba?\([^)]*,[^)]*,[^)]*,\s*0?\.\d+\s*\)|#[0-9a-fA-F]{8}\b", re.I)
+TRANSPARENT_COLOR = re.compile(
+    # A 4th component in rgba() is alpha, whatever its notation: 0, 0.05, .5, 1,
+    # or a percentage. Requiring a decimal point missed rgba(0,0,0,0) -- fully
+    # transparent, and the docs promise anything with alpha only WARNs.
+    r"rgba?\([^)]*,[^)]*,[^)]*,[^)]*\)|#[0-9a-fA-F]{8}\b",
+    re.I,
+)
 
 HEX_IN_TEXT = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 
@@ -100,6 +112,20 @@ class DesignContractError(Exception):
     drop a gate they asked for. Callers must stop and ask, never treat this as
     an empty contract -- an empty contract reads as "nothing violated".
     """
+
+
+def _strip_inline_comment(value: str) -> str:
+    """Drop a trailing ` # comment` from a frontmatter value.
+
+    Without this, `text: "#1F2937"  # ink` stored the token as
+    `#1F2937"  # ink`, so the colour the file itself DECLARES was reported as an
+    off-contract structural violation everywhere it appeared -- a false BLOCKING
+    on correct code, from an edit anyone hand-maintaining this file would make.
+
+    Only a `#` preceded by whitespace starts a comment; a leading `#` is the hex
+    colour itself and must survive.
+    """
+    return re.sub(r"\s+#.*$", "", value).strip()
 
 
 def _normalise_hex(value: str) -> str:
@@ -174,7 +200,8 @@ def load_design_contract(project_root) -> dict | None:
             continue
         entry = re.fullmatch(r"[ \t]+([A-Za-z_][\w-]*):[ \t]*(.+?)[ \t]*", raw)
         if entry and section:
-            contract[section][entry.group(1).lower()] = _normalise_hex(entry.group(2))
+            value = _strip_inline_comment(entry.group(2))
+            contract[section][entry.group(1).lower()] = _normalise_hex(value)
 
     if not contract["colors"]:
         raise DesignContractError(
@@ -229,11 +256,30 @@ def check_contract_contrast(contract: dict | None) -> list[dict]:
         return []
 
     colors = contract.get("colors", {})
-    fg = {k: v for k, v in colors.items() if any(t in k for t in _FOREGROUND_TOKENS) and v.startswith("#")}
-    bg = {k: v for k, v in colors.items() if any(t in k for t in _BACKGROUND_TOKENS) and v.startswith("#")}
+    # An 8-digit #rrggbbaa carries alpha, and luminance is computed from the RGB
+    # bytes alone -- so 6% black would grade 21:1, identical to opaque black, a
+    # number with no relation to what renders. Excluded and SAID, never graded.
+    def _opaque(v: str) -> bool:
+        return v.startswith("#") and len(v) in (4, 7)
+
+    translucent = sorted(k for k, v in colors.items() if v.startswith("#") and not _opaque(v))
+    fg = {k: v for k, v in colors.items() if any(t in k for t in _FOREGROUND_TOKENS) and _opaque(v)}
+    bg = {k: v for k, v in colors.items() if any(t in k for t in _BACKGROUND_TOKENS) and _opaque(v)}
+
+    notes = []
+    if translucent:
+        notes.append({
+            "severity": "INFO",
+            "message": (
+                "contrast: not graded for translucent token(s) "
+                + ", ".join(translucent)
+                + " — alpha is not composited, so a ratio would not describe what renders"
+            ),
+        })
 
     if not fg or not bg:
-        return [{
+        return notes + [
+            {
             "severity": "INFO",
             "message": (
                 "contrast: no declared foreground/background pairing in DESIGN.md — "
@@ -241,7 +287,7 @@ def check_contract_contrast(contract: dict | None) -> list[dict]:
             ),
         }]
 
-    findings = []
+    findings = list(notes)
     for fk, fv in sorted(fg.items()):
         for bk, bv in sorted(bg.items()):
             ratio = contrast_ratio(fv, bv)
@@ -322,18 +368,69 @@ def _font_severity(line_text: str, contract: dict | None) -> str | None:
     ]
     # Generic fallbacks are not brand fonts; a stack is compliant when its FIRST
     # real family is declared.
-    generics = {"sans-serif", "serif", "monospace", "cursive", "fantasy", "system-ui", "inherit"}
+    generics = {
+        "sans-serif", "serif", "monospace", "cursive", "fantasy", "system-ui",
+        "ui-sans-serif", "ui-serif", "ui-monospace",
+        "inherit", "initial", "unset", "revert",
+    }
     real = [f for f in families if f and f not in generics]
-    if real and real[0] in declared:
+    if not real:
+        # `inherit`, `unset`, or a bare `sans-serif` claims no brand font at all,
+        # so there is nothing to judge against the contract. `font-family:
+        # inherit` is idiomatic in a CSS reset -- blocking it is a false positive
+        # on correct code.
+        return None
+    if real[0] in declared:
         return None
     return "BLOCKING"
+
+
+RGB_CALL = re.compile(r"rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,[^)]*)?\)", re.I)
+
+
+def _colours_in(text: str) -> list[str]:
+    """Every colour literal in `text`, normalised to lowercase hex.
+
+    Includes `rgb()`/`rgba()` written out numerically. Without this the SAME
+    colour blocked or passed depending on notation -- `#2563eb` was silent while
+    `rgb(37, 99, 235)` BLOCKED, because the contract holds hex and the comparison
+    was hex-only. That is a false-alarm source, and false alarms are what get a
+    gate switched off.
+    """
+    found = [_normalise_hex(h) for h in HEX_IN_TEXT.findall(text)]
+    for r, g, b in RGB_CALL.findall(text):
+        try:
+            found.append("#%02x%02x%02x" % (int(r), int(g), int(b)))
+        except ValueError:  # out of range -- not a colour we can compare
+            continue
+    return found
+
+
+def contrast_gate_label(contract: dict | None, findings: list[dict]) -> str:
+    """One line saying whether contrast was graded, and on how many pairs.
+
+    `check_contract_contrast` returns [] both when there is nothing to grade and
+    when every pair passes. That is the same inference-from-absence hole
+    `font_gate` was added to close, one key over -- an empty list read as
+    "clean" whether or not anything ran.
+    """
+    if contract is None:
+        return "not run — no DESIGN.md"
+    colors = contract.get("colors", {})
+    opaque = {k: v for k, v in colors.items() if v.startswith("#") and len(v) in (4, 7)}
+    fg = [k for k in opaque if any(x in k for x in _FOREGROUND_TOKENS)]
+    bg = [k for k in opaque if any(x in k for x in _BACKGROUND_TOKENS)]
+    if not fg or not bg:
+        return "not run — no declared foreground/background pairing"
+    below = sum(1 for f in findings if f.get("severity") == "WARN")
+    return f"active — {len(fg) * len(bg)} pair(s) graded, {below} below AA {AA_NORMAL_TEXT}:1"
 
 
 def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> str | None:
     """Classify one colour occurrence against the token contract.
 
     Returns None when there is nothing to report -- either no contract is loaded
-    (the pre-IDS-7 behaviour, preserved byte-for-byte) or every colour in the
+    (no judgement is made, as before IDS-7) or every colour in the
     match is a contract token. Compliant must mean SILENT: emitting a
     low-severity finding for a colour that is correct makes the report unreadable
     and trains people to skim past it.
@@ -348,7 +445,8 @@ def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> 
         return None
 
     allowed = {v for v in contract.get("colors", {}).values() if v.startswith("#")}
-    literals = [_normalise_hex(h) for h in HEX_IN_TEXT.findall(match_text)]
+    scope_for_value = _declaration_at(line_text, match_text)
+    literals = _colours_in(match_text) or _colours_in(scope_for_value)
     if literals and all(lit in allowed for lit in literals):
         return None
 
@@ -374,9 +472,19 @@ def scan_file(path: Path, contract: dict | None = None) -> dict:
         "a11y": {k: False for k in A11Y_PATTERNS},
     }
 
+    # Patterns overlap by design (a shorthand pattern and a longhand one can both
+    # match `border-color: #999`), so the same declaration must not be reported
+    # twice. Key on the line plus the colour literal, not on the matched text --
+    # two patterns produce different fragments for one violation.
+    seen_colours: set[tuple[int, str]] = set()
     for pattern in HARDCODED_COLOR_PATTERNS:
         for match in pattern.finditer(content):
             line_num = content[: match.start()].count("\n") + 1
+            literals = tuple(sorted(_normalise_hex(h) for h in HEX_IN_TEXT.findall(match.group())))
+            key = (line_num, "|".join(literals) or match.group())
+            if key in seen_colours:
+                continue
+            seen_colours.add(key)
             item = {"line": line_num, "match": match.group()}
             if contract:
                 line_text = content.split("\n")[line_num - 1]
@@ -430,9 +538,15 @@ def scan_files(paths, contract: dict | None = None) -> list[dict]:
     The single scanning entry point. `scan_project` collects paths and delegates
     here, so whole-project and diff-scoped modes cannot drift apart.
 
-    `contract` is the loaded DESIGN.md token map, or None. With None the output
-    is exactly what this script produced before IDS-7 -- no severity field, every
-    hex literal reported. That is the no-contract regression guard.
+    `contract` is the loaded DESIGN.md token map, or None. With None no
+    `severity` field is added and no contract-derived judgement is made.
+
+    The findings LIST is NOT identical to pre-IDS-7: this ticket also added
+    decorative-carrier patterns (`shadow-[…]`, `box-shadow`, `text-shadow`) and
+    a border/outline shorthand pattern, all of which fire with or without a
+    contract. Saying "byte-for-byte" here was wrong, and it survived three
+    review rounds because the guarding test only asserted the absence of a
+    severity field.
     """
     results = []
     for raw in paths:
@@ -475,11 +589,36 @@ def changed_ui_files(project_root: Path, base: str) -> list[Path]:
             f"git diff --name-only {base}..HEAD failed in {project_root}: "
             f"{proc.stderr.strip() or 'unknown error'}"
         )
-    return [
-        project_root / line
-        for line in proc.stdout.splitlines()
-        if line and is_ui_file(Path(line))
-    ]
+
+    # git reports paths relative to the REPOSITORY ROOT, not to -C. Joining them
+    # onto project_root doubles the prefix whenever project_root is a
+    # subdirectory -- "apps/web" + "apps/web/src/A.tsx" -- and every path then
+    # vanishes through is_file(). That is silent: zero files scanned, verdict
+    # COMPLIANT. Not a gate that always fails (defect D3) but one that always
+    # PASSES, on any monorepo.
+    top = subprocess.run(
+        ["git", "-C", str(project_root), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+    )
+    if top.returncode != 0:
+        raise RuntimeError(
+            f"git rev-parse --show-toplevel failed in {project_root}: "
+            f"{top.stderr.strip() or 'unknown error'}"
+        )
+    repo_root = Path(top.stdout.strip()).resolve()
+    root = project_root.resolve()
+
+    files = []
+    for line in proc.stdout.splitlines():
+        if not line or not is_ui_file(Path(line)):
+            continue
+        path = repo_root / line
+        # Scope stays project_root: a changed file elsewhere in the monorepo is
+        # someone else's diff, not this audit's.
+        if root == repo_root or root in path.parents:
+            files.append(path)
+    return files
 
 
 def scan_project(project_root: Path, contract: dict | None = None) -> list[dict]:
@@ -504,7 +643,7 @@ def summarize(findings: list[dict]) -> dict:
     """Aggregate findings into summary counts."""
     total_files = len(findings)
     total_hardcoded_colors = sum(len(f.get("hardcoded_colors", [])) for f in findings)
-    blocking_colors = sum(
+    blocking_findings = sum(
         1
         for f in findings
         for c in f.get("hardcoded_colors", [])
@@ -529,7 +668,7 @@ def summarize(findings: list[dict]) -> dict:
     return {
         "total_ui_files": total_files,
         "hardcoded_colors": total_hardcoded_colors,
-        "blocking_colors": blocking_colors,
+        "blocking_findings": blocking_findings,
         "hardcoded_fonts": total_hardcoded_fonts,
         "files_without_responsive": files_without_responsive,
         "files_missing_states": files_missing_states,
@@ -545,7 +684,7 @@ def verdict(summary: dict) -> str:
     off-contract structural colour is drift by definition, not a deduction to be
     averaged away by an otherwise tidy file. WARN findings never fail.
     """
-    if summary.get("blocking_colors", 0) > 0:
+    if summary.get("blocking_findings", 0) > 0:
         return "🔴 NON-COMPLIANT"
 
     score = 100
@@ -611,6 +750,7 @@ def main():
     overall_verdict = verdict(summary)
 
     contrast_findings = check_contract_contrast(contract)
+    contrast_gate = contrast_gate_label(contract, contrast_findings)
 
     # Computed once and emitted in BOTH branches. Layer 4 invokes --json, so a
     # state that lives only in the text branch is invisible to the gate that
@@ -631,6 +771,7 @@ def main():
                 else f"loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
             ),
             "font_gate": font_gate,
+            "contrast_gate": contrast_gate,
             "summary": summary,
             "verdict": overall_verdict,
             "contrast": contrast_findings,
@@ -646,6 +787,7 @@ def main():
             else f"design-contract: loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
         )
         print(f"font-gate: {font_gate}")
+        print(f"contrast-gate: {contrast_gate}")
         for f in contrast_findings:
             print(f"  {f['severity']}: {f['message']}")
         print()
