@@ -350,8 +350,10 @@ count hex literals; with it, it can say which ones are wrong.
 `bg-[…]`/`text-[…]`/`border-[…]` forms) **BLOCK**. Decorative ones (`box-shadow`, `text-shadow`,
 `outline-color`, and anything with alpha such as `rgba(0,0,0,0.05)`) only **WARN**. A colour
 that is in the contract produces no finding at all — compliant means silent. Matching covers
-hex literals, Tailwind `…-[#hex]`, and numeric `rgb()`/`rgba()`; a named colour (`red`) or an
-`hsl()` cannot be compared to a hex token and is treated as off-contract.
+hex literals, Tailwind `…-[#hex]`, and numeric `rgb()`/`rgba()`. A named colour (`red`) or an
+`hsl()` is **not detected at all** — no pattern matches it, so it produces no finding either
+way. That is a gap in coverage, not a lenient verdict; do not read a clean report as proof
+those forms were checked.
 
 **When there is no `DESIGN.md`, offer to create one — never write it unasked.** Run the
 extractor in dry-run and show what it found:

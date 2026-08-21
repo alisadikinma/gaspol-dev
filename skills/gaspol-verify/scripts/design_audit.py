@@ -303,7 +303,7 @@ def check_contract_contrast(contract: dict | None) -> list[dict]:
     return findings
 
 
-def _declaration_at(line_text: str, match_text: str) -> str:
+def _declaration_at(line_text: str, match_text: str, offset: int | None = None) -> tuple[str, int]:
     """The single declaration containing `match_text`, not the whole line.
 
     Classifying on the whole line was a real hole: one minified rule such as
@@ -315,17 +315,24 @@ def _declaration_at(line_text: str, match_text: str) -> str:
 
     A Tailwind arbitrary value is bounded by whitespace or a quote; a CSS
     declaration is bounded by `;`, `{` or `}`.
+
+    `offset` is the match's position WITHIN the line. Without it this fell back
+    to `line.find(match_text)`, which always returns the FIRST occurrence -- so
+    on `.x { box-shadow: … #999 } .y { background: #999 }` the structural
+    declaration was classified using the decorative one's scope. Returns the
+    declaration text and its start, so callers can also tell two identical
+    declarations on one line apart.
     """
-    idx = line_text.find(match_text)
+    idx = line_text.find(match_text) if offset is None else offset
     if idx < 0:
-        return match_text
+        return match_text, 0
 
     delims = " \t\"'`" if "-[" in match_text else ";{}"
     start = max((line_text.rfind(d, 0, idx) for d in delims), default=-1)
     end_candidates = [line_text.find(d, idx + len(match_text)) for d in delims]
     end_candidates = [e for e in end_candidates if e != -1]
     end = min(end_candidates) if end_candidates else len(line_text)
-    return line_text[start + 1 : end]
+    return line_text[start + 1 : end], start + 1
 
 
 def _font_severity(line_text: str, contract: dict | None) -> str | None:
@@ -426,7 +433,7 @@ def contrast_gate_label(contract: dict | None, findings: list[dict]) -> str:
     return f"active — {len(fg) * len(bg)} pair(s) graded, {below} below AA {AA_NORMAL_TEXT}:1"
 
 
-def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> str | None:
+def _colour_severity(match_text: str, line_text: str, contract: dict | None, offset: int | None = None) -> str | None:
     """Classify one colour occurrence against the token contract.
 
     Returns None when there is nothing to report -- either no contract is loaded
@@ -445,12 +452,11 @@ def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> 
         return None
 
     allowed = {v for v in contract.get("colors", {}).values() if v.startswith("#")}
-    scope_for_value = _declaration_at(line_text, match_text)
-    literals = _colours_in(match_text) or _colours_in(scope_for_value)
+    scope, _ = _declaration_at(line_text, match_text, offset)
+    literals = _colours_in(match_text) or _colours_in(scope)
     if literals and all(lit in allowed for lit in literals):
         return None
 
-    scope = _declaration_at(line_text, match_text)
     if DECORATIVE_COLOR_ROLE.search(scope) or TRANSPARENT_COLOR.search(scope):
         return "WARN"
     return "BLOCKING"
@@ -476,19 +482,26 @@ def scan_file(path: Path, contract: dict | None = None) -> dict:
     # match `border-color: #999`), so the same declaration must not be reported
     # twice. Key on the line plus the colour literal, not on the matched text --
     # two patterns produce different fragments for one violation.
-    seen_colours: set[tuple[int, str]] = set()
+    seen_colours: set[tuple[int, int]] = set()
+    lines = content.split("\n")
     for pattern in HARDCODED_COLOR_PATTERNS:
         for match in pattern.finditer(content):
             line_num = content[: match.start()].count("\n") + 1
-            literals = tuple(sorted(_normalise_hex(h) for h in HEX_IN_TEXT.findall(match.group())))
-            key = (line_num, "|".join(literals) or match.group())
+            line_text = lines[line_num - 1]
+            offset = match.start() - (content.rfind("\n", 0, match.start()) + 1)
+            # Key on the DECLARATION's span. Keying on the colour literal
+            # collapsed two separate selectors that happened to share a line and
+            # a colour; keying on the match offset would stop deduping the
+            # overlapping patterns that match one declaration at different
+            # offsets. The declaration is the unit a reader would count.
+            _, decl_start = _declaration_at(line_text, match.group(), offset)
+            key = (line_num, decl_start)
             if key in seen_colours:
                 continue
             seen_colours.add(key)
             item = {"line": line_num, "match": match.group()}
             if contract:
-                line_text = content.split("\n")[line_num - 1]
-                severity = _colour_severity(match.group(), line_text, contract)
+                severity = _colour_severity(match.group(), line_text, contract, offset)
                 if severity is None:
                     continue  # the colour IS a token -- compliant means silent
                 item["severity"] = severity

@@ -43,8 +43,8 @@ inferred:
   `rgba(0,0,0,0.05)` shadow is craft, not drift — blocking on it produces false alarms, false
   alarms get the gate switched off, and a disabled gate is worth less than a noisy one.
   A colour that IS in the contract produces no finding: compliant means silent. Matching covers
-  hex, Tailwind `…-[#hex]`, and numeric `rgb()`/`rgba()`; a named colour or `hsl()` cannot be
-  compared to a hex token and is treated as off-contract.
+  hex, Tailwind `…-[#hex]`, and numeric `rgb()`/`rgba()`. A named colour or `hsl()` is **not
+  detected at all** — a coverage gap, not a lenient verdict.
 - **Fonts have three states, and the third one is the point.** Declared and used → silent;
   declared and violated → BLOCKS; **no `fonts:` map** → reported but *unjudged*, with
   `font_gate: not run` recorded. `extract-design-tokens` emits colours only, so the documented

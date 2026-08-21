@@ -170,4 +170,35 @@ v = d._colour_severity('color: rgba(', '.b { color: rgba(0, 0, 0, 0); }', c)
 assert v == 'WARN', f'rgba(0,0,0,0) is fully transparent — docs say anything with alpha WARNs, got {v}'
 " || fail "A6: integer-zero alpha not treated as translucent"
 
+# --- A7: two distinct violations on ONE line are two findings ---------------
+# The dedupe key was (line, literal), so two separate selectors sharing a line
+# and a colour collapsed into one. Root cause runs deeper: _declaration_at used
+# line.find(match), which always returns the FIRST occurrence — so the second
+# declaration was also CLASSIFIED using the first one's scope.
+
+echo "test-design-audit-edges: A7 two violations, one line..."
+DUP="$TMP_DIR/dup"; mkdir -p "$DUP"
+printf -- '---\ncolors:\n  ok: "#2563eb"\n---\n' >"$DUP/DESIGN.md"
+printf '.x { border: 1px solid #999999; } .y { border: 1px solid #999999; }\n' >"$DUP/t.css"
+N="$(cd "$DUP" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d, pathlib
+print(len(d.scan_file(pathlib.Path('t.css'), d.load_design_contract('.'))['hardcoded_colors']))")"
+[ "$N" = "2" ] || fail "two separate declarations sharing a line and a colour reported $N finding(s), expected 2 — the dedupe key collapses distinct violations"
+
+# ...while ONE declaration matched by two overlapping patterns is still ONE.
+printf '.x { border-color: #999999; }\n' >"$DUP/t.css"
+N="$(cd "$DUP" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d, pathlib
+print(len(d.scan_file(pathlib.Path('t.css'), d.load_design_contract('.'))['hardcoded_colors']))")"
+[ "$N" = "1" ] || fail "one declaration matched by two patterns reported $N findings, expected 1 — the new key lost the overlap dedupe"
+
+# The SECOND declaration must be classified on its OWN scope, not the first's.
+printf '.x { box-shadow: 0 0 2px #999999; } .y { background: #999999; }\n' >"$DUP/t.css"
+OUT="$(cd "$DUP" && PYTHONPATH="$AUDIT_DIR" python3 -c "
+import design_audit as d, pathlib
+for i in d.scan_file(pathlib.Path('t.css'), d.load_design_contract('.'))['hardcoded_colors']:
+    print(i['severity'], i['match'])")"
+echo "$OUT" | grep -q 'BLOCKING.*background' \
+    || fail "the structural declaration was classified using the decorative one's scope — line.find() returns the FIRST occurrence. Got: $OUT"
+
 echo "PASS: test-design-audit-edges"
