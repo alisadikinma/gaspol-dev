@@ -1,16 +1,25 @@
 """
-Design Audit Script (gaspol-design)
+Design Audit Script -- offline, pre-merge design-compliance lint for gaspol-verify Layer 4.
 
-Scans target project codebase for design system compliance.
-Detects:
-- Hardcoded colors (should use design tokens)
-- Hardcoded fonts (should use design system font stack)
+Detects, and only what it actually detects:
+- Colours and fonts that are not in the project's DESIGN.md token contract,
+  severity split by CSS role (structural BLOCKS, decorative WARNs)
+- WCAG 2.1 AA contrast of the contract's own foreground/background token pairs
 - Non-responsive layouts (missing breakpoints)
 - Missing component states (loading/error/empty)
-- Accessibility gaps (missing ARIA, no keyboard support, contrast issues)
+- Accessibility gaps (missing ARIA, no keyboard support)
+
+Until IDS-7 this docstring also claimed "contrast issues" while the file
+contained no contrast computation at all, and accepted a --design-system flag it
+never read. Both are now true or gone. If a check is ever removed, remove its
+line here in the same change -- a claimed check that does not run is worse than
+a missing one, because it reads as covered.
 
 Usage:
-    python design_audit.py <target_project_path> [--design-system <path_to_CLAUDE.md>]
+    python3 design_audit.py <project_root> [--changed-files BASE] [--design-system DIR] [--json]
+
+    --changed-files BASE   audit only UI/style files changed in BASE..HEAD (Layer 4 mode)
+    --design-system DIR    directory holding DESIGN.md, when not the project root
 """
 
 import argparse
@@ -168,6 +177,79 @@ def load_design_contract(project_root) -> dict | None:
         )
 
     return contract
+
+
+# WCAG 2.1 AA. Written out so nobody re-derives it wrong from memory.
+AA_NORMAL_TEXT = 4.5   # body copy
+AA_LARGE_TEXT = 3.0    # large text and UI boundaries
+
+# Which token names read as foreground vs background. Deliberately narrow: a
+# pairing that cannot be determined is REPORTED as undetermined, never guessed.
+# An assumed pair graded confidently is the same lie this check exists to fix.
+_FOREGROUND_TOKENS = ("text", "ink", "body", "foreground", "fg", "on-surface")
+_BACKGROUND_TOKENS = ("surface", "background", "bg", "canvas", "paper")
+
+
+def _relative_luminance(hex_colour: str) -> float:
+    """WCAG 2.1 relative luminance of an opaque #rrggbb colour."""
+    h = _normalise_hex(hex_colour).lstrip("#")[:6]
+    channels = []
+    for i in (0, 2, 4):
+        c = int(h[i : i + 2], 16) / 255
+        channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = channels
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast_ratio(hex_a: str, hex_b: str) -> float:
+    """WCAG 2.1 contrast ratio between two colours. Order-independent, 1.0-21.0."""
+    la, lb = _relative_luminance(hex_a), _relative_luminance(hex_b)
+    lo, hi = sorted((la, lb))
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def check_contract_contrast(contract: dict | None) -> list[dict]:
+    """Grade every foreground/background token pair in the contract against AA.
+
+    Returns a list of findings. All are WARN: a contract that ships a
+    low-contrast pair is a design problem to fix, not a reason to block a branch
+    that merely used the tokens as declared.
+
+    When no pairing can be determined, that is REPORTED rather than silently
+    skipped or, worse, guessed at. Grading an assumed pair confidently would
+    reintroduce the exact defect this replaces -- a contrast verdict nobody
+    actually computed.
+    """
+    if not contract:
+        return []
+
+    colors = contract.get("colors", {})
+    fg = {k: v for k, v in colors.items() if any(t in k for t in _FOREGROUND_TOKENS) and v.startswith("#")}
+    bg = {k: v for k, v in colors.items() if any(t in k for t in _BACKGROUND_TOKENS) and v.startswith("#")}
+
+    if not fg or not bg:
+        return [{
+            "severity": "INFO",
+            "message": (
+                "contrast: no declared foreground/background pairing in DESIGN.md — "
+                "not graded (naming a token 'text' and one 'surface' enables this check)"
+            ),
+        }]
+
+    findings = []
+    for fk, fv in sorted(fg.items()):
+        for bk, bv in sorted(bg.items()):
+            ratio = contrast_ratio(fv, bv)
+            if ratio < AA_NORMAL_TEXT:
+                findings.append({
+                    "severity": "WARN",
+                    "message": (
+                        f"contrast: {fk} ({fv}) on {bk} ({bv}) is {ratio:.2f}:1 — "
+                        f"below WCAG AA {AA_NORMAL_TEXT}:1 for body text"
+                        + ("" if ratio < AA_LARGE_TEXT else f" (meets {AA_LARGE_TEXT}:1 for large text only)")
+                    ),
+                })
+    return findings
 
 
 def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> str | None:
@@ -424,17 +506,31 @@ def main():
     summary = summarize(findings)
     overall_verdict = verdict(summary)
 
+    contrast_findings = check_contract_contrast(contract)
+
     if args.json:
         output = {
             "project": str(project_root),
+            "design_contract": (
+                "none" if contract is None
+                else f"loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
+            ),
             "summary": summary,
             "verdict": overall_verdict,
+            "contrast": contrast_findings,
             "findings": findings,
         }
         print(json.dumps(output, indent=2))
     else:
         print(f"Design Audit — {project_root}")
         print(f"Verdict: {overall_verdict}")
+        print(
+            "design-contract: none — token gate not run"
+            if contract is None
+            else f"design-contract: loaded ({len(contract['colors'])} colors, {len(contract['fonts'])} fonts)"
+        )
+        for f in contrast_findings:
+            print(f"  {f['severity']}: {f['message']}")
         print()
         print(f"Files scanned: {summary['total_ui_files']}")
         print(f"Hardcoded colors: {summary['hardcoded_colors']}")

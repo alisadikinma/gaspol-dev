@@ -191,4 +191,56 @@ if grep -q '"--design-system"' "$AUDIT_DIR/design_audit.py"; then
         || fail "--design-system is still declared and never read — that unread flag is the defect this phase exists to kill"
 fi
 
+# --- Phase D: WCAG AA contrast is COMPUTED, not merely claimed --------------
+#
+# The docstring listed "contrast issues" and gaspol-verify/SKILL.md claimed
+# "WCAG AA contrast ratios". grep for `contrast` in the script returned one hit:
+# that docstring line. Zero computation. Same defect class as the gaspol-finish
+# Step 5 checkbox IDS-6 fixed — a step recorded as passed that never ran.
+
+echo "test-design-contract: contrast ratio..."
+py "
+import design_audit as d
+r = d.contrast_ratio('#ffffff', '#000000')
+assert abs(r - 21.0) < 0.01, f'white on black must be 21.0, got {r}'
+assert abs(d.contrast_ratio('#000000', '#ffffff') - 21.0) < 0.01, 'ratio must be order-independent'
+assert abs(d.contrast_ratio('#ffffff', '#ffffff') - 1.0) < 0.01, 'identical colours must be 1.0'
+" || fail "contrast_ratio is missing or wrong"
+
+# The AA boundary is tested, not only the trivial extremes. #767676 on white is
+# the canonical just-passing pair (~4.54); #777777 just fails (~4.48). A test
+# that only checks black-on-white passes against almost any broken formula.
+py "
+import design_audit as d
+ok  = d.contrast_ratio('#767676', '#ffffff')
+bad = d.contrast_ratio('#777777', '#ffffff')
+assert ok >= 4.5,  f'#767676 on white must meet AA 4.5:1, got {ok:.2f}'
+assert bad < 4.5,  f'#777777 on white must fail AA 4.5:1, got {bad:.2f}'
+" || fail "the AA 4.5:1 boundary is wrong — the formula passes the easy case but not the real threshold"
+
+# A contract whose text/surface pair fails AA is reported, naming both tokens.
+LOWC="$TMP_DIR/lowcontrast"
+mkdir -p "$LOWC"
+printf -- '---\ncolors:\n  text: "#777777"\n  surface: "#ffffff"\n---\n' >"$LOWC/DESIGN.md"
+OUT="$(py "
+import design_audit as d
+for f in d.check_contract_contrast(d.load_design_contract('$LOWC')):
+    print(f['severity'], f['message'])
+")" || fail "check_contract_contrast is missing"
+echo "$OUT" | grep -qi 'text' || fail "the low-contrast finding does not name the text token: $OUT"
+echo "$OUT" | grep -qi 'surface' || fail "the low-contrast finding does not name the surface token: $OUT"
+echo "$OUT" | grep -q '4\.4\|4\.5' || fail "the finding does not quote the measured ratio: $OUT"
+
+# No determinable pairing -> say so. Never invent a pairing and grade it.
+NOPAIR="$TMP_DIR/nopair"
+mkdir -p "$NOPAIR"
+printf -- '---\ncolors:\n  brand: "#2563EB"\n  accent: "#F59E0B"\n---\n' >"$NOPAIR/DESIGN.md"
+OUT="$(py "
+import design_audit as d
+for f in d.check_contract_contrast(d.load_design_contract('$NOPAIR')):
+    print(f['severity'], f['message'])
+")"
+echo "$OUT" | grep -qi 'no declared' \
+    || fail "with no foreground/background pairing the check must say so, not grade an assumed pair: $OUT"
+
 echo "PASS: test-design-contract"
