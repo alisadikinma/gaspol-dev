@@ -13,11 +13,18 @@ KS="$REPO_ROOT/docs/kb-setup.md"; RM="$REPO_ROOT/README.md"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-echo "test-ids8-docs: version bumped in both manifests..."
-for m in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
-    grep -qF '"version": "1.18.0"' "$REPO_ROOT/$m" \
-        || fail "$m is not at 1.18.0"
-done
+echo "test-ids8-docs: the 1.18.0 release is recorded, and the manifests agree..."
+# HISTORICAL fact, not the current version. This assertion used to pin the
+# manifests to "1.18.0" and therefore went red on the very next release (it did,
+# on IDS-9). A per-ticket test owns what its ticket shipped; the CURRENT version
+# is a cross-cutting property, and test-naming-convention.sh already asserts the
+# two manifests and CLAUDE.md's footer agree with each other.
+grep -qF "## [1.18.0]" "$CH" \
+    || fail "CHANGELOG.md has no 1.18.0 section — this ticket's release is not recorded"
+PV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$REPO_ROOT/.claude-plugin/plugin.json" | head -1)
+MV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$REPO_ROOT/.claude-plugin/marketplace.json" | head -1)
+[ -n "$PV" ] || fail "plugin.json carries no parsable version — the scan is broken, so agreement below would prove nothing"
+[ "$PV" = "$MV" ] || fail "manifests disagree: plugin.json=$PV marketplace.json=$MV"
 
 echo "test-ids8-docs: kb-setup no longer promises a setting nothing reads..."
 grep -qF 'kb-path.md' "$KS" \

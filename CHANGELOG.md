@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.19.0] - 2026-08-21
+
+### Fixed — the finish chain had no bound (IDS-9)
+
+IDS-8's `gaspol-finish` run took roughly eleven agent dispatches. The six steps were not the
+problem: every one of them found a real defect, including a skill that had silently stopped
+loading and a first capture that aborted on any fresh machine. The problem was that the chain
+never bounded its own retries — "fix and re-run" appeared four times with no round cap, no
+scoping, and no ordering rule, so five rounds went by on the **same class of finding** with
+nothing saying *this is a pattern*.
+
+Every fix already existed in the plugin. `gaspol-parallel` has a five-round loop with model
+escalation, a scoped `FIX_BASE..HEAD` re-review, and a breaker that adjudicates instead of
+escalating. `gaspol-finish` referenced it **zero times**.
+
+- **`skills/_shared/fix-loop.md`** — the loop rule, stated once, read by `gaspol-parallel` (per
+  task) and `gaspol-finish` (per BLOCKING gate). The cap's number is deliberately not repeated in
+  either caller; a constant copied into two skills is a constant that will disagree with itself,
+  which is the duplicated-pipeline defect IDS-8 removed one layer up.
+- **`gaspol-finish` Step 0 — deterministic checks before any agent is dispatched.** The commands
+  `detect-stack` prints, plus, where a repository keeps one, its gate-mutation harness. Three of
+  IDS-8's five gate regressions would have been caught in seconds instead of by an eight-minute
+  audit; an audit over a red tree costs the time and produces a verdict nobody can rely on.
+- **Re-runs are scoped.** A BLOCKING gate records the SHA it audited, and the re-run reads
+  `<SHA>..HEAD` — the fix diff, not the whole branch again.
+
+**The chain was bounded, not shortened.** All six steps stay, and
+`tests/ticket-scripts/test-finish-fix-loop.sh` fails if any is dropped, if the rule gets
+duplicated back into a caller, if the re-run is unscoped, or if the cheap-before-expensive
+ordering is removed. All six were sabotage-proved with MD5-verified mutations.
+
+`test-fix-loop.sh` (IDS-6) now asserts the shared rule on the shared file and keeps only
+parallel-specific claims on `gaspol-parallel/SKILL.md` — leaving them all in place would have
+passed only while the rule was still duplicated. `test-ids8-docs.sh` stopped pinning the current
+manifest version: a per-ticket test that asserts "the manifests read 1.18.0" goes red on every
+later release, so it now asserts the historical fact instead — that the changelog carries a
+1.18.0 section.
+
 ## [1.18.0] - 2026-08-21
 
 ### Fixed during the release's own review chain (IDS-8, rounds after the plan closed)

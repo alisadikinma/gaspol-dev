@@ -10,7 +10,7 @@
     {
       "name": "gaspol-dev",
       "description": "20 skills + 4 agents with anti-placeholder enforcement, step-level closure gate, cross-project knowledge base, auto-rubric model switching, industry research grounding, KB self-maintenance, eval-driven development, git-worktree isolation, an always-on laziness ladder (minimal-code stance), and an auto-trigger bootstrap. Design intelligence delegates to the ui-ux-pro-max plugin; security review delegates to the CLI built-in /security-review",
-      "version": "1.18.0",
+      "version": "1.19.0",
       "source": {
         "source": "url",
         "url": "https://github.com/alisadikinma/gaspol-dev.git"

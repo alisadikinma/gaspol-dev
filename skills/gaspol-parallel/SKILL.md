@@ -329,42 +329,17 @@ findings.
 
 ##### The Fix Loop
 
-A fix round is one fix dispatch plus one scoped re-review. **Five rounds maximum per task.**
+**Canonical rule: [skills/_shared/fix-loop.md](../_shared/fix-loop.md)** — five rounds maximum,
+rounds 1-3 resume the fixer that has the context, rounds 4-5 dispatch fresh one model tier up,
+the re-review is scoped to `FIX_BASE..HEAD`, and round 5 adjudicates rather than escalating.
+`gaspol-finish` applies the same rule to its BLOCKING gates; the rule is stated once so the two
+cannot drift.
 
-**Rounds 1-3 — resume the original implementer.** Send it the open findings verbatim. Its
-context is intact: it knows the task, the code, and its own choices. If your harness cannot
-message a live subagent, dispatch a fresh one carrying the brief path, the report-file path,
-and the findings — the report file is the persistent memory either way.
-
-**Rounds 4-5 — dispatch a fresh implementer one model tier above** the one that got stuck
-(see `docs/rubric-model-switching.md`), framed as: "a prior implementer attempted this task
-N times; you own it now — read the report file for what was tried." A loop that survives
-three resumes usually means the implementer cannot see its own problem. Fresh eyes and a
-capability bump, in one move.
-
-**Every round, either way:** the implementer fixes, re-runs the tests covering the amended
-code, and appends its fix report to the same report file. Before re-dispatching the
-reviewer, confirm the fix report contains **the covering tests, the command run, and its
-output** — all three. Name the covering test files in the fix message; a one-line fix does
-not need the whole suite.
-
-**The re-review is scoped.** Run `review-package <FIX_BASE> HEAD`, where `FIX_BASE` is
-**the head the previous review saw** — so the re-reviewer gets the fix diff and nothing
-else, instead of re-reading the whole task. Dispatch
-[re-review-prompt.md](re-review-prompt.md) with the findings list, the brief path, the
-report file, and the printed diff path. The same prohibition applies here as everywhere:
-never pass `HEAD~1` as a base — a multi-commit fix has more than one commit and `HEAD~1`
-silently drops all but the last. Re-reviews of small fix diffs take a cheap-to-mid model
-tier; scale it to the diff, not to the task.
-
-**Round 5 is the breaker, not a wall.** When it trips, **adjudicate** each still-open
-finding yourself: weigh it against the plan text with the spec as the binding authority,
-record the ruling in the ledger, and continue. Stop and ask the user only when every path
-forward is a guess.
-
-**A finding that conflicts with what the plan mandates is yours to rule on** before you act
-on it. Do not dismiss the finding because the plan mandates it, and do not dispatch a fix
-that contradicts the plan without a recorded ruling.
+**What is specific to this skill:** the fixer is the task's implementer, its persistent memory is
+the report file beside the brief, and the scoped diff is built with
+`scripts/review-package <FIX_BASE> HEAD` and dispatched via
+[re-review-prompt.md](re-review-prompt.md). `FIX_BASE` is the head the previous review saw —
+never `HEAD~1`, which silently drops all but the last commit of a multi-commit fix.
 
 #### Step 7: Mark Complete
 

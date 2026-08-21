@@ -25,11 +25,12 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `hooks/hooks.json` | SessionStart hook definition |
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
+| `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
 | `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **29 at v1.18**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
+| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
 | `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 20 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
@@ -853,7 +854,26 @@ Response pattern: READ → UNDERSTAND → VERIFY → EVALUATE → RESPOND → IM
 
 When feedback is unclear: STOP. Do not guess. Ask for clarification with specific interpretation options.
 
-### Finishing Work (gaspol-finish) — six-step chain, three of them BLOCKING
+### Finishing Work (gaspol-finish) — six-step chain, three of them BLOCKING, all of it BOUNDED (v1.19)
+
+**The bound (NEW in v1.19).** The six steps were never the problem — in IDS-8 every one of them
+found a real defect, including a skill that had silently stopped loading. The problem was that
+"fix and re-run" appeared four times with **no round cap, no scoping, and no ordering rule**, so
+the chain ran roughly eleven agent dispatches, five of them on the same class of finding. Three
+changes, no new mechanism:
+
+- **Step 0 — deterministic checks before any agent is dispatched.** `detect-stack`'s commands plus,
+  where a repository keeps one, its gate-mutation harness. An eight-minute Opus audit over a tree
+  whose two-second suite is already red costs the time and yields a verdict nobody can rely on.
+- **[skills/_shared/fix-loop.md](skills/_shared/fix-loop.md)** is now the single source of the loop
+  rule, read by `gaspol-parallel` and `gaspol-finish` alike. The round cap's **number is
+  deliberately not repeated** in either caller: a constant copied into two skills is a constant
+  that will disagree with itself.
+- **Re-runs are scoped.** A BLOCKING gate records the SHA it audited; the re-run reads
+  `<SHA>..HEAD` — the fix diff and nothing else.
+
+The bound shortens **rounds**, never the **chain**. All six steps stay, and
+`tests/ticket-scripts/test-finish-fix-loop.sh` fails if any of them is dropped.
 
 Pre-finish verification chain (MANDATORY — all six, in order, none conditional on the diff):
 
@@ -1004,9 +1024,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-8
+Last ticket: IDS-9
 
 ---
 
-**Version:** 1.18.0
+**Version:** 1.19.0
 **Last Updated:** August 2026
