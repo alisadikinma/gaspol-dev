@@ -55,11 +55,11 @@ Never output React code for a Vue project.
 
 > **`<KB_ROOT>`** is the resolved knowledge-base root. Resolve it with `skills/_shared/kb-path.md` (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), and honour its three states — `available` / `none` / `UNKNOWN`. Never spell the default path here: doing so is why a correct setting still wrote to the old folder.
 
-**BEFORE** proposing any UI pattern, query `<KB_ROOT>/ui-patterns/` for similar past patterns:
+**BEFORE** proposing any UI pattern, query the store for notes tagged `ui-patterns`:
 
 ```bash
-cd <KB_ROOT>/
-grep -rilE "<domain>" "$KB"/*.md   # flat notes; gaspol writes no index
+KB="$(skills/_shared/kb-root)" || exit 1   # unassigned $KB expands to /*.md — the filesystem root
+grep -rilE "<domain>|ui-patterns" "$KB"/*.md   # flat notes; gaspol writes no index
 # Read matched patterns
 ```
 
@@ -78,7 +78,7 @@ When querying KB, filter by `status`:
 
 ### Rule G7: Learn After Ship
 
-After the design output ships via gaspol-finish, gaspol-learn captures the pattern to `ui-patterns/` with:
+After the design output ships via gaspol-finish, gaspol-learn captures the pattern to ``ui-patterns` tag with:
 - Tags extracted from decision context
 - Status: `proposed` (until validated in future project)
 - Source: current project name + component path

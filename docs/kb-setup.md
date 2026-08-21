@@ -36,36 +36,51 @@ Every KB-touching skill resolves the mode like this, in order:
 > Resolution flips the old behavior: "no config → skip" is now "no config → local-only".
 > The KB only disables on an explicit `kb_mode: off`.
 
-## Auto-init (run when the local KB dir is missing)
+## Auto-init (run when the store directory is missing)
 
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
-if [ ! -d "$KB" ]; then
-  mkdir -p "$KB"/{ui-patterns,architecture,design-decisions,research,reusable-snippets}
-  printf '# gaspol-knowledge INDEX (local)\n' > "$KB/INDEX.md"
-  git -C "$KB" init -q 2>/dev/null || true   # local history; lets you add a remote later
-fi
+KB="$(skills/_shared/kb-root)"; rc=$?
+case $rc in
+  0) : ;;                                   # available
+  3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;   # STOP and ask
+  4) KB="$HOME/.claude/gaspol-knowledge"; mkdir -p "$KB" ;;                    # none -> create the default
+esac
 ```
 
-A local `git init` is best-effort — it gives you history and a clean upgrade path, but the
-KB functions as plain files even if git is unavailable.
+**A bare directory, and nothing else** (IDS-8). Three things this block used to do and must not:
+
+- **No `git init`.** `kb_local` may point inside a repository you do not own — a vault, a monorepo
+  — and initialising one there is the write-side hazard `skills/_shared/kb-path.md` exists to
+  prevent.
+- **No category subdirectories.** Captures are flat notes; the category is the first tag. Routing
+  is the promoter's job.
+- **No `INDEX.md`.** gaspol writes no index — the flat notes carry their own frontmatter and tags,
+  and an index nothing reads can only drift.
 
 ## Conditional sync helper (skills use this instead of unconditional pull/push)
 
 ```bash
-KB="${GASPOL_KB_LOCAL:-$HOME/.claude/gaspol-knowledge}"
+KB="$(skills/_shared/kb-root)" || exit 1
 REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
 
-# before reads (synced only):
+# before reads (synced only) — reads are always permitted:
 [ -n "$REMOTE" ] && git -C "$KB" pull --quiet 2>/dev/null || true
 
-# after writes — always commit locally; push ONLY if a remote exists:
-git -C "$KB" add . 2>/dev/null && git -C "$KB" commit -q -m "<msg>" 2>/dev/null || true
-[ -n "$REMOTE" ] && git -C "$KB" push --quiet 2>/dev/null || true
+# OWNERSHIP GUARD — before ANY write-side git operation:
+TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
+  echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
+else
+  git -C "$KB" add . 2>/dev/null && git -C "$KB" commit -q -m "<msg>" 2>/dev/null || true
+  [ -n "$REMOTE" ] && git -C "$KB" push --quiet 2>/dev/null || true
+fi
 ```
 
-Local commit always runs (free, gives history). Push runs only in `synced` mode. In
-`local-only` mode there is **no fail-loud** for the absent remote — that is the expected state.
+The guard is not optional decoration: with `kb_local` pointing into a vault, the unguarded version
+of this block commits and pushes somebody's entire second brain. It stops **gaspol** from authoring
+a commit — it does **not** give anyone a review window, because a vault may auto-sync on its own
+timer. Full rationale: `skills/_shared/kb-path.md`.
+
 
 ## Upgrade: local-only → synced (cross-machine, optional)
 
@@ -92,11 +107,6 @@ inherited that shell, and everywhere else resolution falls through to the defaul
 the store you moved away from.
 
 
-Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
-`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
-the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
-inherited that shell, and everywhere else resolution falls through to the default and recreates
-the store you moved away from.
 
 
 Everything already captured locally comes along on the first push.

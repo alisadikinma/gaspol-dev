@@ -70,7 +70,8 @@ Write to `<KB_ROOT>/YYYY-MM-DD-<slug>.md` — flat, no category directory. `stat
 id: ADR-YYYY-MM-DD-<slug>
 title: <Concise decision title>
 date: YYYY-MM-DD
-status: accepted              # proposed | accepted | superseded | deprecated
+status: proposed              # ALWAYS proposed from gaspol. Only the human gate
+                              # (superbrain-promote) may set accepted/superseded/deprecated.
 project: <project-name>
 domain: <domain-tag>
 tags: [<tag1>, <tag2>, ...]
@@ -122,7 +123,7 @@ related: []                   # other ADR ids
 ## References
 
 - [Research cache: ../research/<slug>.md] (if research informed this)
-- [Precedent: ../design-decisions/YYYY-MM-DD-<slug>.md] (if following precedent)
+- [Precedent: the flat note tagged `design-decisions` this one follows] (if following precedent)
 ```
 
 ### Step 4: Divergence Handling
@@ -130,10 +131,10 @@ related: []                   # other ADR ids
 If user chose `[Override with reason]` at precedent surface (in `gaspol-brainstorm` Phase 0.5):
 
 1. Prompt user for divergence reason (1-2 sentences)
-2. Create divergence ADR at `design-decisions/divergence-YYYY-MM-DD-<slug>.md`
+2. Create the divergence ADR as a flat quarantine note: `<KB_ROOT>/YYYY-MM-DD-divergence-<slug>.md`, tagged `design-decisions` (no category directory — Phase C abolished them)
 3. Frontmatter:
    ```yaml
-   status: accepted
+   status: proposed
    supersedes: null                     # old precedent NOT superseded (both coexist)
    diverges_from: <precedent-ADR-id>    # NEW field: explicit divergence marker
    divergence_reason: "<1-2 sentence reason>"
@@ -170,8 +171,13 @@ Full snippet and rationale: `skills/_shared/kb-path.md`.
 KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
   # Never continue with an empty $KB: git -C "" is a silent wrong answer.
   echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
-git -C "$KB" add . && git -C "$KB" commit -q -m "adr: <id> — <title>" || true
-[ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
+TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
+  echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
+else
+  git -C "$KB" add . && git -C "$KB" commit -q -m "adr: <id> — <title>" || true
+  [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true   # synced mode only; no error if local-only
+fi
 ```
 
 ### Step 7: Return to Caller
@@ -182,7 +188,7 @@ Notify caller skill (brainstorm/plan) that ADR is captured with id. Caller can r
 
 ## Cross-Brainstorm Surfacing
 
-`gaspol-brainstorm` Phase 0.5 queries `design-decisions/` for similar past decisions. When match found, presents to user:
+`gaspol-brainstorm` Phase 0.5 greps the flat notes for the `design-decisions` tag. When match found, presents to user:
 
 ```
 Found relevant past decisions:
@@ -214,7 +220,7 @@ Found relevant past decisions:
 | Skill | Interaction |
 |---|---|
 | `gaspol-brainstorm` Phase 2 | Auto-invoked when approach selected from 2+ options |
-| `gaspol-brainstorm` Phase 0.5 | Grep design-decisions/ for precedent |
+| `gaspol-brainstorm` Phase 0.5 | Grep the notes for the `design-decisions` tag |
 | `gaspol-plan` | Captures architectural forks within phases |
 | `gaspol-research` | Research verdicts feed into ADR "References" section |
 | `gaspol-kb-audit` | Flags stale ADRs (accepted >180 days without validation) |

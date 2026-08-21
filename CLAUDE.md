@@ -239,23 +239,26 @@ the store you moved away from.
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
-Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (auto-init `~/.claude/gaspol-knowledge/`, write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
 
-Structure (same on every user's machine):
+Structure — **flat, since v1.18** (see "One Knowledge Store" below, which supersedes this
+paragraph wherever they disagree):
 
 ```
-~/.claude/gaspol-knowledge/
-├── INDEX.md                  ← tagged index (grepped by brainstorm Phase 0.5)
-├── ui-patterns/              ← populated by gaspol-learn (component patterns)
-├── architecture/             ← populated by gaspol-learn (system-level patterns)
-├── design-decisions/         ← populated by gaspol-adr (ADRs, MADR format)
-├── research/                 ← populated by gaspol-research (with TTL + freshness)
-└── reusable-snippets/        ← populated by gaspol-learn (hooks, helpers)
+<KB_ROOT>/                       ← resolved by skills/_shared/kb-root, NOT a fixed path
+└── YYYY-MM-DD-<slug>.md         ← flat notes: frontmatter + "# Title" + tags: [...]
 ```
+
+gaspol writes no index, and the four category directories are **gone**. The category is the first tag; the
+promoter routes. gaspol writes no index — an index it maintains that no promoter reads can only
+drift, and inside a quarantine folder it is a non-note where notes are scanned.
 
 Entry status lifecycle: `proposed` → `accepted` → `superseded` OR `deprecated`.
+**gaspol only ever writes `proposed`.** Promotion belongs to the human gate.
 
-Default query filter: `status=accepted`. Freshness tiers for research: 🟢 FRESH <90d / 🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
+Default query filter: `proposed` **and** `accepted` — filtering to `accepted` alone would hide
+every gaspol capture from the query built to find it. Freshness tiers for research: 🟢 FRESH <90d /
+🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
 
 Compounding effect: every shipped feature → `gaspol-learn` captures patterns → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs.
 
@@ -666,7 +669,7 @@ When user wants to create, add, or modify anything:
 0. **HARD-GATE (v1.5)**: no implementation skill / code / scaffold until a design is
    presented AND user-approved — every project, regardless of perceived simplicity.
 1. **Phase 0**: Read project's CLAUDE.md (MANDATORY before any codebase exploration)
-2. **Phase 0.5**: KB cross-project query (MANDATORY — git pull, grep INDEX.md, surface precedent)
+2. **Phase 0.5**: Precedent query (MANDATORY on the architectural AND bounded paths — resolve the root, grep the flat notes' tags, surface precedent). No index is grepped; gaspol writes none
 3. **Phase 1**: Ask clarifying questions ONE at a time via AskUserQuestion (**decompose gate
    (v1.5)**: flag multi-subsystem requests first, split into sub-projects, each its own cycle)
 4. **Phase 1.5**: Novelty assessment (PRECEDENT / SEMI-NEW / NEW → decide research depth)

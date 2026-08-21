@@ -81,7 +81,7 @@ unrequested change.
    **Create the directory only, never `git init`.** The store may live inside a repository gaspol does not own — a vault, a monorepo — and initialising a repo inside someone else's is the write-side hazard the ownership guard exists to prevent (`skills/_shared/kb-path.md`).
 1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C <KB_ROOT> pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
-3. **Grep the notes** — `grep -rilE "<tag1>|<tag2>" "$KB"/*.md`. There is no index: gaspol writes flat notes carrying their own `# Title` and `tags: [...]`, and an index nothing writes is worse than none.
+3. **Grep the notes** — `KB="$(skills/_shared/kb-root)" || exit 1` then `grep -rilE "<tag1>|<tag2>" "$KB"/*.md`. Assign `$KB` first: unassigned it expands to `/*.md`, scanning the filesystem root. There is no index: gaspol writes flat notes carrying their own `# Title` and `tags: [...]`, and an index nothing writes is worse than none.
 4. **Filter by status** — show `proposed` **and** `accepted`. `proposed` is not a lesser tier here: gaspol writes `proposed` exclusively (promotion belongs to the human gate), so filtering it out would hide every capture from the query built to find it. Mark the tier when surfacing so the user can weigh a promoted note above a pending one.
 5. **Freshness check** — for research/ entries, check age tier (🟢 FRESH / 🟡 AMBER / 🟠 STALE / 🔴 EXPIRED)
 6. **Surface to user via AskUserQuestion** (if matches found):

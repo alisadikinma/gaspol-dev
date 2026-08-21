@@ -232,7 +232,14 @@ Every row is a real file, a real command, or a real environment variable. No pla
 
 ---
 
-### Phase G: migrate the 18 entries, then retire the old store
+### Phase G: migrate the entries, then retire the old store
+
+> **AMENDED 2026-08-21 (execution):** this phase said **18 entries** throughout. The store held 18
+> *files*, of which **17 are content**; the 18th is `INDEX.md`, the index Phase C stopped writing.
+> It was deliberately **not** migrated and is a recorded loss, not an oversight. Read "18" below as
+> **17 content entries + INDEX.md dropped**. Amended in place for the same reason the Laziness note
+> above was: a plan that still asserts a number the implementation contradicts is a plan nobody can
+> audit against.
 
 **Estimated time:** 45 minutes
 

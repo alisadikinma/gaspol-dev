@@ -91,11 +91,26 @@ echo "test-kb-write-format: no skill instructs writing or grepping an index gasp
 # maintains it as the vault master map, and reading it is correct. Only an index
 # GASPOL would have to write is forbidden. The exemption is named rather than
 # broad, so it cannot quietly cover a gaspol-written index later.
-STALE=$(grep -rn "INDEX.md" "$REPO_ROOT/skills" 2>/dev/null \
-        | grep -viE "no index|index caveat|maintains one|removed .{0,10}no index|there is no index|master map" || true)
+# Two exemption families, both NAMED rather than broad: (1) sentences that negate,
+# (2) the VAULT's own master map, recognisable by the notes it is read alongside
+# (hot.md, 30-Knowledge, 20-Projects) — the owner writes that one and reading it is
+# correct. Only an index GASPOL would have to write is forbidden.
+STALE=$(grep -rn "INDEX.md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
+        | grep -viE 'no index|index caveat|maintains one|there is no index|master map|writes no index|no .INDEX' \
+        | grep -viE 'hot[.]md|30-Knowledge|20-Projects|10-Identity' || true)
+# Two exemption families, both named rather than broad:
+#   1. sentences that NEGATE (gaspol writes no index)
+#   2. the VAULT's own master map, recognisable by the notes it is read alongside
+#      (hot.md, 30-Knowledge, 20-Projects) — the owner writes that one, and reading
+#      it is correct. Only an index GASPOL would have to write is forbidden.
 if [ -n "$STALE" ]; then
     printf '%s\n' "$STALE" | sed 's/^/    /' >&2
     fail "skill text still points at INDEX.md — gaspol writes no index, so every one of these reads finds nothing and reports 'no precedent', which is when a known mistake gets repeated"
 fi
+
+# --- no doc may still promise status: accepted from gaspol -------------------
+echo "test-kb-write-format: nothing writes status: accepted..."
+BAD=$(grep -rn '^status: accepted' "$REPO_ROOT/skills" 2>/dev/null || true)
+[ -z "$BAD" ] || { printf '%s\n' "$BAD" | sed 's/^/    /' >&2; fail "a skill template still emits 'status: accepted' — an agent copies the template, not the sentence forbidding it"; }
 
 echo "PASS: test-kb-write-format"

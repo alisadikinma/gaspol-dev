@@ -183,9 +183,14 @@ Full snippet and rationale: `skills/_shared/kb-path.md`.
 KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
   # Never continue with an empty $KB: git -C "" is a silent wrong answer.
   echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
-git -C "$KB" add . && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" || true
+TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
+  echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
+else
+  git -C "$KB" add . && git -C "$KB" commit -q -m "learn: capture <pattern> from <project>" || true
 # push ONLY if a remote is configured (kb_remote / $GASPOL_KB_REMOTE):
-[ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
+  [ -n "$REMOTE" ] && git -C "$KB" push --quiet || true
+fi
 ```
 
 In **local-only mode** (default) there is no remote — the local commit IS the capture. No push, no offline queue, no error. In **synced mode**, if push fails (offline) queue in `.pending-push` for retry next session.
