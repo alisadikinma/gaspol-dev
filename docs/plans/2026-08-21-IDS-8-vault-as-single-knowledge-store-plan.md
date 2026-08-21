@@ -64,7 +64,7 @@ for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done
 | Git ownership | `git -C <kb_root> rev-parse --show-toplevel` | sync guard | Yes (git) | Refuse commit when toplevel ≠ KB root |
 | Code index | `graphify-out/` + `graphify` CLI in the target repo | `gaspol-sync-docs` | Varies per project | `graphify update .` when both present |
 | Federated brain | `~/.graphify/global-graph.json` | `graphify global add` | Yes | **Offer** via AskUserQuestion, never automatic |
-| Migration input | the 18 entries + the 62 inbox notes | manual routing pass | Yes | Dedup, route, delete source |
+| Migration input | the 17 content entries + `INDEX.md` dropped + the 62 inbox notes | manual routing pass | Yes | Dedup, route, delete source |
 
 Every row is a real file, a real command, or a real environment variable. No placeholders.
 
@@ -130,7 +130,15 @@ Every row is a real file, a real command, or a real environment variable. No pla
 **Verification:**
 - [ ] detect-stack: no stack markers for this project — verification is plan-declared only
 - [ ] `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done` exits 0
-- [ ] The test's allow-list contains exactly one file (`skills/_shared/kb-path.md`)
+- [ ] The test's allow-list contains exactly five files — `skills/_shared/kb-path.md`,
+      `skills/_shared/kb-root`, `docs/kb-setup.md`, `CLAUDE.md`, `README.md`. **AMENDED
+      2026-08-21 (gaspol-review Tier 1):** this line said *one* and the Laziness DEVIATION note
+      said *two*, while the test asserts *five* and its echo still claimed *two*. The two
+      resolver files spell the path because that is their job; the three docs explain it, and a
+      separate check forbids them carrying runnable bash that uses it — so the widening is not a
+      hole. Three different numbers across plan, deviation note and test message is how an
+      exemption grows unnoticed, which is this ticket's recurring failure. The echo is corrected
+      and the number is pinned here
 - [ ] Positive control: the test finds the sites before the fix and zero after
 - [ ] No placeholder/TODO comments in new content
 
@@ -240,6 +248,23 @@ Every row is a real file, a real command, or a real environment variable. No pla
 > **17 content entries + INDEX.md dropped**. Amended in place for the same reason the Laziness note
 > above was: a plan that still asserts a number the implementation contradicts is a plan nobody can
 > audit against.
+>
+> **AMENDED AGAIN 2026-08-21 (gaspol-review Tier 1):** step 3 below routes 10 entries into
+> `30-Knowledge/coding-workflow-patterns.md` and 5 into `20-Projects/<name>/`. **That is not what
+> was done, and the plan was wrong.** All 17 landed in `90-Inbox/agent-learnings/`. Writing into
+> the curated core **is promotion**, and this ticket's own iron rule reserves promotion for
+> `superbrain-promote` and the human gate — a skill that promotes its own capture has removed the
+> gate it was told to feed. The commit subject was quietly changed from *"into the vault"* to
+> *"into the vault quarantine"* and nothing else recorded the divergence; an auditor re-reading
+> step 3 would look in `30-Knowledge/` and find nothing. **Read step 3's routing targets as
+> superseded: every entry goes to quarantine, and `superbrain-promote` routes from there.** The
+> smaller count discrepancy got an in-place amendment while the larger routing change got none;
+> that asymmetry is the defect being corrected here.
+>
+> **Also recorded (Phase A string):** the plan mandates `knowledge-store: none — vault not
+> configured`; the ship prints `knowledge-store: none — not configured`. "vault" was dropped
+> deliberately — a public, agnostic plugin cannot name one user's vault in its own diagnostic —
+> but the plan text was never amended, so it is amended here.
 
 **Estimated time:** 45 minutes
 
@@ -307,7 +332,7 @@ Every row is a real file, a real command, or a real environment variable. No pla
 | D self | guard prose vs live git behaviour | Both: the text and a quoted `rev-parse` result |
 | E self | widened gate vs spike exemption | Assert spike is still exempt — the change is bounded, not universal |
 | F self | three states vs the negative assertion | The unnegated-pass check must not flag the prohibition itself (IDS-7 lesson) |
-| G self | 18 sources vs their dispositions | Per-entry accounting, not a summary count |
+| G self | 17 content sources vs their dispositions (the store held 18 files; the 18th was `INDEX.md`, dropped — see the Phase G amendment) | Per-entry accounting, not a summary count |
 | H self | docs vs code | Each documented claim points at something that exists in the diff |
 
 ## Execution Handoff
