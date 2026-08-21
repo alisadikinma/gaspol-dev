@@ -4,7 +4,7 @@
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.14.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-20-orange)](#the-20-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Gates](https://img.shields.io/badge/blocking%20gates-3-red)](#the-finish-chain-six-steps-three-of-them-block)
+[![Version](https://img.shields.io/badge/version-1.15.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-20-orange)](#the-20-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Gates](https://img.shields.io/badge/blocking%20gates-3-red)](#the-finish-chain-six-steps-three-of-them-block)
 
 ---
 
@@ -103,7 +103,7 @@ Three of these gates exist because their absence caused a real, observed failure
 - **gaspol-learn** — Quality-gated auto-capture post-finish (6 validation checks, user confirms)
 - **gaspol-sync-docs** — CLAUDE.md sync (3 modes: post-implementation / audit / session learning)
 - **gaspol-kb-audit** — Periodic KB health check (stale / duplicates / conflicts / orphans / broken refs / unpromoted)
-- **gaspol-write-skill** — TDD applied to skill creation (RED-GREEN-REFACTOR)
+- **gaspol-write-skill** — TDD applied to skill creation (RED-GREEN-REFACTOR), gated by a **BLOCKING prior-art search** before a line of SKILL.md is written
 
 ### Bootstrap
 - **using-gaspol** — Auto-trigger backbone: loaded at session start, enforces the 1% rule (invoke the matching skill BEFORE responding), routing table, instruction priority, and rationalization Red Flags
@@ -125,6 +125,8 @@ A plugin that reimplements what the platform already ships is a fork waiting to 
 The reference is **soft — there is deliberately no `dependencies` key in `plugin.json`.** That field is all-or-nothing: if the third-party entry were renamed or yanked, *every* gaspol skill would disable, including `tdd`, `debug`, `verify`, and `finish`. If the plugin is missing, gaspol says so and continues. Design quality degrades; nothing breaks.
 
 **Security review → the built-in `/security-review`.** It's compiled into the Claude Code CLI, so every user already has it — no plugin, no marketplace, no install.
+
+Both of those delegations were deletions — two skills built in-house that never should have been. So v1.15.0 added the gate that would have caught them: `gaspol-write-skill` **Step 0, BLOCKING**, three lookups before any skill is written, because each is blind where the others see. Is it *installed* already? Is it a **built-in `/command`** — those appear in no skill listing, which is exactly how `/security-review` was missed? Is it on the **marketplace** (`npx skills find`, [skills.sh](https://skills.sh)) — one command away from finding `ui-ux-pro-max`? The verdict is recorded as `NONE` / `EXISTS` / `DELTA`, and `DELTA` must **name** the delta. Installing is never automatic: a skill is a prompt that runs inside your agent, so the candidate's own SKILL.md gets read and the user decides.
 
 Three things did **not** delegate, because no upstream equivalent exists:
 
@@ -257,7 +259,8 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.14.0** (current) | Deleted `gaspol-design` and `gaspol-security-review` in favour of the `ui-ux-pro-max` plugin and the CLI built-in; confidence rubric + false-positive catalogue in `gaspol-review`; `gaspol-finish` gains ledger close, derived test commands, and a publication gate; `gaspol-eval` renamed `gaspol-llm-test` |
+| **1.15.0** (current) | Prior-art gate: `gaspol-write-skill` Step 0 is BLOCKING — installed / built-in / marketplace, verdict `NONE` · `EXISTS` · `DELTA`; probes wired into `gaspol-brainstorm` Phase 1.5 (`NEW` only) and `gaspol-research` lane 6, every reference soft |
+| 1.14.0 | Two in-house skills deleted in favour of tooling every user already has — design intelligence to the `ui-ux-pro-max` plugin, security review to the CLI built-in; confidence rubric + false-positive catalogue in `gaspol-review`; `gaspol-finish` gains ledger close, derived test commands, and a publication gate; the eval skill renamed `gaspol-llm-test` |
 | 1.13.0 | Dated `YYYY-MM-DD-<TICKET>-<topic>` spec/plan filenames, `PROGRESS-<TICKET>.md` ledger with per-phase checklist, and `detect-stack` — verification commands derived from the project's stack instead of assuming npm |
 | 1.10.x | Two-lane execution: self-contained plans, per-plan progress ledger as a hard per-phase gate, pluggable external executor |
 | 1.8.0 | DAG lane scheduling (stdlib `graphlib`, zero deps), adversarial refutation in review, per-task Validation Ladder |
@@ -325,7 +328,7 @@ EOF
 
 ```bash
 claude plugin list | grep gaspol-dev
-# Should show: gaspol-dev@gaspol-dev, version 1.14.0
+# Should show: gaspol-dev@gaspol-dev, version 1.15.0
 
 ls ~/.claude/gaspol-knowledge/   # created automatically after your first brainstorm/adr/learn
 # INDEX.md ui-patterns/ architecture/ design-decisions/ research/ reusable-snippets/
