@@ -16,6 +16,7 @@ Usage:
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -188,27 +189,74 @@ def scan_file(path: Path) -> dict:
     return findings
 
 
+SKIP_DIRS = {"node_modules", ".git", ".next", "dist", "build", "out", "__pycache__", ".cache"}
+
+
 def is_ui_file(path: Path) -> bool:
-    """Return True if path is a UI-related source file."""
-    return path.suffix in UI_EXTENSIONS
+    """Return True if path is a UI or style source file.
+
+    STYLE_EXTENSIONS used to be declared and never consulted here, so `.css` and
+    `.scss` were never scanned at all while Layer 4's docs claimed they were --
+    the same defect class as a flag that is parsed and never read.
+    """
+    return path.suffix in UI_EXTENSIONS or path.suffix in STYLE_EXTENSIONS
+
+
+def scan_files(paths) -> list[dict]:
+    """Audit exactly the given paths, skipping anything that is not a UI/style file.
+
+    The single scanning entry point. `scan_project` collects paths and delegates
+    here, so whole-project and diff-scoped modes cannot drift apart.
+    """
+    results = []
+    for raw in paths:
+        path = Path(raw)
+        if path.is_file() and is_ui_file(path):
+            results.append(scan_file(path))
+    return results
+
+
+def changed_ui_files(project_root: Path, base: str) -> list[Path]:
+    """Return the UI/style files changed between `base` and HEAD.
+
+    Why this exists: `scan_project` walks the whole tree, so on a repository with
+    existing code Layer 4 collected hundreds of findings that predate the branch.
+    Because Layer 4 FAILS below score 60, the gate then failed permanently and
+    got ignored -- a gate that always fails is indistinguishable from no gate.
+
+    An unresolvable base raises. It must never fall back to scanning everything:
+    a silent widening turns a green branch red for reasons nobody introduced.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(project_root), "diff", "--name-only", f"{base}..HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"git diff --name-only {base}..HEAD failed in {project_root}: "
+            f"{proc.stderr.strip() or 'unknown error'}"
+        )
+    return [
+        project_root / line
+        for line in proc.stdout.splitlines()
+        if line and is_ui_file(Path(line))
+    ]
 
 
 def scan_project(project_root: Path) -> list[dict]:
-    """Scan entire project for UI files and audit each."""
+    """Scan an entire project for UI/style files and audit each.
+
+    Kept for deliberate whole-project audits. Layer 4 uses the diff-scoped mode.
+    """
     if not project_root.exists():
         raise FileNotFoundError(f"Project root not found: {project_root}")
 
-    results = []
-    # Skip common non-source directories
-    skip_dirs = {"node_modules", ".git", ".next", "dist", "build", "out", "__pycache__", ".cache"}
-
-    for path in project_root.rglob("*"):
-        if any(part in skip_dirs for part in path.parts):
-            continue
-        if path.is_file() and is_ui_file(path):
-            results.append(scan_file(path))
-
-    return results
+    return scan_files(
+        path
+        for path in project_root.rglob("*")
+        if not any(part in SKIP_DIRS for part in path.parts)
+    )
 
 
 def summarize(findings: list[dict]) -> dict:
@@ -260,11 +308,23 @@ def main():
     parser = argparse.ArgumentParser(description="Design system compliance audit")
     parser.add_argument("project_path", help="Target project root")
     parser.add_argument("--design-system", help="Path to CLAUDE.md or design tokens reference")
+    parser.add_argument(
+        "--changed-files",
+        metavar="BASE",
+        help="Audit only UI/style files changed between BASE and HEAD (Layer 4 mode)",
+    )
     parser.add_argument("--json", action="store_true", help="Output JSON")
     args = parser.parse_args()
 
     project_root = Path(args.project_path).resolve()
-    findings = scan_project(project_root)
+    if args.changed_files:
+        try:
+            findings = scan_files(changed_ui_files(project_root, args.changed_files))
+        except RuntimeError as exc:
+            print(f"design_audit: {exc}", file=sys.stderr)
+            return 2
+    else:
+        findings = scan_project(project_root)
     summary = summarize(findings)
     overall_verdict = verdict(summary)
 
