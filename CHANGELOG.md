@@ -1,5 +1,77 @@
 # Changelog
 
+## [1.16.0] - 2026-08-21
+
+### Changed — the dispatch is a path, not a paste (IDS-6 Part A)
+
+Bug density used to rise with task index: tasks 1-3 landed clean, tasks 8-15 leaked defects.
+The cause was never task difficulty — it was controller context. Every dispatch pasted the
+full task text and every subagent printed its full report back, and both stayed resident,
+re-read on every later turn.
+
+- **`skills/gaspol-parallel/scripts/task-brief <PLAN_FILE> <N>`** extracts one phase to
+  `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. On this repo's own IDS-6
+  plan, a phase brief is 33 lines against a ~340-line plan.
+- A dispatch now carries five things: one line of project context, the brief path, interfaces
+  from earlier tasks, the controller's resolution of any ambiguity, and the report-file path.
+  Exact values live only in the brief.
+- The blanket rule `NEVER reference a file` is **narrowed, not reversed** — never reference the
+  *plan* (a subagent handed 2000 lines reads the wrong task); always reference the task-scoped
+  *brief*. The failure the old rule prevented is still prevented.
+- The implementer writes its full report to `task-<N>-report.md` and returns four fields:
+  status, commits, a one-line test summary, concerns. It also carries a no-subagents contract —
+  every reviewer a worker spawned in a real session duplicated the review the orchestrator
+  dispatched anyway.
+
+### Changed — five-round fix loop with model escalation (IDS-6)
+
+Replaces "3 attempts, then escalate to the user", in all three places it appeared.
+
+- Rounds 1-3 resume the same implementer with the findings verbatim; its context is intact.
+- Rounds 4-5 dispatch a **fresh** implementer **one model tier above** the stuck one. A loop
+  that survives three resumes usually means the implementer cannot see its own problem.
+- Every round the fix report must carry the covering tests, the command run, and its output
+  before the re-review is dispatched.
+- Round 5 is a breaker, not a wall: adjudicate each open finding with the spec as binding
+  authority, record the ruling, continue. Ask the user only when every path forward is a guess.
+- New `skills/gaspol-parallel/re-review-prompt.md` — scoped re-review against
+  `review-package <FIX_BASE> HEAD`, where `FIX_BASE` is the head the previous review saw. The
+  `review-package` script itself is unchanged; `FIX_BASE` is just a different `BASE`.
+
+### Added — pre-flight conflict matrix, BLOCKING (IDS-6)
+
+Before the first dispatch, in both `gaspol-parallel` and `gaspol-execute`: one table row per
+pair of tasks sharing a file or interface, one row per task for self-consistency. "The scan is
+clean" without those rows is not a scan that ran. Written to the ledger **above `## Log`**, so
+`scan-active-ledgers` still reads the last non-empty line. Every finding is ruled on before
+execution begins.
+
+### Changed — measured trims (IDS-6 Part C)
+
+A token audit was run because the plugin *felt* heavy. It measured otherwise: the fixed
+per-session tax is **~1.9k tokens**, one full skill cycle is ~26k, and there are **zero**
+duplicated prose blocks across all twenty skills. The plugin's own text was never the bloat.
+Three findings still changed code:
+
+- `gaspol-execute/SKILL.md` 32.7KB → 25.1KB (**-23%**), words cut and obligations kept —
+  `tests/ticket-scripts/test-execute-trim.sh` asserts every gate name, all three Iron Laws, and
+  the exact TDD step-1 phrasing survive. The consulted Red Flags / Rationalizations table moved
+  into `anti-placeholder-rules.md` rather than being deleted, and a project-specific leak
+  ("Sparkfluence", named hooks) left an agnostic plugin.
+- `gaspol-write-skill`'s three heavy references (~11.9k tokens) were **orphans** — SKILL.md
+  never referenced them, they only referenced each other. The audit's premise was wrong; they
+  now have a pointer table naming the question each answers, read only when it is live.
+- `gaspol-finish` gained exactly **one** conditional gate: `plan-verifier` is skipped when the
+  branch provably references no plan, and the skip is recorded in the ledger with its reason.
+  `/security-review` stays unconditional on every branch, guarded by a new assertion — security
+  defects hide in boring diffs, and in a skills repository markdown *is* the executed surface.
+
+### Deferred
+
+The visual contract (`canvas.html`, the visual lock, `gaspol-visual-verify`) is designed in
+`docs/plans/2026-08-21-IDS-6-execution-hygiene-and-visual-contract-spec.md` and carried to a
+later ticket. Part A lowers the cost of building it.
+
 ## [1.15.0] - 2026-08-21
 
 ### Added — a prior-art gate, so nothing gets rebuilt that already exists (IDS-4)

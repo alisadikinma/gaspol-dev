@@ -57,4 +57,25 @@ for field in "status" "commit" "test summary" "concerns"; do
         "expected implementer-prompt.md to name '$field' in the short return contract"
 done
 
+echo "test-dispatch-contract: checking CLAUDE.md doc sync (IDS-6 D1)..."
+
+CLAUDEMD="$REPO_ROOT/CLAUDE.md"
+
+has "$CLAUDEMD" "task-brief" \
+    "expected CLAUDE.md to document scripts/task-brief"
+has "$CLAUDEMD" "re-review-prompt.md" \
+    "expected CLAUDE.md to document re-review-prompt.md"
+has "$CLAUDEMD" "five-round\|5-round\|five rounds" \
+    "expected CLAUDE.md to describe the five-round fix loop"
+has "$CLAUDEMD" "conflict matrix" \
+    "expected CLAUDE.md to describe the pre-flight conflict matrix"
+
+# The three Part C trims, with the audit figures that motivated them.
+has "$CLAUDEMD" "1.9k\|~1,900\|1900" \
+    "expected CLAUDE.md to record the measured per-session token tax"
+has "$CLAUDEMD" "orphan" \
+    "expected CLAUDE.md to record that the write-skill references were orphans"
+has "$CLAUDEMD" "no plan referenced" \
+    "expected CLAUDE.md to record the finish plan-verifier skip condition"
+
 echo "PASS: test-dispatch-contract"
