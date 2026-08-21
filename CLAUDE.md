@@ -484,11 +484,20 @@ IDS-8's own surface is fixed: all ten `kb-root` invocations now go through
 `${CLAUDE_PLUGIN_ROOT:?…}` so an unset variable stops loudly instead of falling back to the working
 directory. `test-kb-no-hardcoded-path.sh` gates it.
 
-**Six scripts still carry the old form** and are deliberately out of scope here: `detect-stack`,
-`task-brief`, `dag-lanes`, `review-package`, `next-ticket`, `scan-active-ledgers` — roughly 28 call
-sites across 12 files. They predate IDS-8 and none is write-side. No ticket number is minted for
-them yet: a ticket id pointing at no spec is the promise-with-no-implementation shape this release
-exists to end, so the number gets minted when the spec is written.
+**Eight scripts still carry the old form** and are deliberately out of scope here: `detect-stack`,
+`task-brief`, `dag-lanes`, `review-package`, `next-ticket`, `scan-active-ledgers`, plus
+`design_audit.py` and `extract-design-tokens` — roughly 33 call sites. They predate IDS-8 and none
+is write-side. No ticket number is minted for them yet: a ticket id pointing at no spec is the
+promise-with-no-implementation shape this release exists to end, so the number gets minted when the
+spec is written.
+
+**The two design scripts were missed on the first pass and are named here deliberately.** They are
+invoked in *runnable* relative form in live skills — `python3 skills/gaspol-verify/scripts/design_audit.py`
+in both `gaspol-execute` (Step 3.5) and `gaspol-verify` (Layer 4), and
+`skills/gaspol-verify/scripts/extract-design-tokens` in `gaspol-verify` — which is the same hazard
+class as the `kb-root` finding this section resolves, not a lesser one. Recording the deferral as
+*six* would have carried two runnable invocations out of the next ticket's scope by omission. The
+count is the scope: an undercounted deferral is how a known hazard becomes an unknown one.
 
 **Deferred, named rather than forgotten.** `gaspol-kb-audit` now overlaps `superbrain-promote`
 almost completely — both are scan → cluster → per-finding human decision → apply → audit log.
