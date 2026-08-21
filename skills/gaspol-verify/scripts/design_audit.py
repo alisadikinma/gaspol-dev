@@ -37,6 +37,24 @@ HARDCODED_FONT_PATTERNS = [
     re.compile(r"\bfont-\[[^\]]+\]"),
 ]
 
+# Which CSS role a colour plays. Decided by property name, so the verdict is
+# deterministic and needs no judgement call.
+#
+# Structural colours carry the design: a wrong one is visible drift from the
+# mockup, which is the whole reason this gate exists. Decorative colours are
+# ordinary craft -- a one-off `rgba(0,0,0,0.05)` shadow is not drift. Blocking on
+# those produces false alarms, false alarms get the gate switched off, and a
+# disabled gate is worth less than a noisy one.
+DECORATIVE_COLOR_ROLE = re.compile(
+    r"box-shadow|text-shadow|outline-color|\bshadow-\[|\bring-\[|\bdrop-shadow-\[",
+    re.I,
+)
+# Any colour carrying transparency is decorative by construction: a token map
+# holds opaque brand colours, so an alpha value can never match one.
+TRANSPARENT_COLOR = re.compile(r"rgba?\([^)]*,[^)]*,[^)]*,\s*0?\.\d+\s*\)|#[0-9a-fA-F]{8}\b", re.I)
+
+HEX_IN_TEXT = re.compile(r"#[0-9a-fA-F]{3,8}\b")
+
 # Responsive breakpoint indicators (Tailwind)
 RESPONSIVE_INDICATORS = re.compile(r"\b(?:sm|md|lg|xl|2xl):[a-z-]+")
 
@@ -152,7 +170,35 @@ def load_design_contract(project_root) -> dict | None:
     return contract
 
 
-def scan_file(path: Path) -> dict:
+def _colour_severity(match_text: str, line_text: str, contract: dict | None) -> str | None:
+    """Classify one colour occurrence against the token contract.
+
+    Returns None when there is nothing to report -- either no contract is loaded
+    (the pre-IDS-7 behaviour, preserved byte-for-byte) or every colour in the
+    match is a contract token. Compliant must mean SILENT: emitting a
+    low-severity finding for a colour that is correct makes the report unreadable
+    and trains people to skim past it.
+
+    The role is read from the whole LINE, not from `match_text`. The regexes
+    match a short fragment such as `color: rgba(` -- a decorative declaration
+    like `box-shadow: 0 1px 2px rgba(...)` has its property name outside that
+    fragment, so classifying on the fragment alone would leave the WARN branch
+    unreachable and quietly block every shadow in the codebase.
+    """
+    if not contract:
+        return None
+
+    allowed = {v for v in contract.get("colors", {}).values() if v.startswith("#")}
+    literals = [_normalise_hex(h) for h in HEX_IN_TEXT.findall(match_text)]
+    if literals and all(lit in allowed for lit in literals):
+        return None
+
+    if DECORATIVE_COLOR_ROLE.search(line_text) or TRANSPARENT_COLOR.search(line_text):
+        return "WARN"
+    return "BLOCKING"
+
+
+def scan_file(path: Path, contract: dict | None = None) -> dict:
     """Scan a single UI file for design system violations."""
     try:
         content = path.read_text(encoding="utf-8")
@@ -171,7 +217,14 @@ def scan_file(path: Path) -> dict:
     for pattern in HARDCODED_COLOR_PATTERNS:
         for match in pattern.finditer(content):
             line_num = content[: match.start()].count("\n") + 1
-            findings["hardcoded_colors"].append({"line": line_num, "match": match.group()})
+            item = {"line": line_num, "match": match.group()}
+            if contract:
+                line_text = content.split("\n")[line_num - 1]
+                severity = _colour_severity(match.group(), line_text, contract)
+                if severity is None:
+                    continue  # the colour IS a token -- compliant means silent
+                item["severity"] = severity
+            findings["hardcoded_colors"].append(item)
 
     for pattern in HARDCODED_FONT_PATTERNS:
         for match in pattern.finditer(content):
@@ -202,17 +255,21 @@ def is_ui_file(path: Path) -> bool:
     return path.suffix in UI_EXTENSIONS or path.suffix in STYLE_EXTENSIONS
 
 
-def scan_files(paths) -> list[dict]:
+def scan_files(paths, contract: dict | None = None) -> list[dict]:
     """Audit exactly the given paths, skipping anything that is not a UI/style file.
 
     The single scanning entry point. `scan_project` collects paths and delegates
     here, so whole-project and diff-scoped modes cannot drift apart.
+
+    `contract` is the loaded DESIGN.md token map, or None. With None the output
+    is exactly what this script produced before IDS-7 -- no severity field, every
+    hex literal reported. That is the no-contract regression guard.
     """
     results = []
     for raw in paths:
         path = Path(raw)
         if path.is_file() and is_ui_file(path):
-            results.append(scan_file(path))
+            results.append(scan_file(path, contract))
     return results
 
 
@@ -244,7 +301,7 @@ def changed_ui_files(project_root: Path, base: str) -> list[Path]:
     ]
 
 
-def scan_project(project_root: Path) -> list[dict]:
+def scan_project(project_root: Path, contract: dict | None = None) -> list[dict]:
     """Scan an entire project for UI/style files and audit each.
 
     Kept for deliberate whole-project audits. Layer 4 uses the diff-scoped mode.
@@ -253,9 +310,12 @@ def scan_project(project_root: Path) -> list[dict]:
         raise FileNotFoundError(f"Project root not found: {project_root}")
 
     return scan_files(
-        path
-        for path in project_root.rglob("*")
-        if not any(part in SKIP_DIRS for part in path.parts)
+        (
+            path
+            for path in project_root.rglob("*")
+            if not any(part in SKIP_DIRS for part in path.parts)
+        ),
+        contract,
     )
 
 
@@ -263,6 +323,12 @@ def summarize(findings: list[dict]) -> dict:
     """Aggregate findings into summary counts."""
     total_files = len(findings)
     total_hardcoded_colors = sum(len(f.get("hardcoded_colors", [])) for f in findings)
+    blocking_colors = sum(
+        1
+        for f in findings
+        for c in f.get("hardcoded_colors", [])
+        if c.get("severity") == "BLOCKING"
+    )
     total_hardcoded_fonts = sum(len(f.get("hardcoded_fonts", [])) for f in findings)
     files_without_responsive = sum(1 for f in findings if not f.get("responsive_breakpoints", False))
     files_missing_states = {
@@ -277,6 +343,7 @@ def summarize(findings: list[dict]) -> dict:
     return {
         "total_ui_files": total_files,
         "hardcoded_colors": total_hardcoded_colors,
+        "blocking_colors": blocking_colors,
         "hardcoded_fonts": total_hardcoded_fonts,
         "files_without_responsive": files_without_responsive,
         "files_missing_states": files_missing_states,
@@ -285,7 +352,16 @@ def summarize(findings: list[dict]) -> dict:
 
 
 def verdict(summary: dict) -> str:
-    """Return overall compliance verdict."""
+    """Return overall compliance verdict.
+
+    With a token contract loaded, a single BLOCKING colour fails outright rather
+    than being scored: the contract says which colours are correct, so an
+    off-contract structural colour is drift by definition, not a deduction to be
+    averaged away by an otherwise tidy file. WARN findings never fail.
+    """
+    if summary.get("blocking_colors", 0) > 0:
+        return "🔴 NON-COMPLIANT"
+
     score = 100
     if summary["hardcoded_colors"] > 0:
         score -= min(30, summary["hardcoded_colors"] * 2)
@@ -307,7 +383,11 @@ def verdict(summary: dict) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Design system compliance audit")
     parser.add_argument("project_path", help="Target project root")
-    parser.add_argument("--design-system", help="Path to CLAUDE.md or design tokens reference")
+    parser.add_argument(
+        "--design-system",
+        metavar="DIR",
+        help="Directory holding DESIGN.md, when it is not the project root",
+    )
     parser.add_argument(
         "--changed-files",
         metavar="BASE",
@@ -317,14 +397,30 @@ def main():
     args = parser.parse_args()
 
     project_root = Path(args.project_path).resolve()
+
+    # The token contract. `--design-system` names the directory holding DESIGN.md
+    # when it does not sit at the project root. It used to be parsed and never
+    # read -- a flag that silently does nothing is worse than no flag, because it
+    # reads as a feature that is switched on.
+    contract_root = Path(args.design_system).resolve() if args.design_system else project_root
+    try:
+        contract = load_design_contract(contract_root)
+    except DesignContractError as exc:
+        # Present but unreadable. STOP -- never continue as if no contract exists,
+        # which would silently drop a gate the project asked for.
+        print(f"design_audit: design-contract: UNKNOWN — {exc}", file=sys.stderr)
+        return 2
+
     if args.changed_files:
         try:
-            findings = scan_files(changed_ui_files(project_root, args.changed_files))
+            findings = scan_files(
+                changed_ui_files(project_root, args.changed_files), contract
+            )
         except RuntimeError as exc:
             print(f"design_audit: {exc}", file=sys.stderr)
             return 2
     else:
-        findings = scan_project(project_root)
+        findings = scan_project(project_root, contract)
     summary = summarize(findings)
     overall_verdict = verdict(summary)
 
