@@ -173,6 +173,12 @@ only drift — and it would put a non-note into the folder the promoter scans.
 
 See [docs/kb-setup.md](../../docs/kb-setup.md) for mode resolution. Auto-init the local KB dir if missing. **Always commit locally; push only in synced mode.**
 
+**Ownership guard (IDS-8):** before these git commands run, compare `$KB` against
+`git -C "$KB" rev-parse --show-toplevel`. A mismatch means the store is a guest inside a repo
+gaspol **does not own** — a vault, a monorepo — so the write-side git operations are refused with
+`kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)` and reads continue.
+Full snippet and rationale: `skills/_shared/kb-path.md`.
+
 ```bash
 KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
   # Never continue with an empty $KB: git -C "" is a silent wrong answer.

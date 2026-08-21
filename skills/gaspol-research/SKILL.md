@@ -52,6 +52,12 @@ Don't start broad research without defined question.
 
 Before fetching anything, query KB (auto-init local dir if missing; see [docs/kb-setup.md](../../docs/kb-setup.md)):
 
+**Ownership guard (IDS-8):** before these git commands run, compare `$KB` against
+`git -C "$KB" rev-parse --show-toplevel`. A mismatch means the store is a guest inside a repo
+gaspol **does not own** — a vault, a monorepo — so the write-side git operations are refused with
+`kb-sync: skipped — KB lives inside a repo gaspol does not own (<toplevel>)` and reads continue.
+Full snippet and rationale: `skills/_shared/kb-path.md`.
+
 ```bash
 KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
   # Never continue with an empty $KB: git -C "" is a silent wrong answer.

@@ -60,9 +60,44 @@ when a documented mistake gets made a second time. KB precedent:
 The same discipline `detect-stack` applies to build commands and IDS-7 applies to `DESIGN.md`. A
 plausible pass is worse than an admitted gap, because nobody investigates a pass.
 
+## Never commit a repository gaspol does not own
+
+Resolving to a readable directory says nothing about **who owns it**. Point the store at a folder
+inside someone's Obsidian vault — which this plugin now actively encourages — and
+`git -C "$KB" add . && git -C "$KB" commit` operates on the **vault** repository. gaspol would
+commit, and in synced mode push, an entire second brain nobody asked it to touch.
+
+Before any `git commit` / `git push` against the store:
+
+```bash
+KB="$(skills/_shared/kb-root)" || exit 1
+TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
+  echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"
+else
+  git -C "$KB" add . && git -C "$KB" commit -q -m "<message>" || true
+  [ -n "${REMOTE:-}" ] && git -C "$KB" push --quiet || true
+fi
+```
+
+Three properties this must keep:
+
+- **Reads stay allowed.** Only the write-side git operations are refused. Refusing reads as well
+  would silently disable precedent lookup — the capability this whole change exists to strengthen,
+  which would make the guard a bigger regression than the hazard.
+- **The skip is recorded, never silent.** `kb-sync: skipped` is an exact string. A silent skip is
+  indistinguishable from a sync that ran, which is the reporting failure `gaspol-finish` already
+  forbids for an unavailable `/security-review`.
+- **`$TOP` empty means not a repo at all** — that is the ordinary case for a plain KB directory,
+  and committing is fine there. Only a *mismatch* triggers the refusal.
+
+The hazard is inert today: with no `gaspol-config.json` the mode is local-only and there is no
+remote to push to. It arms itself the day `kb_remote` is set, which is exactly when nobody will
+remember the connection.
+
 ## What "available" does not mean
 
 Resolving to a readable directory says nothing about **who owns it**. When the store lives inside
 someone else's repository — a vault, a monorepo — writing files is fine and running git is not.
-That guard is documented below this section once it exists; until then, do not add git operations
-to a KB skill.
+That guard is the section above: compare the KB root against `git rev-parse --show-toplevel` before
+any write-side git operation.
