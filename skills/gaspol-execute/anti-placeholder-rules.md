@@ -242,3 +242,4 @@ catch yourself thinking; none of it is valid.
 | Component imports no hook or context | Probably hardcoded data | Verify the source against the plan |
 | 3+ TODOs in a file, or "I'll clean up TODOs at the end" | Incomplete implementation; TODOs get forgotten | Resolve each as you go, or flag it |
 | Test file with no assertions | Phantom coverage | Write real assertions or mark it incomplete |
+| "The user won't notice" | The user WILL notice — that is why this skill exists | Build it right the first time |

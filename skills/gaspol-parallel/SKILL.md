@@ -436,7 +436,7 @@ For every component/function the implementer creates:
 | Proceeding with unfixed Critical/Important issues | Technical debt compounds; fix now or pay 10x later |
 | Dispatching parallel implementation subagents WITHOUT worktree isolation | Race conditions, merge conflicts, context drift — invoke gaspol-worktree (Phase 0) first |
 | Pausing to ask "should I continue?" between tasks | Breaks continuous execution — only stop on the bounded always-pause conditions |
-| Making subagent read plan file instead of pasting task text | Subagent may misparse, miss context, or read stale version |
+| Pasting task text into the dispatch instead of handing over the brief path | The paste stays resident in the controller's context and is re-read every turn; the brief is task-scoped and cannot be misparsed into the wrong task |
 | Skipping scene-setting context in implementer dispatch | Subagent lacks project knowledge, makes wrong assumptions |
 | Ignoring subagent questions | Forces subagent to guess, leading to wrong implementations |
 | Accepting "close enough" on spec compliance | Small spec gaps become large bugs in production |

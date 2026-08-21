@@ -323,9 +323,9 @@ three of its findings changed the code:
   (eagerly loaded) was wrong; the fix is a pointer table naming the question each answers, read
   only when that question is live.
 - `gaspol-finish` gained **one** conditional gate: `plan-verifier` is skipped when the branch
-  provably references **no plan referenced by this branch** — no `**Plan:**` header in a ledger,
-  no `docs/plans/*-plan.md` in the diff — and the skip is recorded in the ledger with its
-  reason. `/security-review` stays unconditional on every branch, now guarded by its own
+  provably references **no plan at all** — no `**Plan:**` header in a ledger,
+  no `docs/plans/*-plan.md` in the diff — and the skip is recorded in the ledger as
+  `plan-verifier: skipped — no plan referenced by this branch`, never silently. `/security-review` stays unconditional on every branch, now guarded by its own
   assertion in `test-finish-gates.sh`: security defects hide in boring diffs, and in a skills
   repository markdown **is** the executed surface.
 
@@ -647,15 +647,15 @@ execution begins. Also enforced in `gaspol-execute` (Pre-Execution Step 6).
 
 **Phase 0 (v1.3):** invoke `gaspol-worktree` BEFORE concurrent dispatch — required for `independent-domains`, recommended for overlapping `plan-phases`. Parallel agents in a shared working directory race on files.
 
-**Continuous execution (v1.3):** once the task list is confirmed and the workspace is isolated, execute all tasks without pausing to check in between them. The only always-pause conditions: review fails after 3 attempts, genuine ambiguity, Iron Law violation / destructive op, or all tasks complete. Update the visual task tracker instead of narrating each task.
+**Continuous execution (v1.3):** once the task list is confirmed and the workspace is isolated, execute all tasks without pausing to check in between them. The only always-pause conditions: the fix loop trips its round-5 breaker and adjudication still leaves every path a guess, genuine ambiguity, Iron Law violation / destructive op, or all tasks complete. Update the visual task tracker instead of narrating each task.
 
 Fresh subagent per task + two-stage review:
 
 **Mode `plan-phases`:** execute independent phases from plan
-1. Implementer dispatched with full task text (NEVER reference a file), anti-placeholder rules, self-review
+1. Implementer dispatched with the task-scoped brief path (never the plan), anti-placeholder rules, self-review
 2. Spec Review — reads ACTUAL CODE, compares to requirements line by line
 3. Code Quality Review — uses code-reviewer template, reviews commits between base SHA and HEAD
-4. If spec fails after 3 attempts → stop and escalate
+4. If spec keeps failing, run the five-round fix loop; at the round-5 breaker adjudicate the open findings, and escalate only if every path forward is a guess
 
 **Mode `independent-domains`:** solve 2+ unrelated problems concurrently
 - **DAG lane scheduling (v1.8) BLOCKING** — declare each task's `deps` + `files` (DB table = synthetic `db:<name>` token), run `scripts/dag-lanes` → dependency **waves** + file-isolated **lanes**. Replaces the old all-or-nothing conflict check: one dependency no longer serializes the whole batch; independent tasks still parallelize, dependents wait for their wave. Matrix is the proof no two concurrent tasks touch the same file.
