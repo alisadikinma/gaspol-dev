@@ -88,19 +88,37 @@ for s in gaspol-learn gaspol-adr gaspol-research gaspol-kb-audit gaspol-brainsto
 done
 
 # --- documentation must not SHIP the hazard it describes ---------------------
-echo "test-kb-no-hardcoded-path: no doc runs git init / unguarded commit against the store..."
-for d in "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md"; do
-    [ -f "$d" ] || continue
-    if grep -nE '^\s*git -C "\$KB" init' "$d"; then
-        fail "$(basename "$d") instructs 'git init' on the store — with kb_local pointing into a vault that creates a repository inside it"
-    fi
-    if grep -nE '^\s*git -C "\$KB" (add|commit|push)' "$d" >/dev/null; then
-        grep -qF 'rev-parse --show-toplevel' "$d" \
-            || fail "$(basename "$d") runs a write-side git command against the store with NO ownership guard — the skills link to this file as the authority"
-    fi
-    if grep -nE 'mkdir -p "\$KB"/\{' "$d" >/dev/null; then
-        fail "$(basename "$d") recreates the category directories abolished in v1.18"
-    fi
-done
+# BLOCK-scoped, not file-scoped. The first version grepped the whole file for
+# 'rev-parse --show-toplevel', so deleting the guard from the runnable block and
+# leaving the phrase in a prose sentence kept the suite green with an unguarded
+# commit shipping. A doc may DESCRIBE the default path; it may not EXECUTE it.
+echo "test-kb-no-hardcoded-path: fenced bash in docs carries no hazard..."
+python3 - "$REPO_ROOT" <<'PYEOF' || fail "a documentation code block ships the hazard it describes — see the offending block above"
+import re, sys, pathlib
+root = pathlib.Path(sys.argv[1])
+bad = []
+for rel in ["docs/kb-setup.md", "README.md", "CLAUDE.md"]:
+    f = root / rel
+    if not f.is_file():
+        continue
+    for block in re.findall(r"```(?:bash|sh)?\n(.*?)```", f.read_text(encoding="utf-8"), re.S):
+        if re.search(r'git -C "\$KB" init', block):
+            bad.append((rel, "git init against the store"))
+        if re.search(r'mkdir -p "\$KB"/\{', block):
+            bad.append((rel, "recreates the abolished category directories"))
+        if re.search(r'GASPOL_KB_LOCAL:-', block):
+            bad.append((rel, "inlined two-rung resolver — skips the config rung"))
+        if re.search(r'>\s*"\$KB/INDEX\.md"', block):
+            bad.append((rel, "writes an INDEX.md gaspol does not maintain"))
+        if re.search(r'git -C "\$KB" (add|commit|push)', block):
+            # the guard must live in THIS block, with its record string and branch
+            if not (re.search(r"rev-parse --show-toplevel", block)
+                    and "kb-sync: skipped" in block
+                    and re.search(r"^\s*else\s*$", block, re.M)):
+                bad.append((rel, "write-side git with no ownership guard IN THE SAME BLOCK"))
+for rel, why in bad:
+    print(f"    {rel}: {why}", file=sys.stderr)
+sys.exit(1 if bad else 0)
+PYEOF
 
 echo "PASS: test-kb-no-hardcoded-path"

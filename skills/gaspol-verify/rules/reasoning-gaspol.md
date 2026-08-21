@@ -78,7 +78,7 @@ When querying KB, filter by `status`:
 
 ### Rule G7: Learn After Ship
 
-After the design output ships via gaspol-finish, gaspol-learn captures the pattern to ``ui-patterns` tag with:
+After the design output ships via gaspol-finish, gaspol-learn captures the pattern with the `ui-patterns` tag:
 - Tags extracted from decision context
 - Status: `proposed` (until validated in future project)
 - Source: current project name + component path
@@ -153,7 +153,7 @@ Neither path breaks; just capability differs.
 
 Never output design recommendations without having read:
 1. Target project CLAUDE.md
-2. Relevant KB entries in ui-patterns/ (if any)
+2. Relevant KB notes tagged `ui-patterns` (if any)
 3. Design system existing tokens
 
 If any of these can't be read → AskUserQuestion to clarify before proceeding.

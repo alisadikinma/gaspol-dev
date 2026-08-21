@@ -333,7 +333,7 @@ the store you moved away from.
 claude plugin list | grep gaspol-dev
 # Should show: gaspol-dev@gaspol-dev, version 1.18.0
 
-ls ~/.claude/gaspol-knowledge/   # created automatically after your first brainstorm/adr/learn
+ls "$(skills/_shared/kb-root)"   # the RESOLVED root — not a fixed path. Created on first capture.
 # flat notes: YYYY-MM-DD-<slug>.md (no index, no category dirs since v1.18)
 ```
 

@@ -249,9 +249,9 @@ paragraph wherever they disagree):
 └── YYYY-MM-DD-<slug>.md         ← flat notes: frontmatter + "# Title" + tags: [...]
 ```
 
-gaspol writes no index, and the four category directories are **gone**. The category is the first tag; the
-promoter routes. gaspol writes no index — an index it maintains that no promoter reads can only
-drift, and inside a quarantine folder it is a non-note where notes are scanned.
+gaspol writes no index, and the four category directories are **gone**. The category is the first
+tag; the promoter routes. An index gaspol maintains that no promoter reads can only drift, and
+inside a quarantine folder it is a non-note where notes are scanned.
 
 Entry status lifecycle: `proposed` → `accepted` → `superseded` OR `deprecated`.
 **gaspol only ever writes `proposed`.** Promotion belongs to the human gate.

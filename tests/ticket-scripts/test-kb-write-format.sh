@@ -95,9 +95,29 @@ echo "test-kb-write-format: no skill instructs writing or grepping an index gasp
 # (2) the VAULT's own master map, recognisable by the notes it is read alongside
 # (hot.md, 30-Knowledge, 20-Projects) — the owner writes that one and reading it is
 # correct. Only an index GASPOL would have to write is forbidden.
-STALE=$(grep -rn "INDEX.md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
-        | grep -viE 'no index|index caveat|maintains one|there is no index|master map|writes no index|no .INDEX' \
-        | grep -viE 'hot[.]md|30-Knowledge|20-Projects|10-Identity' || true)
+# Exemption keyed on the VERB, never on a nearby noun. The previous version
+# filtered any line mentioning hot.md / 30-Knowledge / 20-Projects, so
+#   "update INDEX.md with a new entry, then hot.md"
+# — a genuine gaspol-written index — sailed through, while the version BEFORE
+# that commit caught it. Loosening a gate while closing a finding is worse than
+# leaving the finding open, so the rule is now: WRITING an index always fails;
+# READING the vault's owner-maintained master map is exempt.
+# Literal INDEX.md only — an earlier draft matched the bare word "index" and
+# flagged graphify's "maintains a code graph, that index is documentation too".
+WRITE_VERB='(write|writes|create|creates|update|updates|maintain|maintains|add|adds|generate|generates|printf) .{0,40}INDEX[.]md'
+STALE=$(grep -rnE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
+        | grep -viE 'no index|index caveat|maintains one|there is no index|writes no index|no .INDEX' \
+        | grep -viE 'master map' \
+        | grep -vE "read|→|->" || true)
+
+# Second, independent pass: a WRITE instruction fails even if it also names a
+# vault note, and even if it would have been exempted above.
+WRITERS=$(grep -rniE "$WRITE_VERB" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
+          | grep -viE 'no index|never|writes no index|must not|no longer|not written|only where|where this skill|caveat' || true)
+if [ -n "$WRITERS" ]; then
+    printf '%s\n' "$WRITERS" | sed 's/^/    /' >&2
+    fail "an instruction WRITES an INDEX.md — gaspol writes no index, and an exemption keyed on a nearby vault-folder name must never let a write through"
+fi
 # Two exemption families, both named rather than broad:
 #   1. sentences that NEGATE (gaspol writes no index)
 #   2. the VAULT's own master map, recognisable by the notes it is read alongside
@@ -110,7 +130,7 @@ fi
 
 # --- no doc may still promise status: accepted from gaspol -------------------
 echo "test-kb-write-format: nothing writes status: accepted..."
-BAD=$(grep -rn '^status: accepted' "$REPO_ROOT/skills" 2>/dev/null || true)
+BAD=$(grep -rn '^status: accepted' "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)
 [ -z "$BAD" ] || { printf '%s\n' "$BAD" | sed 's/^/    /' >&2; fail "a skill template still emits 'status: accepted' — an agent copies the template, not the sentence forbidding it"; }
 
 echo "PASS: test-kb-write-format"
