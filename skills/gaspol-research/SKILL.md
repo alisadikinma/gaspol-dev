@@ -59,11 +59,21 @@ gaspol **does not own** — a vault, a monorepo — so the write-side git operat
 Full snippet and rationale: `skills/_shared/kb-path.md`.
 
 ```bash
-KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
-  # Never continue with an empty $KB: git -C "" is a silent wrong answer.
-  echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
-[ -n "$REMOTE" ] && git -C "$KB" pull --quiet || true   # synced mode only
-# Grep the flat notes for matching tags: grep -ril "<tag>" "$KB"/*.md
+KB="$(skills/_shared/kb-root)"; rc=$?
+case $rc in
+  0) : ;;                                                    # available
+  3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;
+  4) echo "knowledge-store: none — not configured"; KB="" ;;  # research without precedent
+esac
+# rc=3 STOPS and rc=4 CONTINUES. A read finds nothing either way, but only one of
+# them is honest about WHY, and "no store" must never be reported as "no precedent".
+# rc=4 creates nothing here: this block only reads, and an empty directory nobody
+# asked for is not a store.
+if [ -n "$KB" ]; then
+  REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
+  [ -n "$REMOTE" ] && git -C "$KB" pull --quiet || true   # synced mode only
+  # Grep the flat notes for matching tags: grep -ril "<tag>" "$KB"/*.md
+fi
 ```
 
 If cache hit found:

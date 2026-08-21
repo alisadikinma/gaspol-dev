@@ -35,6 +35,14 @@ EXCLUDE_RE='docs/plans/'
 # the doc that states the order and states, and the script that executes it.
 # Pinned as an exact set so the exemption cannot quietly grow to cover the very
 # skills this test polices.
+#
+# FIVE, not the one the plan first specified (IDS-8, review round). The two
+# resolver files spell the default path because that is their job; the three
+# documentation files EXPLAIN it, and are separately gated below — a doc may name
+# the path in prose but may not carry runnable bash that uses it. The widening is
+# recorded here and in the plan rather than left to be discovered, because "an
+# exemption added to keep a gate usable becomes the way through it" is this
+# ticket's own recurring failure and an undocumented allow-list is its first step.
 ALLOWED_SET="_shared/kb-path.md _shared/kb-root docs/kb-setup.md CLAUDE.md README.md"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -47,7 +55,7 @@ CONTROL=$(grep -rl "gaspol" $SCAN_PATHS 2>/dev/null | wc -l | tr -d ' ')
 [ "$CONTROL" -gt 5 ] \
     || fail "positive control matched only $CONTROL file(s) under skills/ — the recursive search is broken, so a clean result below would prove nothing"
 
-echo "test-kb-no-hardcoded-path: allow-list holds exactly the two resolver files..."
+echo "test-kb-no-hardcoded-path: allow-list holds exactly five files — 2 resolver + 3 docs..."
 for a in $ALLOWED_SET; do
     # entries are either skills/-relative (the two resolver files) or repo-relative (the docs)
     [ -f "$SKILLS/$a" ] || [ -f "$REPO_ROOT/$a" ] \

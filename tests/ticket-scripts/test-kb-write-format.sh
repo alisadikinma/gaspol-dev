@@ -120,6 +120,17 @@ echo "test-kb-write-format: no skill instructs writing or grepping an index gasp
 # weight: both real chain lines already carry the arrow form. The exemption now
 # requires the FULL chain, a SECOND arrow included, because both real lines
 # continue past hot.md and no write instruction plausibly does.
+#
+# Round 7, Tier 0 review: a two-arrow write DOES walk through -- "Update
+# `INDEX.md` -> `hot.md` -> `30-Knowledge/` after every capture." wears the shape
+# exactly. Requiring a THIRD arrow was tried and REJECTED: the real brainstorm
+# line wraps, so grep sees only two arrows on it and the tightening turned a
+# legitimate line red. That is the floor of shape-anchoring -- the exemption
+# matches a SHAPE, so anything wearing the shape exactly gets in, and every
+# alternative signal tried over four rounds (noun, substring, arrow, literal)
+# traded this narrow floor for a wider hole. The floor is left in place and made
+# VISIBLE instead: test-gate-mutations.sh carries both attack lines as `allowed`
+# rows, so it is a recorded limit rather than a latent surprise.
 # Positive control on the PIPELINE, not just the result. If a grep in the chain
 # below errors (an unsupported regex, a locale quirk — see the KB entry
 # bsd-grep-include-dies-with-exclude-dir), it emits nothing, STALE comes back

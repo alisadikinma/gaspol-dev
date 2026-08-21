@@ -95,6 +95,20 @@ plant skill "$G_FMT" caught 'Grep `INDEX.md` (master map) for tag matches.'
 plant skill "$G_FMT" caught 'Regenerate `INDEX.md` (master map) after each capture.'
 plant skill "$G_FMT" caught 'Rebuild `INDEX.md` -> `hot.md` after every capture.'
 
+# THE ACCEPTED FLOOR, recorded as `allowed` rather than left latent. A write verb
+# wearing the complete read-order shape gets through, and Tier 0 review
+# demonstrated it. Requiring a third arrow was tried and rejected: the real
+# brainstorm line WRAPS, so grep sees two arrows on it and the tightening turned a
+# legitimate line red. Four rounds of alternative signals (noun, substring, arrow,
+# literal) each traded this narrow floor for a wider hole.
+#
+# These rows expect `allowed` because that is the truth. Their job is that the
+# next person tightening this regex sees the limit in the table instead of
+# rediscovering it, and that a future fix which DOES close it flips these two rows
+# deliberately rather than by accident.
+plant skill "$G_FMT" allowed 'Update `INDEX.md` -> `hot.md` -> `30-Knowledge/` after every capture.'
+plant skill "$G_FMT" allowed 'Rebuild `INDEX.md` (master map) → `hot.md` → `30-Knowledge/` on capture.'
+
 echo "test-gate-mutations: index gate — the two legitimate shapes still pass..."
 plant skill "$G_FMT" allowed 'Read the vault: `INDEX.md` (master map) → `hot.md` (recent) → `30-Knowledge/`'
 plant skill "$G_FMT" allowed 'gaspol writes no index — there is no INDEX.md to update.'
@@ -162,7 +176,7 @@ fi
 # DELETING rows did not — the harness passed with nine index attacks removed.
 # A gate whose attack table can be quietly trimmed is a gate that can be quietly
 # loosened, which is the whole failure mode this file exists for.
-MIN_ROWS=48
+MIN_ROWS=50
 [ "$pass" -ge "$MIN_ROWS" ] \
     || fail "only $pass mutations ran, expected at least $MIN_ROWS — attack rows were removed. Raise MIN_ROWS deliberately when adding rows; never lower it to make a run pass."
 

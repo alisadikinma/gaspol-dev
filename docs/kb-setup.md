@@ -39,13 +39,18 @@ Every KB-touching skill resolves the mode like this, in order:
 ## Auto-init (run when the store directory is missing)
 
 ```bash
-KB="$(skills/_shared/kb-root)"; rc=$?
+KB="$(skills/_shared/kb-root --init)"; rc=$?
 case $rc in
-  0) : ;;                                   # available
+  0) : ;;                                   # available (--init created it if state 4)
   3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;   # STOP and ask
-  4) KB="$HOME/.claude/gaspol-knowledge"; mkdir -p "$KB" ;;                    # none -> create the default
 esac
 ```
+
+`--init` does the creating, so the default path is spelled in `skills/_shared/kb-root`
+and nowhere else — a caller that writes `$HOME/.claude/gaspol-knowledge` into its own bash is a
+second place the path lives, and the second place is the one that goes stale. `--init` deliberately
+does NOT touch state 3: creating a directory over a relocation the user configured and that is
+currently unreadable would answer "no precedent exists" for a store that has precedent in it.
 
 **A bare directory, and nothing else** (IDS-8). Three things this block used to do and must not:
 

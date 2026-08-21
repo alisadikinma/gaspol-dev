@@ -67,6 +67,14 @@ inside someone's Obsidian vault — which this plugin now actively encourages �
 `git -C "$KB" add . && git -C "$KB" commit` operates on the **vault** repository. gaspol would
 commit, and in synced mode push, an entire second brain nobody asked it to touch.
 
+`--init` — **writes only.** `kb-root --init` turns state 4 into "created it, here is the path,
+exit 0", so a first capture on a fresh machine has somewhere to go. It deliberately does **not**
+touch state 3: creating a directory over a relocation the user configured and that is currently
+unreadable would answer *"no precedent exists"* for a store that has precedent in it. It creates a
+**bare** directory — no `git init`, no category folders, no `INDEX.md`. Callers use the flag
+instead of spelling `~/.claude/gaspol-knowledge` themselves; the second place a path lives is the
+one that goes stale.
+
 Before any `git commit` / `git push` against the store:
 
 ```bash
@@ -101,10 +109,3 @@ before their own sync runs.
 The hazard is inert today: with no `gaspol-config.json` the mode is local-only and there is no
 remote to push to. It arms itself the day `kb_remote` is set, which is exactly when nobody will
 remember the connection.
-
-## What "available" does not mean
-
-Resolving to a readable directory says nothing about **who owns it**. When the store lives inside
-someone else's repository — a vault, a monorepo — writing files is fine and running git is not.
-That guard is the section above: compare the KB root against `git rev-parse --show-toplevel` before
-any write-side git operation.

@@ -168,9 +168,19 @@ gaspol **does not own** — a vault, a monorepo — so the write-side git operat
 Full snippet and rationale: `skills/_shared/kb-path.md`.
 
 ```bash
-KB="$(skills/_shared/kb-root)" || {   # 0=available 3=UNKNOWN(STOP+ask) 4=none(report+continue)
-  # Never continue with an empty $KB: git -C "" is a silent wrong answer.
-  echo "see skills/_shared/kb-path.md for the three states"; return 2>/dev/null || exit 1; }
+KB="$(skills/_shared/kb-root --init)"; rc=$?
+# --init: state 4 (nothing configured, fresh machine) CREATES the default store
+# and returns 0, so a first-run capture has somewhere to go. State 3 is untouched
+# and still stops: an empty store reads as "no precedent exists", which is exactly
+# when a documented mistake gets repeated.
+case $rc in
+  0) : ;;
+  3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;
+  *) echo "kb-root: unexpected exit $rc — see skills/_shared/kb-path.md"; exit 1 ;;
+esac
+# Never continue with an empty $KB: git -C "" is a silent wrong answer.
+[ -n "$KB" ] || exit 1
+REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
 TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then
   echo "kb-sync: skipped — KB lives inside a repo gaspol does not own ($TOP)"

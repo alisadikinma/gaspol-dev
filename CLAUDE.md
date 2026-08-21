@@ -29,7 +29,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **27 at v1.18**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
+| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **28 at v1.18**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
@@ -231,12 +231,9 @@ Config file schema:
   "kb_owner": "<your-github-username>"
 }
 ```
-Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
-`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
-the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
-inherited that shell, and everywhere else resolution falls through to the default and recreates
-the store you moved away from.
-
+`kb_local` is read by `skills/_shared/kb-root` — see `skills/_shared/kb-path.md` for the
+resolution order and the three states. Prefer it over the `GASPOL_KB_LOCAL` environment variable:
+a shell export only exists for processes that inherited that shell.
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
@@ -418,7 +415,8 @@ Four defects, each verified by running a command, not inferred:
 | gaspol would commit a repo it does not own | synced mode runs `git commit`/`push` **inside** the KB dir; the vault is a git repo |
 | Code index went stale, nothing refreshed it | `grep graphify skills/gaspol-sync-docs/` → 0 hits |
 Resolution order and the three states live in `skills/_shared/kb-path.md` and are executed by
-`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none). Prefer this file over
+`skills/_shared/kb-root` (exit **0** available / **3** UNKNOWN / **4** none; `--init` makes a
+write's state 4 create the default store and return 0, and never touches state 3). Prefer this file over
 the `GASPOL_KB_LOCAL` environment variable: a shell export only exists for processes that
 inherited that shell, and everywhere else resolution falls through to the default and recreates
 the store you moved away from.

@@ -123,4 +123,27 @@ rm -rf "$TMPHOME" "$BADHOME" "$GOODHOME"
 [ "$RC_CFG" = "0" ]     || fail "a valid kb_local pointing at a real directory exited $RC_CFG, expected 0 — the config rung must actually resolve, which is the defect that opened this ticket"
 case "$OUT_CFG" in */store) : ;; *) fail "kb_local resolved to '$OUT_CFG', expected the configured directory — stdout must carry the path and nothing else" ;; esac
 
+
+# --- --init: state 4 creates, state 3 refuses to (IDS-8, review round) -------
+# The two write skills call `kb-root --init` precisely so they never spell the
+# default path themselves. If --init also swallowed state 3 it would create a
+# directory over a relocation the user configured, and every later read would
+# answer "no precedent exists" for a store that has precedent in it.
+H4="$(mktemp -d)"
+OUT="$(env -u GASPOL_KB_LOCAL HOME="$H4" "$KBROOT" --init)"; rc=$?
+[ "$rc" -eq 0 ] || { rm -rf "$H4"; fail "--init on a fresh HOME exited $rc, expected 0 — this is the plugin's first run, not an error"; }
+[ -d "$H4/.claude/gaspol-knowledge" ] || { rm -rf "$H4"; fail "--init exited 0 without creating the store; the capture would have nowhere to go"; }
+[ "$OUT" = "$H4/.claude/gaspol-knowledge" ] || { rm -rf "$H4"; fail "--init printed '$OUT', expected the created path"; }
+[ ! -e "$H4/.claude/gaspol-knowledge/.git" ] || { rm -rf "$H4"; fail "--init ran git init inside the store"; }
+[ -z "$(ls -A "$H4/.claude/gaspol-knowledge")" ] || { rm -rf "$H4"; fail "--init created more than a bare directory: $(ls -A "$H4/.claude/gaspol-knowledge")"; }
+rm -rf "$H4"
+
+H3="$(mktemp -d)"
+rc=0
+env HOME="$H3" GASPOL_KB_LOCAL="$H3/relocated-and-gone" "$KBROOT" --init >/dev/null 2>&1 || rc=$?
+[ "$rc" -eq 3 ] || { rm -rf "$H3"; fail "--init on a CONFIGURED unreadable path exited $rc, expected 3 — it must never create a store over a broken relocation"; }
+[ ! -d "$H3/relocated-and-gone" ] || { rm -rf "$H3"; fail "--init created the configured-but-unreadable path; state 3 must stop, not repair"; }
+rm -rf "$H3"
+echo "test-kb-path-resolver: --init creates on state 4, refuses on state 3"
+
 echo "PASS: test-kb-path-resolver"
