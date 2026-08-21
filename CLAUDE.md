@@ -825,7 +825,7 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-6
+Last ticket: IDS-7
 
 ---
 
