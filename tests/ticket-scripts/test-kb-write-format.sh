@@ -105,9 +105,26 @@ echo "test-kb-write-format: no skill instructs writing or grepping an index gasp
 #   2. the VAULT's own master map inside the read-order CHAIN (INDEX.md -> hot.md -> …)
 # Everything else fails, read or write, because a gaspol-KB index and the vault's
 # master map are BOTH reads — the distinction was never the verb.
+#
+# Both exemptions are ANCHORED to the literal shapes present in the tree, never to
+# a loose signal. Three rounds running, a loose exemption became the bypass:
+#   a noun      (hot.md on the line)          -> "update INDEX.md ..., then hot.md"
+#   a substring (grep -vE "read")             -> "...tags already captured"
+#   an arrow    (INDEX.md .{0,30} -> hot.md)  -> "Update INDEX.md -> refresh hot.md"
+# Anchoring costs nothing: there are exactly six legitimate mentions in the tree,
+# and every one of them is matched verbatim below.
+# Positive control on the PIPELINE, not just the result. If a grep in the chain
+# below errors (an unsupported regex, a locale quirk — see the KB entry
+# bsd-grep-include-dies-with-exclude-dir), it emits nothing, STALE comes back
+# empty, and the gate PASSES having examined zero lines. Assert the raw scan
+# finds the mentions we know are there before any exemption runs.
+RAW=$(grep -rcE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null | awk -F: '{n+=$2} END{print n+0}')
+[ "${RAW:-0}" -ge 5 ] \
+    || fail "the raw INDEX.md scan found only ${RAW:-0} mentions — the tree has at least 5, so the pipeline is broken and every verdict below would be vacuous"
+
 STALE=$(grep -rnE "INDEX[.]md" "$REPO_ROOT/skills" "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null \
-        | grep -viE 'no longer writes|writes no index|there is no index|no .?INDEX[.]md|\(no INDEX[.]md\)|index caveat' \
-        | grep -vE 'INDEX[.]md.{0,30}(→|->).{0,30}hot[.]md' || true)   # the chain, not a bare arrow
+        | grep -viE 'no longer writes an .?INDEX|writes no index|no .?INDEX[.]md|\(no INDEX[.]md\)' \
+        | grep -vE '`INDEX[.]md` \(master map\)|`INDEX[.]md` (→|->) `hot[.]md`' || true)
 # Two exemption families, both named rather than broad:
 #   1. sentences that NEGATE (gaspol writes no index)
 #   2. the VAULT's own master map, recognisable by the notes it is read alongside

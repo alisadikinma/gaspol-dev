@@ -106,6 +106,11 @@ for d in "$REPO_ROOT/docs/kb-setup.md" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE
     grep -qE 'mkdir -p "\$KB"/\{'   "$d" && fail "$n recreates the category directories abolished in v1.18"
     grep -qE 'GASPOL_KB_LOCAL:-'    "$d" && fail "$n inlines the two-rung resolver — it skips the config rung, the only durable way to relocate the store"
     grep -qE '> *"\$KB/INDEX[.]md"' "$d" && fail "$n writes an INDEX.md gaspol does not maintain"
+    # Indented (4-space) code blocks are not fenced, so the block parser below
+    # never sees them. One grep covers them; the reviewer was willing to accept
+    # this gap, but a line is cheaper than a named risk.
+    grep -qE '^ {4,}git -C "\$KB" (add|commit|push)' "$d" \
+        && fail "$n runs write-side git in an INDENTED block — the block parser only sees fenced code, so no ownership guard can be required there"
 done
 
 echo "test-kb-no-hardcoded-path: write-side git needs the guard IN THE SAME BLOCK..."

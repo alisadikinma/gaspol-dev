@@ -73,6 +73,19 @@ plant skill "$G_FMT" caught 'Write an INDEX.md entry for every capture (see 30-K
 plant skill "$G_FMT" caught 'Maintain the INDEX.md master map for each capture'
 plant skill "$G_FMT" caught 'Append the capture to INDEX.md.'
 
+# PIGGYBACKS on the exemptions themselves. Round 4: the arrow-chain exemption
+# fired on any line with an arrow between the two names, so a WRITE instruction
+# wearing an arrow walked through. Third round running that an exemption added
+# to keep a gate usable became the way past it -- a noun, then a substring, then
+# an arrow. Exemptions are therefore anchored to the LITERAL shapes present in
+# the tree, and every one of them has an attack row here.
+plant skill "$G_FMT" caught 'Update INDEX.md -> then also refresh hot.md after each capture.'
+plant skill "$G_FMT" caught 'Write INDEX.md -> hot.md'
+plant skill "$G_FMT" caught 'Regenerate INDEX.md → then hot.md'
+plant skill "$G_FMT" caught 'gaspol no longer writes plans, so update INDEX.md after each capture.'
+plant skill "$G_FMT" caught 'Index caveat aside, update INDEX.md on every capture.'
+plant skill "$G_FMT" caught 'There is no index for plans, so maintain INDEX.md.'
+
 echo "test-gate-mutations: index gate — the two legitimate shapes still pass..."
 plant skill "$G_FMT" allowed 'Read the vault: `INDEX.md` (master map) → `hot.md` (recent) → `30-Knowledge/`'
 plant skill "$G_FMT" allowed 'gaspol writes no index — there is no INDEX.md to update.'
@@ -135,5 +148,13 @@ else
   git -C "$KB" add . && git -C "$KB" commit -q -m "x"
 fi
 ```'
+
+# The table defends its own size. Flipping an expectation already fails, but
+# DELETING rows did not — the harness passed with nine index attacks removed.
+# A gate whose attack table can be quietly trimmed is a gate that can be quietly
+# loosened, which is the whole failure mode this file exists for.
+MIN_ROWS=44
+[ "$pass" -ge "$MIN_ROWS" ] \
+    || fail "only $pass mutations ran, expected at least $MIN_ROWS — attack rows were removed. Raise MIN_ROWS deliberately when adding rows; never lower it to make a run pass."
 
 echo "PASS: test-gate-mutations ($pass mutations, all verdicts as expected)"
