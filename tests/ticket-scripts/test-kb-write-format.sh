@@ -87,8 +87,12 @@ grep -qi 'superbrain-promote\|sole promoter\|single .{0,20}gate' "$LEARN" \
 # Removing the INDEX.md write while leaving thirteen readers in place would be
 # the exact "documented but does not work" pattern this ticket opened with.
 echo "test-kb-write-format: no skill instructs writing or grepping an index gaspol never writes..."
+# The vault's own INDEX.md is a DIFFERENT artifact: the owner writes and
+# maintains it as the vault master map, and reading it is correct. Only an index
+# GASPOL would have to write is forbidden. The exemption is named rather than
+# broad, so it cannot quietly cover a gaspol-written index later.
 STALE=$(grep -rn "INDEX.md" "$REPO_ROOT/skills" 2>/dev/null \
-        | grep -viE "no index|index caveat|maintains one|removed .{0,10}no index|there is no index" || true)
+        | grep -viE "no index|index caveat|maintains one|removed .{0,10}no index|there is no index|master map" || true)
 if [ -n "$STALE" ]; then
     printf '%s\n' "$STALE" | sed 's/^/    /' >&2
     fail "skill text still points at INDEX.md — gaspol writes no index, so every one of these reads finds nothing and reports 'no precedent', which is when a known mistake gets repeated"
