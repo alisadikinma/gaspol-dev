@@ -47,6 +47,29 @@ ALLOWED_SET="_shared/kb-path.md _shared/kb-root docs/kb-setup.md CLAUDE.md READM
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+echo "test-kb-no-hardcoded-path: every resolver invocation goes through the plugin root..."
+# /security-review, IDS-8: an agent runs a SKILL.md bash block with the TARGET
+# PROJECT as its working directory, so `$(skills/_shared/kb-root)` executes
+# whatever a repo carrying that path happens to ship -- and the script's stdout
+# becomes the path gaspol runs `git commit`/`git push` against. A missing file
+# fails safe (127, and every caller's `case *)` stops); a PRESENT one that is not
+# ours does not, and skill repositories are exactly the repos gaspol users open.
+# LINE-START ANCHORED, like the `git add .` gate. The first version matched the
+# string anywhere and immediately flagged CLAUDE.md's own prose DESCRIBING the
+# hazard -- and it did so in the commit that introduced it, which is the fifth
+# time on this branch that a gate's fix tripped over prose. A line that RUNS is an
+# assignment starting the line; prose wraps the same text in backticks
+# mid-sentence. Shape, not exemption.
+UNANCHORED="$(grep -rnE '^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*="[$][(]skills/_shared/kb-root' \
+        "$REPO_ROOT"/skills "$REPO_ROOT/docs" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)"
+[ -z "$UNANCHORED" ] || { echo "$UNANCHORED" >&2; fail "a resolver invocation uses a relative path — prefix it with \"\$CLAUDE_PLUGIN_ROOT/\", the same anchor hooks/hooks.json already uses"; }
+
+# Positive control: the scan must be able to SEE invocations at all.
+ANCHORED=$(grep -rc 'CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root' \
+        "$REPO_ROOT"/skills "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null | awk -F: '{n+=$2} END{print n+0}')
+[ "${ANCHORED:-0}" -ge 8 ] \
+    || fail "the scan found only ${ANCHORED:-0} anchored invocation(s), expected at least 8 — it is broken, so a clean result proves nothing"
+
 echo "test-kb-no-hardcoded-path: positive control — the search works..."
 # Grep a term that is true BEFORE and AFTER this phase. An earlier draft
 # controlled on "kb-path.md", which only exists once the fix lands — a control

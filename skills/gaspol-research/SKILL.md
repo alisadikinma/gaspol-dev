@@ -59,7 +59,8 @@ gaspol **does not own** — a vault, a monorepo — so the write-side git operat
 Full snippet and rationale: `skills/_shared/kb-path.md`.
 
 ```bash
-KB="$(skills/_shared/kb-root)"; rc=$?
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")"; rc=$?
 case $rc in
   0) : ;;                                                    # available
   3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;

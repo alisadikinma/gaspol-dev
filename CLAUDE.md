@@ -469,6 +469,25 @@ No install command is invented for graphify: this repo knows `ui-ux-pro-max`'s e
 does **not** know how graphify is installed, and a fabricated command looks authoritative while
 sending the reader nowhere.
 
+**Relative script invocation — the next ticket's subject, repo-wide.** `/security-review` on this
+branch found that skills invoke their scripts by a **relative** path. An agent runs a SKILL.md bash
+block with the **target project** as its working directory, so `$(skills/_shared/kb-root)` executes
+whatever a repo carrying that path happens to ship — and that script's stdout becomes the path
+gaspol runs `git commit` and `git push` against. A missing file fails safe (127, and every caller's
+`case *)` stops); a **present one that is not ours** does not, and skill repositories are exactly
+the repos gaspol users open.
+
+IDS-8's own surface is fixed: all ten `kb-root` invocations now go through
+`"$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root"` — the anchor `hooks/hooks.json` already used — with
+`${CLAUDE_PLUGIN_ROOT:?…}` so an unset variable stops loudly instead of falling back to the working
+directory. `test-kb-no-hardcoded-path.sh` gates it.
+
+**Six scripts still carry the old form** and are deliberately out of scope here: `detect-stack`,
+`task-brief`, `dag-lanes`, `review-package`, `next-ticket`, `scan-active-ledgers` — roughly 28 call
+sites across 12 files. They predate IDS-8 and none is write-side. No ticket number is minted for
+them yet: a ticket id pointing at no spec is the promise-with-no-implementation shape this release
+exists to end, so the number gets minted when the spec is written.
+
 **Deferred, named rather than forgotten.** `gaspol-kb-audit` now overlaps `superbrain-promote`
 almost completely — both are scan → cluster → per-finding human decision → apply → audit log.
 Not resolved here because they are **not like-for-like**: one is public and agnostic, the other

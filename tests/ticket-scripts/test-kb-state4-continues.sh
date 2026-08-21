@@ -13,7 +13,8 @@
 #
 # It survived because every existing test exercised kb-root STANDALONE. The
 # resolver was right; its three callers were wrong. So this test extracts the
-# fenced bash out of the SKILL.md files and EXECUTES it under an isolated HOME.
+# fenced bash out of the SKILL.md files and EXECUTES it under an isolated HOME
+# and a scratch working directory.
 # Text assertions cannot catch a control-flow bug.
 #
 # READ THIS BEFORE EDITING A KB BLOCK: in this repository a fenced ```bash block
@@ -39,7 +40,7 @@ SKILLS=(gaspol-learn gaspol-adr gaspol-research)
 # the author's machine is not a gate.
 must_create() { case "$1" in gaspol-learn|gaspol-adr) echo yes ;; *) echo no ;; esac; }
 
-# The ONE fenced bash block whose FIRST line assigns from the resolver. Anchored
+# The ONE fenced bash block whose FIRST line is the plugin-root guard. Anchored
 # on that opening line rather than on "contains kb-root anywhere", because this
 # function EXECUTES what it returns: a substring match would run any block that
 # merely mentions the resolver in a comment, so a PR that only edits prose would
@@ -48,12 +49,12 @@ must_create() { case "$1" in gaspol-learn|gaspol-adr) echo yes ;; *) echo no ;; 
 extract() {
     awk '/^```bash$/{inb=1;first=1;buf="";next}
          /^```$/{if(inb&&hit)print buf; inb=0; hit=0; next}
-         inb{if(first){hit=($0 ~ /^KB="\$\(.*kb-root/); first=0}; buf=buf"\n"$0}' "$1"
+         inb{if(first){hit=($0 ~ /^: "\$\{CLAUDE_PLUGIN_ROOT/); first=0}; buf=buf"\n"$0}' "$1"
 }
 count_blocks() {   # how many blocks the anchor matched, so "exactly one" is asserted, not assumed
     awk '/^```bash$/{inb=1;first=1;next}
          /^```$/{if(inb&&hit)c++; inb=0; hit=0; next}
-         inb{if(first){hit=($0 ~ /^KB="\$\(.*kb-root/); first=0}}
+         inb{if(first){hit=($0 ~ /^: "\$\{CLAUDE_PLUGIN_ROOT/); first=0}}
          END{print c+0}' "$1"
 }
 
@@ -66,6 +67,12 @@ for s in "${SKILLS[@]}"; do
     # vacuous-assertion-proves-nothing, and the shape that made the defect above
     # invisible for a whole ticket.
     [ -n "$blk" ] || fail "$f — extracted no bash block calling kb-root; the extractor is broken, so every verdict below would be vacuous"
+    # The block must reach the resolver through the PLUGIN root, never a relative
+    # path: an agent runs this bash with the TARGET PROJECT as its working
+    # directory, so `skills/_shared/kb-root` would execute whatever a repo with
+    # that path happens to ship -- and its stdout becomes the path gaspol commits.
+    printf '%s' "$blk" | grep -q 'CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root' \
+        || fail "$f — invokes the resolver without the \$CLAUDE_PLUGIN_ROOT anchor; a relative path resolves against the open repo, not the plugin"
     printf '%s' "$blk" | grep -q 'kb-root' \
         || fail "$f — extracted block does not call kb-root; wrong block matched"
     nb="$(count_blocks "$f")"
@@ -76,7 +83,7 @@ for s in "${SKILLS[@]}"; do
     H="$(mktemp -d)"
     printf '%s\n' "$blk" > "$H/blk.sh"
     rc=0
-    ( env -u GASPOL_KB_LOCAL HOME="$H" bash "$H/blk.sh" >/dev/null 2>&1 ) || rc=$?
+    ( cd "$H" && env -u GASPOL_KB_LOCAL HOME="$H" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash "$H/blk.sh" >/dev/null 2>&1 ) || rc=$?
     [ "$rc" -eq 0 ] \
         || { rm -rf "$H"; fail "$f — state 4 (nothing configured) exited $rc. That is a fresh machine's FIRST RUN; kb-root's docstring, docs/kb-setup.md and this skill's own Red Flags all say report-and-continue"; }
 
@@ -100,7 +107,7 @@ for s in "${SKILLS[@]}"; do
     H="$(mktemp -d)"
     printf '%s\n' "$blk" > "$H/blk.sh"
     rc=0
-    ( env HOME="$H" GASPOL_KB_LOCAL="$H/definitely-not-here" bash "$H/blk.sh" >/dev/null 2>&1 ) || rc=$?
+    ( cd "$H" && env HOME="$H" GASPOL_KB_LOCAL="$H/definitely-not-here" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash "$H/blk.sh" >/dev/null 2>&1 ) || rc=$?
     [ "$rc" -ne 0 ] \
         || { rm -rf "$H"; fail "$f — state 3 (configured path unreadable) exited 0; a broken store must STOP and ask, never degrade to an empty one"; }
     rm -rf "$H"

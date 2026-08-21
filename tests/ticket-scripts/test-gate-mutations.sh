@@ -113,6 +113,14 @@ echo "test-gate-mutations: index gate — the two legitimate shapes still pass..
 plant skill "$G_FMT" allowed 'Read the vault: `INDEX.md` (master map) → `hot.md` (recent) → `30-Knowledge/`'
 plant skill "$G_FMT" allowed 'gaspol writes no index — there is no INDEX.md to update.'
 
+echo "test-gate-mutations: resolver-anchor gate — runnable vs prose..."
+# The plugin-root anchor gate, both directions. Its first version matched the
+# string anywhere and flagged CLAUDE.md's own prose about the hazard; the fix must
+# not be a text exemption, so these rows pin the SHAPE distinction instead.
+plant skill "$G_PATH" caught 'KB="$(skills/_shared/kb-root)" || exit 1'
+plant skill "$G_PATH" caught '  KB="$(skills/_shared/kb-root --init)"; rc=$?'
+plant skill "$G_PATH" allowed 'An agent would otherwise run `$(skills/_shared/kb-root)` from the open repo.'
+
 echo "test-gate-mutations: status gate..."
 plant skill "$G_FMT" caught 'status: accepted'
 
@@ -176,7 +184,7 @@ fi
 # DELETING rows did not — the harness passed with nine index attacks removed.
 # A gate whose attack table can be quietly trimmed is a gate that can be quietly
 # loosened, which is the whole failure mode this file exists for.
-MIN_ROWS=50
+MIN_ROWS=53
 [ "$pass" -ge "$MIN_ROWS" ] \
     || fail "only $pass mutations ran, expected at least $MIN_ROWS — attack rows were removed. Raise MIN_ROWS deliberately when adding rows; never lower it to make a run pass."
 

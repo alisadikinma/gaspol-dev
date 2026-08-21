@@ -58,7 +58,8 @@ Never output React code for a Vue project.
 **BEFORE** proposing any UI pattern, query the store for notes tagged `ui-patterns`:
 
 ```bash
-KB="$(skills/_shared/kb-root)" || exit 1   # unassigned $KB expands to /*.md — the filesystem root
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || exit 1   # unassigned $KB expands to /*.md — the filesystem root
 grep -rilE "<domain>|ui-patterns" "$KB"/*.md   # flat notes; gaspol writes no index
 # Read matched patterns
 ```

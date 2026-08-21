@@ -22,7 +22,8 @@ Stop at the first rung that yields a path:
 on stdout and reports the state through its exit code.
 
 ```bash
-KB="$(skills/_shared/kb-root)" || {   # 0=available  3=UNKNOWN (STOP+ask)  4=none (report+continue)
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || {   # 0=available  3=UNKNOWN (STOP+ask)  4=none (report+continue)
   echo "resolve the state before continuing — see the table below"; exit 1; }
 ```
 
@@ -78,7 +79,8 @@ one that goes stale.
 Before any `git commit` / `git push` against the store:
 
 ```bash
-KB="$(skills/_shared/kb-root)" || exit 1
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || exit 1
 NOTE="$KB/$(date +%F)-<slug>.md"        # the ONE file this capture wrote
 TOP="$(git -C "$KB" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" != "$(cd "$KB" && pwd -P)" ]; then

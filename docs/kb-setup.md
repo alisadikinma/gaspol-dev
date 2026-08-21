@@ -39,7 +39,8 @@ Every KB-touching skill resolves the mode like this, in order:
 ## Auto-init (run when the store directory is missing)
 
 ```bash
-KB="$(skills/_shared/kb-root --init)"; rc=$?
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root" --init)"; rc=$?
 case $rc in
   0) : ;;                                   # available (--init created it if state 4)
   3) echo "knowledge-store: UNKNOWN — configured path unreadable"; exit 1 ;;   # STOP and ask
@@ -65,7 +66,8 @@ currently unreadable would answer "no precedent exists" for a store that has pre
 ## Conditional sync helper (skills use this instead of unconditional pull/push)
 
 ```bash
-KB="$(skills/_shared/kb-root)" || exit 1
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it the resolver would be taken from whatever repo happens to be open, and its stdout becomes the path gaspol commits}"
+KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || exit 1
 REMOTE="${GASPOL_KB_REMOTE:-$(python3 -c 'import json,os;print(json.load(open(os.path.expanduser("~/.claude/gaspol-config.json"))).get("kb_remote",""))' 2>/dev/null)}"
 
 # before reads (synced only) — reads are always permitted:
