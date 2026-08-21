@@ -151,6 +151,14 @@ opt-in: somebody ran the indexer on purpose. gaspol never creates one.
 | **updated** | `graphify-out/` present **and** `graphify` on `PATH` | Run `graphify update .`; record `graphify: updated` |
 | **UNKNOWN** | `graphify-out/` present, `graphify` **not installed** | Record `graphify: UNKNOWN — index present, CLI missing` and **STOP and ask.** |
 | **skipped** | no `graphify-out/` | Skip. **Not a failure** — the repo opted out. Record `graphify: skipped — no graphify-out/ (repo not indexed)`; never record it as passed. |
+- **The command ran and REFUSED** — record `graphify: not updated — <the CLI's own reason>` and
+  continue. Observed on this repo: *"new graph has 1792 nodes but existing graph.json has 2132.
+  Refusing to overwrite … Pass --force to override."* This is a fourth state, found by running the
+  lane rather than by reading it, and it is the one most easily mis-recorded: the CLI exists, the
+  marker exists, the command exited — everything looks like a pass except the outcome. **Never
+  pass `--force` to make the line look green.** A refusal protects an index that may be more
+  complete than the one about to replace it; overriding it is the user's decision, so surface the
+  message and let them make it.
 
 ```bash
 if [ -d graphify-out ]; then

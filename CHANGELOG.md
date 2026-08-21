@@ -2,6 +2,35 @@
 
 ## [1.18.0] - 2026-08-21
 
+### Fixed during the release's own review chain (IDS-8, rounds after the plan closed)
+
+The finish chain found four defects the eight-phase implementation had not, and each one is a
+different reason a green suite can still be wrong:
+
+- **The first run on any fresh machine aborted.** All three KB skills merged `kb-root`'s exit 3
+  (configured and unreadable, must stop) into exit 4 (nothing configured, must report and
+  continue). Every test exercised the resolver *standalone*, so the resolver was right and its
+  three callers were wrong, and nothing looked at the seam. `kb-root --init` now creates the
+  default store for a write and returns 0; state 3 is untouched. A new test **executes** the bash
+  extracted from each `SKILL.md` rather than reading it.
+- **`gaspol-kb-audit` stopped being a valid skill.** The index caveat was inserted between the
+  opening `---` and `name:` — inside the YAML frontmatter Claude Code routes on. The identical
+  edit landed correctly in four other skills. `test-skill-frontmatter.sh` now checks all 20.
+- **`git -C "$KB" add .` staged whole working trees.** The ownership guard asks *"is `$KB` the
+  repository root?"*, which is true both for a dedicated KB repo and for a vault root a mis-set
+  `kb_local` points at — structure cannot tell them apart, so the guard was never the last line of
+  defence. Every write now stages one file by pathspec.
+- **Resolver invocations were relative.** An agent runs a skill's bash with the *target project* as
+  its working directory, so `$(skills/_shared/kb-root)` would run whatever a repo shipping that
+  path happens to contain, and its stdout becomes the path gaspol commits. All ten invocations now
+  go through `$CLAUDE_PLUGIN_ROOT`. Six older scripts still carry the old form and are named in
+  `CLAUDE.md` as the next ticket's subject.
+
+Five separate times on this branch, a gate's own fix tripped over prose that *described* the
+hazard it polices. The answer each time was to anchor on shape — a line that runs starts the line;
+prose wraps the same text in backticks mid-sentence — never to add a text exemption, because an
+exemption added to keep a gate usable is how every earlier regression got in.
+
 ### Fixed — gaspol was running a second knowledge pipeline alongside one that already existed (IDS-8)
 
 The owner keeps an Obsidian vault with a working capture pipeline: a SessionStart hook writes

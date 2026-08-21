@@ -23,6 +23,33 @@ S="$REPO_ROOT/skills/gaspol-sync-docs/SKILL.md"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+echo "test-graphify-lane: a refusal is recorded as not-updated, never as updated..."
+# Found by RUNNING the lane on this repo, not by reading it: graphify exited after
+# refusing to overwrite a larger existing graph ("new graph has 1792 nodes but
+# existing graph.json has 2132"). CLI present, marker present, command returned --
+# everything looks like a pass except the outcome, which is the exact shape
+# gaspol-finish forbids for an unavailable /security-review.
+#
+# Both assertions read WHITESPACE-NORMALISED text. Two earlier drafts were wrong
+# in instructive ways: a line-scoped grep lost to the sentence WRAPPING across two
+# source lines, and a paragraph-scoped replacement passed a VERIFIED sabotage,
+# because the states table happens to contain both "--force" and a "never" and so
+# satisfied a mere co-occurrence. Co-occurrence in a block is not a claim.
+python3 - "$S" <<'PYEOF' || fail "gaspol-sync-docs is missing one of the two graphify-refusal claims — a refusal recorded as an update is a completion claim for work that did not happen, and reaching for --force to make the line green overwrites an index that may be more complete than its replacement"
+import sys
+text = " ".join(open(sys.argv[1], encoding="utf-8").read().split())
+need = [
+    "graphify: not updated",
+    "Never pass `--force` to make the line look green",
+]
+missing = [n for n in need if n not in text]
+if missing:
+    for m in missing:
+        print(f"  missing claim: {m}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+
+
 echo "test-graphify-lane: the lane exists..."
 grep -qi 'graphify' "$S" || fail "gaspol-sync-docs never mentions graphify — the code index goes stale on every branch and nothing in the chain refreshes it"
 
