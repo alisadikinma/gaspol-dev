@@ -323,6 +323,15 @@ reviewer, confirm the fix report contains **the covering tests, the command run,
 output** — all three. Name the covering test files in the fix message; a one-line fix does
 not need the whole suite.
 
+**The re-review is scoped.** Run `review-package <FIX_BASE> HEAD`, where `FIX_BASE` is
+**the head the previous review saw** — so the re-reviewer gets the fix diff and nothing
+else, instead of re-reading the whole task. Dispatch
+[re-review-prompt.md](re-review-prompt.md) with the findings list, the brief path, the
+report file, and the printed diff path. The same prohibition applies here as everywhere:
+never pass `HEAD~1` as a base — a multi-commit fix has more than one commit and `HEAD~1`
+silently drops all but the last. Re-reviews of small fix diffs take a cheap-to-mid model
+tier; scale it to the diff, not to the task.
+
 **Round 5 is the breaker, not a wall.** When it trips, **adjudicate** each still-open
 finding yourself: weigh it against the plan text with the spec as the binding authority,
 record the ruling in the ledger, and continue. Stop and ask the user only when every path

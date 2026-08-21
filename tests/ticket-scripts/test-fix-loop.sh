@@ -52,6 +52,17 @@ has "$SKILL" "covering test" \
 has "$SKILL" "the command run" \
     "expected SKILL.md to require the fix report include the command run"
 
+echo "test-fix-loop: checking the scoped re-review..."
+
+has "$SKILL" "FIX_BASE" \
+    "expected SKILL.md to define FIX_BASE for the scoped re-review"
+has "$SKILL" "review-package <FIX_BASE> HEAD" \
+    "expected SKILL.md to name the exact re-review command"
+has "$SKILL" "the head the previous review saw" \
+    "expected SKILL.md to define FIX_BASE as the head the previous review saw"
+has "$SKILL" "HEAD~1" \
+    "expected SKILL.md to keep the HEAD~1 prohibition visible alongside FIX_BASE"
+
 echo "test-fix-loop: checking the re-review prompt..."
 
 [ -s "$REREVIEW" ] || fail "expected skills/gaspol-parallel/re-review-prompt.md to exist and be non-empty"
