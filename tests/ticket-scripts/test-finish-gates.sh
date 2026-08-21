@@ -118,6 +118,44 @@ else
   fail "receive-review pressure case registered in run-all.sh"
 fi
 
+# IDS-6 C3: the ONE conditional gate — plan-verifier is skipped only when the
+# branch provably references no plan. Everything else stays unconditional.
+if grep -qi 'no plan referenced by this branch' skills/gaspol-finish/SKILL.md; then
+  pass "finish defines the no-plan skip for plan-verifier"
+else
+  fail "finish defines the no-plan skip for plan-verifier"
+fi
+if grep -qi 'record\|ledger' skills/gaspol-finish/SKILL.md && \
+   grep -qi 'plan-verifier: skipped' skills/gaspol-finish/SKILL.md; then
+  pass "the skip is recorded with its reason, never silent"
+else
+  fail "the skip is recorded with its reason, never silent"
+fi
+
+# The trim must NOT weaken /security-review. Security defects hide in boring
+# diffs, and in a skills repository markdown IS the executed surface — "docs
+# only" does not mean "cannot introduce a vulnerability".
+if grep -qi 'security-review.*ALWAYS\|ALWAYS.*security-review\|every branch' skills/gaspol-finish/SKILL.md; then
+  pass "/security-review is still unconditional on every branch"
+else
+  fail "/security-review is still unconditional on every branch"
+fi
+if grep -qi 'security-review' skills/gaspol-finish/SKILL.md && \
+   ! grep -qiE 'skip .{0,40}security-review|security-review .{0,20}(is )?(optional|conditional)' skills/gaspol-finish/SKILL.md; then
+  pass "no rule anywhere makes /security-review skippable"
+else
+  fail "no rule anywhere makes /security-review skippable"
+fi
+
+# The other four chain steps stay unconditional too.
+for step in gaspol-verify gaspol-review gaspol-sync-docs gaspol-learn; do
+  if grep -q "$step" skills/gaspol-finish/SKILL.md; then
+    pass "chain step $step still present"
+  else
+    fail "chain step $step still present"
+  fi
+done
+
 # The referenced scripts must actually exist, or the instruction is a lie that
 # only fails at the moment someone follows it.
 for s in scan-active-ledgers detect-stack; do
