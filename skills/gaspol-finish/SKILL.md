@@ -34,6 +34,33 @@ Before presenting any options, complete this chain **in order, all six steps**. 
 steps. None of the six is optional or conditional on the diff's contents — steps 3 and 4 run on
 every finish pass exactly like steps 1, 2, 5, and 6 always have.
 
+### Step 0: Run the deterministic checks first — before dispatching any agent
+
+The chain's cheapest gate runs first, always. Derive the command with
+`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/detect-stack" <project-root>` and run what
+it prints.
+
+**Two rails on that line, both learned the hard way.** The script is reached through
+`$CLAUDE_PLUGIN_ROOT`, never relatively: this skill runs with the **target project** as its
+working directory, so a relative path executes whatever a repo carrying that path happens to
+ship — and `detect-stack`'s stdout is then executed, so a substituted script both runs and
+chooses the next command. And **never go looking for a checker to run.** An earlier draft of this
+step said "where the repository keeps a mutation harness over its own gates, run that too", which
+instructs an agent to discover and execute an arbitrary script out of the working repository —
+Step 0 runs *before* `/security-review`, so nothing would have looked at it first. A repository's
+extra checks belong in the plan's declared verification commands, or named literally in its own
+`CLAUDE.md`, where a human wrote them down. In THIS repository that is
+`tests/ticket-scripts/test-gate-mutations.sh`.
+
+**Why this is Step 0 and not a footnote.** In IDS-8 an eight-minute Opus audit was dispatched
+over a tree whose two-second suite was already red, and three of that ticket's five gate
+regressions would have been caught in seconds. An audit of code that is about to change is
+worse than no audit: it costs the time AND produces a verdict nobody can rely on.
+
+Red here means **fix before dispatching anything**. This is not a BLOCKING gate in the
+merge-refusing sense — it is an ordering rule, and it applies again inside every fix round
+(see The Fix Loop below).
+
 ### Step 1: Run gaspol-verify (all 4 layers)
 
 If you haven't already run verification in this session, invoke gaspol-verify now.
@@ -86,7 +113,7 @@ If no plan exists (ad-hoc implementation), skip this step with documented reason
 
 **If plan-verifier returned BLOCKING**, return to execute/fix the issues, then re-run
 plan-verifier. Do NOT proceed to Step 3 — don't waste a review pass on code that's about to
-change.
+change. **The re-run is bounded and scoped — see The Fix Loop below.**
 
 ### Step 3: Run gaspol-review AT TIER 1 -- BLOCKING on any surviving Critical finding
 
@@ -159,6 +186,36 @@ This ensures:
 
 Invoke `gaspol-learn` for quality-gated pattern capture into the cross-project knowledge base
 (user confirms before write).
+
+### The Fix Loop — every BLOCKING gate in this chain is bounded
+
+**Canonical rule: [skills/_shared/fix-loop.md](../_shared/fix-loop.md).** `gaspol-parallel`
+applies it per task; this chain applies it per gate. Read it there — it is stated once so the
+two cannot drift.
+
+What it means at each of the gates above:
+
+- **The round cap applies per gate.** A round is one fix plus one scoped re-review. Early
+  rounds resume the fixer that already has the context; later ones dispatch fresh, one model
+  tier above. The final round **adjudicates** the still-open findings against the plan and
+  continues — stop and ask the user only when every path forward is a guess. **The cap's number
+  is deliberately not repeated here**: a constant copied into two skills is a constant that will
+  disagree with itself, which is the same defect as the duplicated knowledge pipeline IDS-8
+  removed. Read it in the shared file.
+- **When a gate returns BLOCKING, record the SHA that verdict saw** — the HEAD it actually
+  audited. Whatever re-runs a gate scopes to that SHA: the re-review reads `<SHA>..HEAD`, the
+  fix diff and nothing else. Re-auditing the whole branch after every fix is how IDS-8's chain
+  reached roughly eleven agent dispatches.
+- **Cheap before expensive, every round.** Step 0's checks run again before each fix round's
+  dispatch. Adding an exemption to a gate means adding its attack row to the mutation harness
+  **first**, and watching it fail — five separate times in IDS-8, closing one finding loosened
+  the gate beside it, and every one of those was found by an expensive audit rather than by the
+  harness that existed to catch it.
+
+**The bound shortens rounds, never the chain.** All six steps stay. In IDS-8 each one found a
+real defect, including a skill that had silently stopped loading and a first capture that
+aborted on any fresh machine — a chain that feels slow argues for scoping its re-runs, not for
+trusting a diff nobody audited.
 
 ### Verify Chain Complete
 
