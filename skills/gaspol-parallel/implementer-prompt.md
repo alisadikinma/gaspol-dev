@@ -6,7 +6,34 @@ Use this template when dispatching an implementer subagent. Replace all brackete
 
 ## Task
 
-[Full task text from plan — paste the COMPLETE task description here, including all requirements, acceptance criteria, and any notes. NEVER reference a file path instead of pasting the text.]
+Read `[.gaspol/tasks/<TICKET>/task-<N>-brief.md]` first — it is your requirements, and the
+exact values in it (numbers, strings, signatures, test cases) are to be used **verbatim**.
+It was extracted for this task alone; do not go looking for the plan file it came from.
+
+[One line on where this task fits in the project.]
+
+## Report File
+
+Write your full report to `[.gaspol/tasks/<TICKET>/task-<N>-report.md]`, in the format
+given under "Report Format" below.
+
+Return to the orchestrator **only** these four fields — not the report itself:
+
+- **status** — one of DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED
+- **commits** — the commit SHAs and subjects you created
+- **test summary** — one line (e.g. "L1-L3 pass, 14 unit tests, L4 N/A")
+- **concerns** — one line each, or "None"
+
+A full report pasted into the orchestrator's reply stays resident in its context for the
+rest of the session and is re-read on every later turn. The file is the durable record;
+the four fields are the handoff.
+
+## No Subagents
+
+You **never dispatch subagents** — not helpers, and not a reviewer. Review arrives from the
+orchestrator after your report. Every reviewer a worker has spawned in a real session
+duplicated the review the orchestrator dispatched anyway, at the cost of a full extra
+review seat per task.
 
 ## Context
 
@@ -112,7 +139,8 @@ Before reporting completion, verify ALL of these:
 
 ## Report Format
 
-When complete, report using this EXACT format.
+Write this EXACT format into your report file. Do not paste it back to the orchestrator —
+return only status, commits, the one-line test summary, and concerns.
 
 ### 0. Status
 

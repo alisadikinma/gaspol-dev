@@ -158,9 +158,36 @@ Gather scene-setting context the implementer needs:
 `review-package` later. NEVER use `HEAD~1` as the base: a multi-commit task has more than one
 commit and `HEAD~1` silently drops all but the last.
 
-Use the `implementer-prompt.md` template. Key rules:
-- **Paste the full task text** into the subagent prompt — NEVER reference a file
-- Include all scene-setting context inline
+**Extract the task's brief first.** Run
+`skills/gaspol-parallel/scripts/task-brief <PLAN_FILE> <N>` — it writes that one task's
+full text to `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. The brief is
+the single source of the implementer's requirements.
+
+Use the `implementer-prompt.md` template. A dispatch prompt carries exactly five things:
+
+1. One line on where this task fits in the project.
+2. The **brief path**, introduced as "read this first — it is your requirements, with the
+   exact values to use **verbatim**".
+3. Interfaces and decisions from earlier tasks that the brief cannot know.
+4. Your resolution of any ambiguity you noticed in the brief.
+5. The **report-file path** (`.gaspol/tasks/<TICKET>/task-<N>-report.md`) and the short
+   return contract.
+
+**Never reference the plan.** A subagent handed a 2000-line plan reads the wrong task —
+that is the failure the older blanket rule existed to prevent, and it is still prevented.
+The rule is narrowed, not reversed: the plan stays off-limits; the **task-scoped brief** is
+the handoff.
+
+**Exact values** — numbers, magic strings, signatures, test cases — live only in the brief.
+Retyping them into the prompt is where they drift.
+
+Everything you paste into a dispatch prompt, and everything a subagent prints back, stays
+resident in your context for the rest of the session and is re-read on every later turn. Do
+not paste accumulated prior-task summaries ("state after tasks 1-3") into later dispatches.
+A fresh subagent needs its task, the interfaces it touches, and the global constraints —
+nothing else.
+
+Key rules:
 - Include anti-placeholder rules (see below)
 - Include self-review checklist
 - **Always specify the model explicitly**, scaled to task class (see
