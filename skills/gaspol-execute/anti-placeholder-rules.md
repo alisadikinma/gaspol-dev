@@ -216,3 +216,29 @@ The component works perfectly in isolation with props. But nothing in the app ac
 You add `defaultProps` or default parameter values that provide "reasonable" data. The component never gets real data because the defaults are "good enough."
 
 **Prevention:** Default values for UI state (isOpen = false) are fine. Default values for content data (title = 'Sample') are placeholders.
+
+---
+
+# Red Flags and Rationalizations (moved from SKILL.md, IDS-6 C1)
+
+
+Observing any of these means STOP and reassess. The left column is what you will actually
+catch yourself thinking; none of it is valid.
+
+| Signal / excuse | What it really is | Correct action |
+|---|---|---|
+| About to write `const data = [...]` | Placeholder | Trace the source, implement the real integration |
+| "I'll connect this to the API later" / "temporary" | Later never comes; placeholders become permanent | Connect now, or get an explicit user deferral |
+| "The plan didn't specify the implementation" | The Data Integration Map IS the specification | Trace the data flow and implement it |
+| "The hook doesn't exist yet" | That is the work, not a blocker | Create it, or report a real blocker |
+| "It works the same with mock data" | Working is not complete | Plan says real integration; do real integration |
+| "Just this one component" / "it's only the UI layer" | One placeholder becomes many; UI with fake data is a fake UI | Same standard everywhere |
+| "The API isn't ready" | A genuine blocker — but not a licence to mock | Report the blocker and wait for guidance |
+| Skipping a plan phase without asking | Law 2 violation | Ask before skipping any phase |
+| Batch-completing 3+ phases | Checkpoint-rule violation | One phase, one checkpoint, one approval |
+| "Close enough" / "minor deviation" | Plan drift; you do not decide what is minor | Compare explicitly, report it, let the user judge |
+| "This is basically done" / "I'm confident" | Law 3 violation; confidence is not evidence | Run the completion gate scan |
+| Creating a hook CLAUDE.md already lists | CLAUDE.md was not read | Use the existing one |
+| Component imports no hook or context | Probably hardcoded data | Verify the source against the plan |
+| 3+ TODOs in a file, or "I'll clean up TODOs at the end" | Incomplete implementation; TODOs get forgotten | Resolve each as you go, or flag it |
+| Test file with no assertions | Phantom coverage | Write real assertions or mark it incomplete |
