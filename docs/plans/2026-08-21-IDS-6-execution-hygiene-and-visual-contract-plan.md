@@ -62,7 +62,7 @@ phase's Verification block therefore uses plan-declared commands, per the
 | brief + report files | `.gaspol/tasks/<TICKET>/` | filesystem | No | Create dir at dispatch time; gitignored |
 | fix-loop round state | `.gaspol/progress/PROGRESS-<TICKET>.md` | existing ledger | Yes | Append round lines to `## Log` |
 | conflict matrix | same ledger | existing ledger | Yes | New table written above `## Log` |
-| scoped re-review diff | git | existing `scripts/review-package <BASE> <HEAD>` | Yes | Reuse with `FIX_BASE`; no script change |
+| scoped re-review diff | git | existing `scripts/review-package <BASE> [HEAD]` | Yes | Reuse with `FIX_BASE`; no script change |
 | audit measurements | 2026-08-21 token audit, quoted in Part C | none — figures inlined below | Yes | Use the inlined numbers; do not re-measure |
 
 Nothing in this table is allowed to become a placeholder. Every row is produced by a
@@ -163,7 +163,7 @@ force the same files to be reworked twice.
 - Test: `tests/ticket-scripts/test-fix-loop.sh` (extend)
 
 **Steps:**
-1. Write failing test asserting `SKILL.md` instructs `review-package <PLAN_FILE> <FIX_BASE> HEAD` where `FIX_BASE` is the head the previous review saw. Expected error: test assertion failure, `expected SKILL.md to define FIX_BASE`.
+1. Write failing test asserting `SKILL.md` instructs `review-package <FIX_BASE> HEAD` where `FIX_BASE` is the head the previous review saw. Expected error: test assertion failure, `expected SKILL.md to define FIX_BASE`.
 2. Run test, confirm it fails for the expected reason.
 3. Edit `SKILL.md`: define `FIX_BASE`, state that the re-review reads only the fix diff, and keep the existing prohibition on `HEAD~1` visible in the same paragraph.
 4. Run tests, confirm all pass.

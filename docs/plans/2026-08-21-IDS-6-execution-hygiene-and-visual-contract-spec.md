@@ -93,7 +93,7 @@ human interrupt.
 
 ### A4. Scoped re-review
 
-`review-package <PLAN_FILE> <FIX_BASE> HEAD`, where `FIX_BASE` is the head the
+`review-package <FIX_BASE> HEAD`, where `FIX_BASE` is the head the
 previous review saw. The re-reviewer reads only the fix diff against the
 findings list, not the whole task again. New prompt file
 `skills/gaspol-parallel/re-review-prompt.md`.
