@@ -25,7 +25,8 @@ PV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$REPO_ROOT/.claude-plugin/p
 [ -n "$PV" ] || fail "plugin.json carries no parsable version — the scan is broken, so agreement below would prove nothing"
 # The marketplace manifest moved out of this repo in 50fbbb1; resolve it, and
 # report the three states apart. Exit 4 is "not checked", never "agrees".
-MM=$("$REPO_ROOT/tests/ticket-scripts/marketplace-manifest") ; MM_RC=$?
+MM_RC=0
+MM="$("$REPO_ROOT/tests/ticket-scripts/marketplace-manifest")" || MM_RC=$?
 case "$MM_RC" in
     0)  MV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$MM" | head -1)
         [ "$PV" = "$MV" ] || fail "manifests disagree: plugin.json=$PV marketplace=$MV ($MM)" ;;

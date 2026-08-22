@@ -203,7 +203,8 @@ test_docs_consistent() {
   # The marketplace manifest moved to the gaspol-one repo in 50fbbb1. Resolve
   # it and keep the three states apart -- "not present" is reported as not
   # checked, never as agreement.
-  mm_path="$(tests/ticket-scripts/marketplace-manifest)"; mm_rc=$?
+  mm_rc=0
+  mm_path="$("$REPO_ROOT/tests/ticket-scripts/marketplace-manifest")" || mm_rc=$?
   case "$mm_rc" in
     0)
       mv="$(grep -m1 '"version"' "$mm_path" | tr -dc '0-9.')"
