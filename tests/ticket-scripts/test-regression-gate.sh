@@ -126,6 +126,40 @@ else
     bad "regression-gate is not executable (chmod +x, and git update-index --chmod=+x)"
 fi
 
+echo "test-regression-gate: gaspol-debug Phase 4 stops excusing itself (A2)..."
+
+DEBUG_SKILL="$REPO_ROOT/skills/gaspol-debug/SKILL.md"
+
+# Checks for the LIVE instruction, not prose that explains what was removed
+# -- a file may EXPLAIN a retired form without ISSUING it (the same exemption
+# CLAUDE.md/README carry in the completeness-ladder scan, and
+# test-marketplace-manifest-states.sh carries for its own banned form).
+if grep -qF 'failing test case** (if possible)' "$DEBUG_SKILL"; then
+    bad "gaspol-debug still offers \"(if possible)\" as the default"
+else
+    note "gaspol-debug no longer offers (if possible) as a default"
+fi
+
+grep -qF 'RED at <sha>, GREEN after fix' "$DEBUG_SKILL" \
+    && note "gaspol-debug documents the written regression-test: line format" \
+    || bad "gaspol-debug does not document the written regression-test: line format"
+
+grep -qF 'N/A — <reason>' "$DEBUG_SKILL" \
+    && note "gaspol-debug documents the N/A — <reason> state" \
+    || bad "gaspol-debug does not document the N/A — <reason> state"
+
+grep -qF 'not run — <reason>' "$DEBUG_SKILL" \
+    && note "gaspol-debug documents the not run — <reason> state" \
+    || bad "gaspol-debug does not document the not run — <reason> state"
+
+grep -qi 'RED before GREEN' "$DEBUG_SKILL" \
+    && note "gaspol-debug states RED-before-GREEN is not optional" \
+    || bad "gaspol-debug does not state the RED-before-GREEN requirement"
+
+grep -qF 'regression-gate' "$DEBUG_SKILL" \
+    && note "gaspol-debug names the machine that checks the ledger line" \
+    || bad "gaspol-debug never names regression-gate"
+
 if [ "$FAILURES" -gt 0 ]; then
     echo "test-regression-gate: $FAILURES assertion(s) failed" >&2
     exit 1
