@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# test-geometry-diff.sh -- asserts skills/gaspol-verify/scripts/geometry-diff
+# diffs two DOM geometry snapshots per data-vv marker (IDS-14 Phase B1-B4):
+# colour normalisation, structural-vs-decorative severity split, missing/extra
+# marker asymmetry, ratio-vs-pixel tolerance on fluid layouts, and the three
+# states (parses / UNKNOWN / no canvas contract).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+DIFF="$REPO_ROOT/skills/gaspol-verify/scripts/geometry-diff"
+
+FAILURES=0
+note() { echo "PASS: $*"; }
+bad()  { echo "FAIL: $*" >&2; FAILURES=$((FAILURES + 1)); }
+
+echo "test-geometry-diff: the script itself passes --self-test..."
+if python3 "$DIFF" --self-test; then
+    note "geometry-diff --self-test"
+else
+    bad "geometry-diff --self-test exited non-zero"
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+CANVAS_OK='{"source": "canvas", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 160, "h": 44},
+                            "style": {"font-size": "16px", "color": "#3B82F6"}}}}'
+APP_OK='{"source": "app", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 160, "h": 44},
+                            "style": {"font-size": "16px", "color": "rgb(59, 130, 246)"}}}}'
+
+printf '%s' "$CANVAS_OK" > "$tmp/canvas_ok.json"
+printf '%s' "$APP_OK" > "$tmp/app_ok.json"
+
+echo "test-geometry-diff: identical geometry, colour spelled two ways -> exit 0..."
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_ok.json" "$tmp/app_ok.json")" || rc=$?
+[ "$rc" -eq 0 ] && note "matching snapshot (hex vs rgb() colour) -> exit 0" \
+                || bad "matching snapshot: expected exit 0, got $rc ($out)"
+
+echo "test-geometry-diff: structural colour differs -> BLOCKS, exit 1..."
+APP_BAD_COLOR='{"source": "app", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 160, "h": 44},
+                            "style": {"font-size": "16px", "color": "rgb(220, 38, 38)"}}}}'
+printf '%s' "$APP_BAD_COLOR" > "$tmp/app_bad_color.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_ok.json" "$tmp/app_bad_color.json")" || rc=$?
+[ "$rc" -eq 1 ] && note "structural colour drift -> exit 1 (BLOCKING)" \
+                || bad "colour drift: expected exit 1, got $rc ($out)"
+case "$out" in *BLOCKING*color*|*BLOCKING*Color*) note "finding names the colour property" ;; \
+  *) bad "finding does not name the colour property: $out" ;; esac
+
+echo "test-geometry-diff: missing marker (in canvas, absent in app) BLOCKS..."
+APP_NO_MARKER='{"source": "app", "viewport": {"w": 1440, "h": 900}, "elements": {}}'
+printf '%s' "$APP_NO_MARKER" > "$tmp/app_no_marker.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_ok.json" "$tmp/app_no_marker.json")" || rc=$?
+[ "$rc" -eq 1 ] && note "marker present in canvas, absent in app -> exit 1 (BLOCKING)" \
+                || bad "missing marker: expected exit 1, got $rc ($out)"
+
+echo "test-geometry-diff: extra marker (in app, absent in canvas) WARNS, exit 0..."
+CANVAS_NO_MARKER='{"source": "canvas", "viewport": {"w": 1440, "h": 900}, "elements": {}}'
+printf '%s' "$CANVAS_NO_MARKER" > "$tmp/canvas_no_marker.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_no_marker.json" "$tmp/app_ok.json")" || rc=$?
+[ "$rc" -eq 0 ] && note "marker present in app, absent in canvas -> exit 0 (WARN only)" \
+                || bad "extra marker: expected exit 0, got $rc ($out)"
+case "$out" in *WARN*) note "extra marker produces a WARN finding" ;; \
+  *) bad "extra marker produced no WARN finding: $out" ;; esac
+
+echo "test-geometry-diff: fluid width passes on ratio despite failing on pixels..."
+CANVAS_FLUID='{"source": "canvas", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 640, "h": 44}, "style": {}}}}'
+APP_FLUID='{"source": "app", "viewport": {"w": 1366, "h": 850},
+ "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 610, "h": 44}, "style": {}}}}'
+printf '%s' "$CANVAS_FLUID" > "$tmp/canvas_fluid.json"
+printf '%s' "$APP_FLUID" > "$tmp/app_fluid.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_fluid.json" "$tmp/app_fluid.json")" || rc=$?
+[ "$rc" -eq 0 ] && note "640/1440 vs 610/1366 (both ~44%) passes on ratio despite 30px pixel diff" \
+                || bad "fluid width: expected exit 0, got $rc ($out)"
+
+echo "test-geometry-diff: same ratio math, but the absolute gap is real drift -> BLOCKS..."
+CANVAS_DRIFT='{"source": "canvas", "viewport": {"w": 1000, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 0, "y": 0, "w": 440, "h": 44}, "style": {}}}}'
+APP_DRIFT='{"source": "app", "viewport": {"w": 1000, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 0, "y": 0, "w": 610, "h": 44}, "style": {}}}}'
+printf '%s' "$CANVAS_DRIFT" > "$tmp/canvas_drift.json"
+printf '%s' "$APP_DRIFT" > "$tmp/app_drift.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_drift.json" "$tmp/app_drift.json")" || rc=$?
+[ "$rc" -eq 1 ] && note "44% vs 61% at the same viewport fails on both pixel and ratio -> exit 1" \
+                || bad "real width drift: expected exit 1, got $rc ($out)"
+
+echo "test-geometry-diff: decorative property differs -> WARN only, exit 0..."
+CANVAS_SHADOW='{"source": "canvas", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 0, "y": 0, "w": 100, "h": 40},
+                            "style": {"box-shadow": "0 1px 2px rgba(0,0,0,0.1)"}}}}'
+APP_SHADOW='{"source": "app", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": 0, "y": 0, "w": 100, "h": 40},
+                            "style": {"box-shadow": "0 2px 4px rgba(0,0,0,0.2)"}}}}'
+printf '%s' "$CANVAS_SHADOW" > "$tmp/canvas_shadow.json"
+printf '%s' "$APP_SHADOW" > "$tmp/app_shadow.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_shadow.json" "$tmp/app_shadow.json")" || rc=$?
+[ "$rc" -eq 0 ] && note "box-shadow differs -> exit 0 (WARN only, decorative)" \
+                || bad "decorative drift: expected exit 0, got $rc ($out)"
+case "$out" in *WARN*shadow*|*WARN*box-shadow*) note "box-shadow finding is WARN, named" ;; \
+  *) bad "box-shadow finding missing or wrong severity: $out" ;; esac
+
+echo "test-geometry-diff: exit 4 on a missing canvas file (no canvas contract)..."
+rc=0; out="$(python3 "$DIFF" "$tmp/does-not-exist.json" "$tmp/app_ok.json")" || rc=$?
+[ "$rc" -eq 4 ] && note "missing canvas file -> exit 4 (none)" \
+                || bad "missing canvas: expected exit 4, got $rc ($out)"
+case "$out" in *"no canvas contract"*) note "exit 4 message says no canvas contract" ;; \
+  *) bad "exit 4 message does not say no canvas contract: $out" ;; esac
+
+echo "test-geometry-diff: exit 3 on malformed JSON..."
+printf 'not json at all {' > "$tmp/malformed.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/malformed.json" "$tmp/app_ok.json")" || rc=$?
+[ "$rc" -eq 3 ] && note "malformed canvas JSON -> exit 3 (UNKNOWN)" \
+                || bad "malformed JSON: expected exit 3, got $rc ($out)"
+case "$out" in *UNKNOWN*) note "exit 3 message says UNKNOWN" ;; \
+  *) bad "exit 3 message does not say UNKNOWN: $out" ;; esac
+
+echo "test-geometry-diff: exit 3 when 'elements' key is missing (not a geometry snapshot)..."
+printf '{"source": "canvas", "viewport": {"w": 1440, "h": 900}}' > "$tmp/no_elements.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/no_elements.json" "$tmp/app_ok.json")" || rc=$?
+[ "$rc" -eq 3 ] && note "missing 'elements' key -> exit 3 (UNKNOWN)" \
+                || bad "missing elements key: expected exit 3, got $rc ($out)"
+
+echo "test-geometry-diff: malformed APP snapshot is also exit 3, not silently ignored..."
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_ok.json" "$tmp/malformed.json")" || rc=$?
+[ "$rc" -eq 3 ] && note "malformed app snapshot -> exit 3 (UNKNOWN)" \
+                || bad "malformed app snapshot: expected exit 3, got $rc ($out)"
+
+echo "test-geometry-diff: script exists and self-tests via python3..."
+[ -f "$DIFF" ] && note "geometry-diff exists" || bad "geometry-diff does not exist"
+
+if [ "$FAILURES" -gt 0 ]; then
+    echo "test-geometry-diff: $FAILURES assertion(s) failed" >&2
+    exit 1
+fi
+echo "PASS: test-geometry-diff -- colour normalisation, severity split, marker asymmetry, ratio tolerance, three states"

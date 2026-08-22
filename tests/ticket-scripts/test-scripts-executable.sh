@@ -43,6 +43,16 @@ DIRECT=(
 # mode is irrelevant and forcing 755 on them would be cargo cult.
 ASSETS_RE='\.(py|md|html|js|cjs|json|css)$'
 
+# Python scripts invoked via `python3 <path>`, not run directly -- their
+# mode bit is irrelevant the same way design_audit.py's is (ASSETS_RE
+# exempts THAT one because it carries a .py extension). geometry-diff
+# carries no extension, matching the naming convention of the bash scripts
+# in DIRECT above, so ASSETS_RE cannot catch it by suffix -- named here
+# explicitly instead (IDS-14 Phase B1).
+INTERPRETER_INVOKED=(
+    skills/gaspol-verify/scripts/geometry-diff
+)
+
 echo "test-scripts-executable: every directly-invoked script is committed 100755..."
 
 for s in "${DIRECT[@]}"; do
@@ -59,7 +69,7 @@ echo "test-scripts-executable: the list has not drifted from the filesystem..."
 # A new script under scripts/ that nobody added here is a script whose mode
 # nothing guards -- which is precisely how the two above slipped through.
 while IFS= read -r found; do
-    case " ${DIRECT[*]} " in
+    case " ${DIRECT[*]} ${INTERPRETER_INVOKED[*]} " in
         *" $found "*) : ;;
         *) fail "$found exists but is not in this test's list. Add it (or document why it is never invoked directly, as design_audit.py is)." ;;
     esac
