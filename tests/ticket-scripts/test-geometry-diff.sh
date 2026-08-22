@@ -129,6 +129,29 @@ rc=0; out="$(python3 "$DIFF" "$tmp/canvas_ok.json" "$tmp/malformed.json")" || rc
 [ "$rc" -eq 3 ] && note "malformed app snapshot -> exit 3 (UNKNOWN)" \
                 || bad "malformed app snapshot: expected exit 3, got $rc ($out)"
 
+echo "test-geometry-diff: --emit-extractor (B2)..."
+
+rc=0; out1="$(python3 "$DIFF" --emit-extractor)" || rc=$?
+[ "$rc" -eq 0 ] && [ -n "$out1" ] && note "--emit-extractor printed a non-empty extractor" \
+                || bad "--emit-extractor printed nothing"
+
+case "$out1" in *"data-vv"*) note "extractor targets the data-vv marker attribute" ;; \
+  *) bad "extractor does not mention data-vv: $out1" ;; esac
+case "$out1" in *getBoundingClientRect*) note "extractor reads real DOM geometry" ;; \
+  *) bad "extractor does not call getBoundingClientRect: $out1" ;; esac
+
+echo "test-geometry-diff: --emit-extractor is a LITERAL — a hostile --tolerance changes nothing..."
+rc=0; out2="$(python3 "$DIFF" --emit-extractor --tolerance '$(echo PWNED)')" || rc=$?
+[ "$rc" -eq 0 ] && note "--emit-extractor with --tolerance still exits 0" \
+                || bad "--emit-extractor with --tolerance exited $rc"
+if [ "$out1" = "$out2" ]; then
+    note "extractor output is byte-identical regardless of --tolerance — no interpolation"
+else
+    bad "extractor output CHANGED when --tolerance was passed — an argument reached stdout"
+fi
+case "$out2" in *PWNED*) bad "hostile --tolerance value leaked into the extractor output" ;; \
+  *) note "hostile --tolerance value did not leak into the extractor output" ;; esac
+
 echo "test-geometry-diff: script exists and self-tests via python3..."
 [ -f "$DIFF" ] && note "geometry-diff exists" || bad "geometry-diff does not exist"
 

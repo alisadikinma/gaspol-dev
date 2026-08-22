@@ -37,6 +37,7 @@ Exit codes (IDS-14 Phase B1/B3 -- three states, never blurred):
         reason marketplace-manifest's exit 4 is not a failure either.
 """
 
+import argparse
 import json
 import re
 import sys
@@ -70,6 +71,55 @@ PIXEL_STYLE_PROPS = {"font-size", "padding", "margin", "gap"}
 # code for a property that only ever WARNs.
 DECORATIVE_STRING_PROPS = {"box-shadow"}
 DECORATIVE_NUMERIC_PROPS = {"opacity": 0.02}
+
+
+# The extractor -- PRINTED, NEVER CONSTRUCTED. This is a fixed string
+# literal, full stop. No f-string, no .format(), no CLI argument of any
+# kind is ever substituted into it. The caller (live-app-check.md, web
+# lane) passes this exact text to the Playwright MCP's browser_evaluate,
+# first against the canvas, then against the running app, and saves both
+# results as the two snapshot files this script diffs.
+#
+# SECURITY INVARIANT, same one detect-stack and detect-app-target carry:
+# the caller EXECUTES what this prints. If any value read out of a
+# scanned project file, or any CLI argument such as --tolerance, ever
+# reached this string, that becomes arbitrary JavaScript execution in
+# whatever browser context the Playwright MCP is driving. --self-test
+# and the bash suite both assert byte-identical output regardless of
+# --tolerance.
+#
+# Key names in the emitted "style" object are chosen to match EXACTLY
+# what diff_style() above classifies (STRUCTURAL_COLOR_PROPS,
+# DECORATIVE_COLOR_PROPS, PIXEL_STYLE_PROPS, DECORATIVE_STRING_PROPS,
+# DECORATIVE_NUMERIC_PROPS) -- the round-trip self-test below asserts
+# this stays true rather than the two lists silently drifting apart.
+EXTRACTOR_JS = """(() => {
+  const out = { viewport: { w: window.innerWidth, h: window.innerHeight }, elements: {} };
+  document.querySelectorAll('[data-vv]').forEach((el) => {
+    const marker = el.getAttribute('data-vv');
+    const rect = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    out.elements[marker] = {
+      box: {
+        x: Math.round(rect.x), y: Math.round(rect.y),
+        w: Math.round(rect.width), h: Math.round(rect.height),
+      },
+      style: {
+        'font-size': cs.fontSize,
+        color: cs.color,
+        'background-color': cs.backgroundColor,
+        'border-color': cs.borderColor,
+        'box-shadow': cs.boxShadow,
+        'outline-color': cs.outlineColor,
+        opacity: cs.opacity,
+        padding: cs.paddingTop,
+        margin: cs.marginTop,
+        gap: cs.gap,
+      },
+    };
+  });
+  return out;
+})()"""
 
 
 class SnapshotError(Exception):
@@ -153,7 +203,13 @@ def _px(value):
     return None
 
 
-def _pixel_ok(a, b, tolerance=PIXEL_TOLERANCE):
+def _pixel_ok(a, b, tolerance=None):
+    # `tolerance=PIXEL_TOLERANCE` as a default would bind the CURRENT value
+    # at function-definition time, not at call time -- run()'s temporary
+    # override of the module global would then silently do nothing. Reading
+    # the global inside the body is what makes the override real.
+    if tolerance is None:
+        tolerance = PIXEL_TOLERANCE
     return abs(a - b) <= tolerance
 
 
@@ -318,8 +374,13 @@ def load_snapshot(path: Path) -> dict:
     return data
 
 
-def run(canvas_path: Path, app_path: Path):
-    """Returns (exit_code, summary_line, finding_lines)."""
+def run(canvas_path: Path, app_path: Path, tolerance_px: float = None):
+    """Returns (exit_code, summary_line, finding_lines).
+
+    `tolerance_px` overrides the module-level PIXEL_TOLERANCE for this run
+    only -- never read by --emit-extractor, which prints a fixed literal
+    regardless of any argument.
+    """
     if not canvas_path.is_file():
         return 4, "visual-diff: none -- no canvas contract", []
 
@@ -329,7 +390,14 @@ def run(canvas_path: Path, app_path: Path):
     except SnapshotError as exc:
         return 3, f"visual-diff: UNKNOWN -- {exc}", []
 
-    findings = diff_elements(canvas, app)
+    global PIXEL_TOLERANCE
+    original = PIXEL_TOLERANCE
+    if tolerance_px is not None:
+        PIXEL_TOLERANCE = tolerance_px
+    try:
+        findings = diff_elements(canvas, app)
+    finally:
+        PIXEL_TOLERANCE = original
     blocking = sum(1 for f in findings if f["severity"] == "BLOCKING")
     warn = sum(1 for f in findings if f["severity"] == "WARN")
     lines = [f"  {f['severity']}: {f['message']}" for f in findings]
@@ -393,11 +461,66 @@ def _self_test():
     assert any(f["property"] == "w" for f in findings), \
         "self-test: zero-width viewport should still run the pixel test and find 100px drift"
 
+    # Case 9: the round trip. EXTRACTOR_JS's declared style keys must match
+    # EXACTLY what diff_style() classifies -- if the two lists silently
+    # drifted apart, some property the extractor emits would fall through
+    # to the "unclassified" WARN branch forever. Checked by parsing the
+    # quoted/bare keys inside the JS object literal itself, so a renamed
+    # key in either place fails this test rather than surviving invisibly.
+    declared_keys = set(re.findall(r"^\s*(?:'([\w-]+)'|(\w[\w-]*)):\s", EXTRACTOR_JS, re.M))
+    declared_keys = {a or b for a, b in declared_keys} - {"box", "style", "x", "y", "w", "h", "viewport", "elements"}
+    classified_keys = (STRUCTURAL_COLOR_PROPS | DECORATIVE_COLOR_PROPS | PIXEL_STYLE_PROPS
+                        | DECORATIVE_STRING_PROPS | set(DECORATIVE_NUMERIC_PROPS))
+    unclassified = declared_keys - classified_keys
+    assert not unclassified, \
+        f"self-test: extractor declares style keys diff_style does not classify: {unclassified}"
+
+    # Feed the extractor's DOCUMENTED output shape straight back into the
+    # diff -- exactly what live-app-check.md's caller does with the real
+    # (browser-produced) output, minus the browser.
+    extractor_shaped = {
+        "viewport": {"w": 1440, "h": 900},
+        "elements": {"hero.cta": {
+            "box": {"x": 100, "y": 200, "w": 160, "h": 44},
+            "style": {"font-size": "16px", "color": "rgb(59, 130, 246)",
+                      "background-color": "rgba(0, 0, 0, 0)", "border-color": "rgb(0, 0, 0)",
+                      "box-shadow": "none", "outline-color": "rgb(0, 0, 0)",
+                      "opacity": "1", "padding": "8px", "margin": "0px", "gap": "0px"},
+        }},
+    }
+    findings = diff_elements(extractor_shaped, json.loads(json.dumps(extractor_shaped)))
+    assert findings == [], f"self-test: round-tripped identical extractor output produced findings: {findings}"
+
     print("geometry-diff: self-test OK")
 
 
+def build_parser():
+    p = argparse.ArgumentParser(prog="geometry-diff", add_help=False)
+    p.add_argument("--self-test", action="store_true")
+    p.add_argument("--emit-extractor", action="store_true")
+    # type=str, not float: a hostile or malformed value must not crash
+    # argument PARSING before the --emit-extractor branch (checked first,
+    # regardless of what --tolerance holds) ever runs. Converted to float
+    # only where it is actually used, inside run().
+    p.add_argument("--tolerance", type=str, default=None, metavar="PX")
+    p.add_argument("canvas", nargs="?")
+    p.add_argument("app", nargs="?")
+    return p
+
+
 def main(argv):
-    if argv[1:2] == ["--self-test"]:
+    args = build_parser().parse_args(argv[1:])
+
+    # SECURITY INVARIANT enforced here, not just in the constant's own
+    # comment: --emit-extractor is checked and returns FIRST, before
+    # --tolerance or any other argument is ever read for any purpose. No
+    # code path between "argparse produced `args`" and "EXTRACTOR_JS is
+    # printed" touches args.tolerance.
+    if args.emit_extractor:
+        print(EXTRACTOR_JS)
+        return 0
+
+    if args.self_test:
         try:
             _self_test()
         except AssertionError as exc:
@@ -405,13 +528,21 @@ def main(argv):
             return 1
         return 0
 
-    if len(argv) != 3:
+    if not args.canvas or not args.app:
         print("usage: geometry-diff <canvas.json> <app.json>", file=sys.stderr)
+        print("       geometry-diff --emit-extractor", file=sys.stderr)
         print("       geometry-diff --self-test", file=sys.stderr)
         return 2
 
-    canvas_path, app_path = Path(argv[1]), Path(argv[2])
-    exit_code, summary, lines = run(canvas_path, app_path)
+    tolerance_px = None
+    if args.tolerance is not None:
+        try:
+            tolerance_px = float(args.tolerance)
+        except ValueError:
+            print(f"geometry-diff: --tolerance must be a number, got {args.tolerance!r}", file=sys.stderr)
+            return 2
+
+    exit_code, summary, lines = run(Path(args.canvas), Path(args.app), tolerance_px)
     print(summary)
     for line in lines:
         print(line)
