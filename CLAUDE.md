@@ -21,7 +21,6 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | Path | Purpose |
 |------|---------|
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author) |
-| `.claude-plugin/marketplace.json` | Marketplace listing |
 | `hooks/hooks.json` | SessionStart hook definition |
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
@@ -904,8 +903,8 @@ surface any other ticket still in flight. The ledger is gitignored, so a stale o
 `git status` — nothing else closes it.
 
 **Merging is not publishing (IDS-3).** A local merge leaves the work on one machine. Push, and for
-a plugin repo also run `claude plugin marketplace update <marketplace>` +
-`claude plugin update <plugin>@<marketplace>` (the full id — the bare name fails with
+a plugin repo also run `claude plugin marketplace update gaspol-one` +
+`claude plugin update <plugin>@gaspol-one` (the full id — the bare name fails with
 `Plugin "<name>" not found`), then restart Claude Code. The post-merge test command is derived from
 `skills/gaspol-execute/scripts/detect-stack`, never hardcoded to npm.
 
@@ -1010,7 +1009,7 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 2. Follow RED-GREEN-REFACTOR process from `gaspol-write-skill`
 3. Update this CLAUDE.md with skill entry in Architecture and Skill Routing tables
 4. Update `hooks/session-start.sh` routing block AND `skills/using-gaspol/SKILL.md` routing table to include the new skill
-5. Update `.claude-plugin/marketplace.json` + `.claude-plugin/plugin.json` skill count / version if listed
+5. Update `.claude-plugin/plugin.json` skill count / version, and the matching entry in the [gaspol-one marketplace](https://github.com/alisadikinma/gaspol-one) (`.claude-plugin/marketplace.json` there) — this repo no longer carries its own marketplace file
 6. Add supporting reference files in the skill directory if needed
 7. Add a trigger test: `tests/skill-triggering/prompts/<skill>.txt` (naive intent prompt) + list it in `run-all.sh`. For rigid skills, add a `tests/pressure/` case. Run before bumping the version.
 

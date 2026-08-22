@@ -282,8 +282,9 @@ Next: multi-IDE support (Cursor, Codex, Gemini).
 ### Plugin Install
 
 ```bash
-# Option A: marketplace
-claude plugin install gaspol-dev
+# Option A: the gaspol-one marketplace (gaspol-dev + gaspol-pitch + gaspol-catalog)
+claude plugin marketplace add alisadikinma/gaspol-one
+claude plugin install gaspol-dev@gaspol-one
 
 # Option B: manual
 git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-dev
@@ -340,8 +341,8 @@ ls "$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")"   # the RESOLVED root — n
 **Updating:** a plugin update needs a restart to take effect, and the update command wants the **full id** — the bare name fails with `Plugin "gaspol-dev" not found`.
 
 ```bash
-claude plugin marketplace update gaspol-dev
-claude plugin update gaspol-dev@gaspol-dev
+claude plugin marketplace update gaspol-one
+claude plugin update gaspol-dev@gaspol-one
 # then restart Claude Code
 ```
 
