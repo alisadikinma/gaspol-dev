@@ -155,6 +155,43 @@ case "$out2" in *PWNED*) bad "hostile --tolerance value leaked into the extracto
 echo "test-geometry-diff: script exists and self-tests via python3..."
 [ -f "$DIFF" ] && note "geometry-diff exists" || bad "geometry-diff does not exist"
 
+echo "test-geometry-diff: visual-contract.md carries all five required statements (B3)..."
+
+CONTRACT="$REPO_ROOT/skills/_shared/visual-contract.md"
+if [ ! -f "$CONTRACT" ]; then
+    bad "visual-contract.md is missing"
+else
+    note "visual-contract.md exists"
+
+    grep -qF 'data-vv="<screen>.<element>"' "$CONTRACT" \
+        && note "states the data-vv naming format" \
+        || bad "visual-contract.md does not state the data-vv naming format"
+
+    grep -qiE 'target stack|copies rather than translates|the project.s (own )?stack' "$CONTRACT" \
+        && note "states markup must be in the target stack, not translated" \
+        || bad "visual-contract.md does not require markup in the target stack"
+
+    grep -qiE 'worst.case content|realistic worst' "$CONTRACT" \
+        && note "states content must be realistic worst-case" \
+        || bad "visual-contract.md does not require realistic worst-case content"
+
+    grep -qF 'docs/plans/YYYY-MM-DD-<TICKET>-<topic>-canvas.html' "$CONTRACT" \
+        && note "states the canvas file path convention" \
+        || bad "visual-contract.md does not state the canvas file path"
+
+    grep -qF 'gaspol-visual-verify' "$CONTRACT" \
+        && note "names gaspol-visual-verify as deferred (not built here)" \
+        || bad "visual-contract.md does not name gaspol-visual-verify as deferred"
+
+    grep -qiE 'pixel.diff' "$CONTRACT" \
+        && note "names the pixel-diff trigger as deferred" \
+        || bad "visual-contract.md does not name the pixel-diff trigger as deferred"
+
+    grep -qF 'IDS-6' "$CONTRACT" \
+        && note "cites IDS-6 Part B as its origin" \
+        || bad "visual-contract.md does not cite IDS-6 as its origin"
+fi
+
 if [ "$FAILURES" -gt 0 ]; then
     echo "test-geometry-diff: $FAILURES assertion(s) failed" >&2
     exit 1
