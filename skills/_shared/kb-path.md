@@ -2,7 +2,7 @@
 
 Shared reference for every skill that reads or writes the cross-project knowledge base:
 `gaspol-learn`, `gaspol-adr`, `gaspol-research`, `gaspol-kb-audit`, and `gaspol-brainstorm`
-Phase 0.5. Same role as `skills/_shared/laziness-ladder.md` — one source, referenced, never
+Phase 0.5. Same role as `skills/_shared/completeness-ladder.md` — one source, referenced, never
 restated.
 
 **Do not spell the default path anywhere else.** This file is the only place the literal

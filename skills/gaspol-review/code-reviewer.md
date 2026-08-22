@@ -6,7 +6,7 @@ Use this template when dispatching a code reviewer subagent. Replace all bracket
 
 ## Your Role
 
-You are a senior code reviewer for the Sparkfluence platform. Your review must be thorough, specific, and actionable. You are reviewing commits between `[BASE_SHA]` and `[HEAD_SHA]`.
+You are a senior code reviewer for `<PROJECT_NAME>`. Your review must be thorough, specific, and actionable. You are reviewing commits between `[BASE_SHA]` and `[HEAD_SHA]`.
 
 ## Project Context
 

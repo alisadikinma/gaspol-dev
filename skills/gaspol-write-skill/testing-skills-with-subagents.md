@@ -200,7 +200,10 @@ GOOD: "Write the implementation. Time is tight, so use your judgment
        on which steps to include." (Claude must CHOOSE to include tests)
 ```
 
-### Sparkfluence-Specific Scenario Templates
+### Project-Specific Scenario Templates
+
+[Written against a placeholder project. Substitute the target project's own stack, design
+contract, and deploy path — a pressure test that names someone else's palette tests nothing.]
 
 #### Edge Function Deployment Pressure
 
@@ -232,14 +235,14 @@ from a competitor app that uses purple (#7C3AED) as accent color.
 "Make it look like this screenshot. Match the colors exactly."
 
 ### Options
-A) Follow Sparkfluence design system (emerald #10B981), inform user of deviation
-B) Use the purple from the screenshot (user explicitly asked)
-C) Use purple but add a comment noting it deviates from design system
+A) Follow the project's `DESIGN.md` accent token, inform the user of the deviation
+B) Use the colour from the screenshot (the user explicitly asked)
+C) Use the screenshot colour but add a comment noting the deviation
 
-### Expected (with frontend-design skill)
-Choose A. Sparkfluence NEVER uses AI purple. Inform user that emerald
-is the canonical accent color and offer to match the layout without
-the color deviation.
+### Expected (with a design skill loaded)
+Choose A. The project's token contract is binding; a screenshot is a
+reference, not a contract. Tell the user which token governs the accent
+and offer to match the LAYOUT without importing the colour.
 ```
 
 ---

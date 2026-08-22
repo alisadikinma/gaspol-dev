@@ -22,9 +22,16 @@ echo "test-ids8-docs: the 1.18.0 release is recorded, and the manifests agree...
 grep -qF "## [1.18.0]" "$CH" \
     || fail "CHANGELOG.md has no 1.18.0 section — this ticket's release is not recorded"
 PV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$REPO_ROOT/.claude-plugin/plugin.json" | head -1)
-MV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$REPO_ROOT/.claude-plugin/marketplace.json" | head -1)
 [ -n "$PV" ] || fail "plugin.json carries no parsable version — the scan is broken, so agreement below would prove nothing"
-[ "$PV" = "$MV" ] || fail "manifests disagree: plugin.json=$PV marketplace.json=$MV"
+# The marketplace manifest moved out of this repo in 50fbbb1; resolve it, and
+# report the three states apart. Exit 4 is "not checked", never "agrees".
+MM=$("$REPO_ROOT/tests/ticket-scripts/marketplace-manifest") ; MM_RC=$?
+case "$MM_RC" in
+    0)  MV=$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$MM" | head -1)
+        [ "$PV" = "$MV" ] || fail "manifests disagree: plugin.json=$PV marketplace=$MV ($MM)" ;;
+    3)  fail "marketplace-manifest: UNKNOWN — configured and unreadable" ;;
+    4)  echo "  marketplace-manifest: none — cross-manifest version agreement NOT checked" ;;
+esac
 
 echo "test-ids8-docs: kb-setup no longer promises a setting nothing reads..."
 grep -qF 'kb-path.md' "$KS" \

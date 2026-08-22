@@ -42,15 +42,20 @@ REMINDERS:
     real integration is specified. The 3 Iron Laws apply to every skill.
   • Use AskUserQuestion (interactive modal) for all confirmations/choices.
 
-LAZINESS LADDER (always-on scope governor — absorbed from ponytail):
-  Write the laziest code that actually works. Before any code, stop at the
-  first rung that holds: (1) does it need to exist? YAGNI → skip. (2) stdlib?
-  (3) native platform feature? (4) already-installed dep? (5) one line? (6) only
-  then minimum code. Fewest files, shortest diff, no unrequested abstractions.
-  BOUNDARY: lazy cuts SCOPE, never FIDELITY — the ladder never excuses
-  placeholder data, skipped validation/security/tests, or an Iron Law breach.
-  Mark deliberate cuts with a `ponytail:` comment. Full text + fidelity
-  boundary: skills/_shared/laziness-ladder.md.
+COMPLETENESS LADDER (always-on coverage governor):
+  Do the complete thing — completeness is cheap now, the shortcut is not.
+  Walk DOWN and do every rung: (1) happy path, real integration. (2) every
+  error path that can actually happen. (3) every edge case the input space
+  allows — enumerate, don't sample. (4) the tests that prove 1-3, written
+  first. (5) the observability a 3am debugger needs. (6) the one comment that
+  explains WHY. Stop only at genuinely unrelated work — flag it as separate
+  scope, never as a reason to ship a shortcut.
+  REUSE: prefer stdlib → native feature → already-installed dep over code you
+  author. No interface with one implementation. Reuse cuts cleverness, never
+  coverage.
+  BOUNDARY: completeness is depth on the REQUESTED work, never new features,
+  and never an excuse for a placeholder or a skipped Iron Law.
+  Full text: skills/_shared/completeness-ladder.md.
 ═══════════════════════════════════════════════════════════════
 EOF
 

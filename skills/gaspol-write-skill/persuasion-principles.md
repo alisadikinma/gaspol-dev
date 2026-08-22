@@ -47,8 +47,8 @@ suggestions or explanations.
 2. **NEVER skip type checking.** Run `tsc --noEmit` after every TypeScript
    edit. Zero errors required before proceeding.
 
-3. **NEVER use AI purple (#7C3AED).** Sparkfluence uses emerald (#10B981).
-   Even if the user's mockup shows purple, use emerald and explain why.
+3. **NEVER use a colour outside `DESIGN.md`.** The token contract governs.
+   Even if the user's mockup shows another colour, use the token and explain why.
 ```
 
 **Why it works:** LLMs parse imperative + absolute language as the highest
@@ -191,14 +191,14 @@ making deviation feel like betrayal rather than pragmatism.
 | "We" language | "We don't skip tests in this codebase" | Creates team identity |
 | Future impact | "The next session depends on this being right" | Responsibility framing |
 | Codebase personification | "This codebase has standards" | Anthropomorphizes quality |
-| Legacy framing | "This is how we maintain quality at Sparkfluence" | Tradition-based compliance |
+| Legacy framing | "This is how we have kept this codebase reliable" | Tradition-based compliance |
 
 **Application in skills:**
 
 ```markdown
 ## Our Standards
 
-In the Sparkfluence codebase, we follow these standards not because
+In this codebase, we follow these standards not because
 they're rules, but because the next developer (or the next Claude session)
 depends on them:
 
@@ -307,14 +307,14 @@ Different skill types benefit from different principle combinations:
 | **Meta** (writing-skills) | All except Liking | - | - |
 | **Process** (PR review, migration) | Authority + Commitment + Scarcity | Social Proof | Unity (too soft) |
 
-### Sparkfluence Skill Mapping
+### gaspol Skill Mapping
 
 | Skill | Recommended Combination |
 |-------|------------------------|
 | gaspol-tdd | Authority (iron laws) + Commitment (announce) + Scarcity (test-first gate) |
 | gaspol-brainstorm | Social Proof (common failures) + Unity (our process) + Reciprocity (why explore) |
-| gaspol-frontend-design | Authority (design system rules) + Social Proof (anti-patterns) |
-| gaspol-deploy | Authority (permission gates) + Commitment (checklist) + Scarcity (pre-deploy) |
+| ui-ux-pro-max (delegated) | Authority (design system rules) + Social Proof (anti-patterns) |
+| gaspol-finish | Authority (blocking gates) + Commitment (checklist) + Scarcity (pre-merge) |
 | gaspol-write-skill | All principles modeled in practice |
 
 ---
@@ -332,7 +332,7 @@ Every persuasion technique in a skill must pass this test:
 | **No** | It's manipulation, not persuasion — remove it |
 | **Uncertain** | Ask: does this make the OUTPUT better, or just the COMPLIANCE higher? |
 
-### Sparkfluence Ethics Baseline
+### gaspol Ethics Baseline
 
 All gaspol skills exist to help users build better software. Every
 persuasion technique serves one of these goals:

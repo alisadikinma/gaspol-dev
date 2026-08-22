@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
+Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
 
 ## Architecture
 
@@ -22,8 +22,10 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 |------|---------|
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author) |
 | `hooks/hooks.json` | SessionStart hook definition |
-| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
-| `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
+| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Completeness Ladder into every session (loads `using-gaspol`) |
+| `skills/_shared/completeness-ladder.md` | **NEW (v1.20)** — the default coding stance: happy path → every error path → every edge case → the tests that prove them → observability → the comment explaining why, walked DOWN in full. Carries the Reuse Rule (stdlib → native → installed dep) and the scope-cut Red Flags. **Replaced `laziness-ladder.md`**, whose first rung asked whether the work needed to exist at all. Single source referenced by plan/execute/parallel + the session-start hook |
+| `skills/_shared/batch-gate.md` | **NEW (v1.20)** — one report, one ticket. States the default, the three split reasons, the never-split list, and the hard ceiling of two. Read by `gaspol-brainstorm` and `gaspol-debug`; the threshold is deliberately not repeated in either, for the reason `fix-loop.md` was extracted |
+| `skills/gaspol-plan/logic-design-artifact.md` | **NEW (v1.20)** — the five-section contract for the reviewable artifact logic-only work now owes: before/after behaviour (current path quoted from real code), mermaid flow, data-flow table reusing the Data Integration Map columns, edge-case matrix (empty = failed gate), and the blast-radius statement |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
 | `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
@@ -294,22 +296,88 @@ LAW 3: NO COMPLETION CLAIM WITHOUT EVIDENCE
 | Mock function returning static data | PLACEHOLDER | `() => mockData` |
 | Commented-out API call | PLACEHOLDER | `// TODO: fetch` |
 
-### Laziness Ladder (NEW in v1.9) — absorbed from ponytail
+### Completeness Ladder (NEW in v1.20) — replaced the Laziness Ladder
 
-Default coding stance, always-on. Canonical source: `skills/_shared/laziness-ladder.md`. Injected ambiently by `hooks/session-start.sh` and enforced as an explicit gate in `gaspol-plan` (scope), `gaspol-execute`, and the `implementer-prompt.md` template (`gaspol-parallel`).
+Default coding stance, always-on. Canonical source: `skills/_shared/completeness-ladder.md`.
+Injected ambiently by `hooks/session-start.sh` and enforced as an explicit gate in `gaspol-plan`
+(coverage decided at plan time), `gaspol-execute`, and the `implementer-prompt.md` dispatch template.
 
-Write the laziest code that actually works. Before any code, stop at the first rung that holds: (1) does it need to exist? YAGNI → skip. (2) stdlib → (3) native platform feature → (4) already-installed dep → (5) one line → (6) only then minimum code. Fewest files, shortest diff, no unrequested abstractions. Mark deliberate cuts with a `ponytail:` comment.
+**Why it replaced v1.9's Laziness Ladder.** That ladder made a scope-cutting stance the default:
+rung 1 asked *"does this need to exist at all?"*, and its rules were *"fewest files possible,
+shortest working diff wins."* Its fidelity boundary held — no placeholders, no skipped tests — so
+the output stayed REAL. Nothing kept it COMPLETE, and shallow work breaches no boundary. Every task
+began by looking for a reason to do less, which is precisely the complaint that opened IDS-10:
+*"saya merasa versi baru ini malah semakin bodoh."*
+
+The reference the user named, `gstack/ETHOS.md` §1 "Boil the Ocean", takes the opposite position and
+lists the old ladder's own rules as anti-patterns — *"Choose B, it covers 90% with less code"* and
+*"let's defer tests to a follow-up PR"* — on the grounds that AI-assisted coding compresses test
+writing ~50x and feature implementation ~30x, so the last 10% of completeness now costs seconds.
+
+Walk DOWN and do every rung: (1) happy path, real integration; (2) every error path that can
+actually happen; (3) every edge case the input space allows — enumerate, don't sample; (4) the tests
+that prove 1-3, written first; (5) observability a 3am debugger needs; (6) the one comment
+explaining WHY. The only legitimate stop is genuinely unrelated work — flagged as separate scope,
+never as a reason to ship the shortcut.
 
 **Orthogonal, not conflicting — the two governors:**
 
-| Governor | Rule | Cuts |
-|----------|------|------|
-| 3 Iron Laws (fidelity) | build what the plan says, real data, evidence | correctness |
-| Laziness Ladder (scope) | build the minimum that satisfies it | bloat |
+| Governor | Rule | Guarantees |
+|----------|------|------------|
+| 3 Iron Laws (fidelity) | build what the plan says, real data, evidence | the code is REAL |
+| Completeness Ladder (coverage) | build all of what it says, including the paths nobody asked about | the code is WHOLE |
 
-**The boundary (must not be misread):** the ladder cuts SCOPE, never FIDELITY. It NEVER excuses a placeholder when a real integration is specified (`const data = []` awaiting an API is a Law-1 PLACEHOLDER, not a lazy one-liner), nor skipping validation/security/tests. A "lazy" move that crosses into fake data or a skipped safety check is negligent, not lazy. Structured reports (checkpoints, data-source tables, plan-verifier evidence) stay — their CONTENT is safety — but write them terse (hemat token = ringkas laporan, not less fidelity).
+**The Reuse Rule survived** from the old ladder's rungs 2-4, demoted from a scope rule to an
+implementation rule: prefer stdlib → native platform feature → already-installed dependency over
+code you author; no interface with one implementation, no factory for one product. Reuse cuts
+cleverness, never coverage — writing your own retry loop when the HTTP client ships one is *less*
+complete with more code. Deleted outright: rung 1 (YAGNI-skip), "fewest files / shortest diff wins",
+and the `ponytail:` comment convention, whose only purpose was recording a shortcut.
 
-**Relationship to peer plugins:** ponytail (global) governs code minimalism and is **absorbed here** so gaspol is self-contained on the coding path; caveman (global) governs prose voice — a different axis, deliberately NOT absorbed; RTK / context-mode compress tool OUTPUT at runtime — a different layer, help gaspol automatically, nothing to absorb.
+**The boundary (must not be misread):** completeness is depth on the REQUESTED work. It never
+excuses a placeholder where a real integration is specified (`const data = []` awaiting an API is a
+Law-1 violation however thorough the rest is), and it is not licence to build features nobody asked
+for — that is scope creep, flagged as separate scope like any unrelated work.
+
+**Relationship to peer plugins:** ponytail (global) governs code minimalism — its ladder was
+absorbed in v1.9 and is **no longer the gaspol stance**; what remains of it here is the Reuse Rule.
+caveman (global) governs prose voice — a different axis, deliberately not absorbed. RTK /
+context-mode compress tool OUTPUT at runtime — a different layer, nothing to absorb.
+
+### Batch Gate (NEW in v1.20) — one report, one ticket
+
+Canonical source: `skills/_shared/batch-gate.md`, read by `gaspol-brainstorm` (Phase 1, above the
+decompose gate) and `gaspol-debug` (top of Phase 1, because bug reports route straight to debugging
+and never reach brainstorm).
+
+Five defects reported in one message used to mint five tickets. Nothing was counting, and the only
+rule on the topic pushed the other way — brainstorm's decompose gate says *"Each sub-project gets
+its own spec → plan → implement cycle."* The missing question sits **upstream** of decompose:
+decompose asks *"one project or several?"*, and nothing first asked *"one piece of WORK or
+several?"*. Five bugs in one subsystem are one piece of work.
+
+**Default: one ticket.** Split into two only when the items touch disjoint subsystems **and** the
+combined plan exceeds the phase threshold, or one item blocks another, or the user asked. Never for
+"they are different bugs", "different files", or "the ticket would be big". **Ceiling: two** — a
+third requires `AskUserQuestion`. `next-ticket` is called once per batch, not once per item.
+
+Batching changes the container, never the coverage: each item becomes its own plan phase, ordered
+by severity, keeping its own regression test. A dropped item is an Iron Law 2 violation.
+
+### Design Artifact Gate (NEW in v1.20) — logic-only work owes one too
+
+`gaspol-plan` **Step 0** is now BLOCKING and unconditional: every plan produces exactly one design
+artifact, approved by a human, before `gaspol-execute` will start. Two lanes — UI work renders a
+mockup via `ui-ux-pro-max`; everything else produces the **Logic Design Artifact**
+(`skills/gaspol-plan/logic-design-artifact.md`), published as an HTML Artifact.
+
+It exists because brainstorm Phase 2.5 offered `[No, pure backend/logic]` and that branch skipped
+design entirely, while the post-plan artifact step was opt-in with "Skip" as one of two answers. For
+an enhancement that changes behaviour but not pixels, the first reviewable thing was the diff.
+
+Verdict is recorded twice — `**Artifact:** <url>` in the plan header, `design-artifact: approved —
+<url>` in the ledger, which is the line `gaspol-execute` reads. **Three states, and "not applicable"
+is deliberately not one of them** — that state was the defect.
 
 ### Measured Trims (NEW in v1.16) — what the token audit actually found
 
@@ -1030,9 +1098,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-9
+Last ticket: IDS-10
 
 ---
 
-**Version:** 1.19.0
+**Version:** 1.20.0
 **Last Updated:** August 2026

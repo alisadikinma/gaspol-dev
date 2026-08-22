@@ -24,6 +24,21 @@ This means:
 
 ### Phase 1: Root Cause Investigation
 
+#### Batch Gate (BLOCKING — when more than one defect is reported)
+
+```
+N defects reported together are ONE ticket by default.
+Splitting needs a reason from the closed list. The ceiling is two.
+```
+
+Full rule and thresholds: `skills/_shared/batch-gate.md`. This gate lives here as well as in
+`gaspol-brainstorm` because bug reports route straight to debugging and never reach brainstorm —
+a batching rule that existed only there would never fire for the case it was written for.
+
+State the ruling before investigating: *"Five defects, one ticket."* Then investigate each one to
+root cause **separately** — batching the ticket never batches the diagnosis. One shared root cause
+across several symptoms is a finding you must prove, never an assumption that saves work.
+
 **Read the error. The FULL error.**
 
 Most debugging failures start here. Read the entire error message, not just the first line. Read the stack trace. Read the context around the error.
@@ -144,7 +159,7 @@ Before you try to fix broken code, find similar code that DOES work. This is the
    - Did fixing X break Y?
    - Run related tests
    - Check dependent components
-   - For Sparkfluence: check if the fix affects other session types (script_gen, creator_lab, ad_studio)
+   - Check the fix against the OTHER callers of the code you changed — the project's CLAUDE.md lists the variants (session types, tenants, modes) that share this path
 
 5. **Document the fix** (if it reveals a non-obvious pattern)
    - Add to CLAUDE.md "Debugging Checklist" if applicable
@@ -207,42 +222,36 @@ See [condition-based-waiting.md](./condition-based-waiting.md) for:
 - Quick patterns for common waits
 - Common timing-related mistakes
 
-## Sparkfluence-Specific Debugging
+## Project-Specific Debugging
 
-### Common Bug Locations
+gaspol is agnostic; the bug table for the codebase you are in belongs to that codebase. Build it
+from the **target project's CLAUDE.md** — its "Debugging Checklist" / "Known gotchas" section is
+written for exactly this moment — and never from a table hardcoded here for someone else's stack.
 
-| Symptom | Likely Location | Check |
-|---|---|---|
-| Edge Function 500 | `Deno.env.get()` secrets | Are secrets set? Is key format correct? |
-| CORS error | Edge Function OPTIONS handler | Is corsHeaders applied to all responses? |
-| RLS blocking | Supabase policies | Is there a policy for authenticated users? |
-| Image generation fail | fal.ai API key | Format must be `key_id:key_secret` |
-| "No OpenRouter API key" | `api_keys_pool` table | All keys exhausted? Run `reset_exhausted_api_keys()` |
-| Script editing locked | WorkspaceContext | `scriptConfirmed: true` blocks edits |
-| Workspace not saving | `useSessionPersistence` | Check `isDirty` flag and debounce |
-| Trending topics empty | `trending_topics` table | Check `expires_at` TTL, run `fetch_trending.py` |
-| Wrong Indonesian pronouns | Script generation prompt | Must use gue/lo, NEVER saya/kamu |
+**Step 1 — read the target project's CLAUDE.md** and extract, before you form a hypothesis:
 
-### Multi-Layer Tracing for Sparkfluence
+| Extract | Use it for |
+|---|---|
+| Known gotchas / debugging checklist | symptoms this codebase has produced before |
+| Data sources (hooks, APIs, functions) | where the payload can be logged at each hop |
+| Database tables + policies | whether the row is missing or merely invisible |
+| Secrets / env conventions | a 500 that is really an unset key |
+| Conventions and naming | which layer a stack frame belongs to |
 
-```
-Frontend (React)
-  → Supabase Client (supabase.functions.invoke)
-    → Edge Function (Deno)
-      → API Key Rotation (apiKeyRotation.ts)
-        → External API (OpenRouter/fal.ai/Gemini)
-          → Response parsing
-        → Error handling (429/402/403)
-      → Database operations (Supabase client)
-    → Response to frontend
-  → State update (WorkspaceContext)
-    → UI re-render
-```
+If the project has no CLAUDE.md, say so and build the trace from the code — never substitute a
+remembered table from a different project.
 
-At each boundary, check:
-- Is the request shape correct? (log the payload)
-- Is the response shape expected? (log the response)
-- Are errors being caught and propagated correctly?
+**Step 2 — trace across every boundary the request crosses.** The boundaries are whatever this
+stack actually has (client → server → datastore → external API, or fewer); at each one, ask the
+same three questions:
+
+- Is the request shape correct? Log the payload.
+- Is the response shape what the caller expects? Log the response.
+- Are errors caught and propagated, or swallowed and reshaped into a lie?
+
+**Step 3 — capture what you learned.** A gotcha you had to rediscover is a gotcha the project's
+CLAUDE.md was missing: offer to add it via `gaspol-sync-docs`, and if it generalises past this
+codebase, capture it via `gaspol-learn`.
 
 ## Integration
 

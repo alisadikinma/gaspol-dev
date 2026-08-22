@@ -88,7 +88,7 @@ Failed quality gate → log to `<KB_ROOT>/.rejected-log`:
 ```
 [2026-04-17 14:32] Rejected: "Image generation 3-pane layout"
   Reason: body only 89 words, tags insufficient
-  Path: d:/Projects/sparkfluence/src/pages/ImageGen.tsx
+  Path: <project-root>/src/pages/ImageGen.tsx
   User can reconsider — view: .rejected-log
 ```
 

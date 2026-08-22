@@ -15,15 +15,21 @@ Write comprehensive implementation plans assuming the executor has **zero contex
 
 Plans follow: DRY, YAGNI, TDD-first, frequent commits.
 
-## Laziness Gate (scope is decided HERE)
+## Completeness Gate (coverage is decided HERE)
 
-Scope is born in the plan — pruning it here saves every downstream token. For each phase before you write it, run the ladder from `skills/_shared/laziness-ladder.md`:
+Coverage is born in the plan. A phase that never enumerated its error paths ships without them, and no downstream gate can recover what the plan never asked for. For each phase, before you write it, walk the ladder from `skills/_shared/completeness-ladder.md` and answer what this phase **owes**:
 
-1. Does this phase/step need to exist at all? Speculative → cut it, note why in one line.
-2. Stdlib / native platform feature / already-installed dep already does it? → plan that, not new code.
-3. Can the phase be one line or one file fewer? Do that.
+1. **Happy path** — which real integration does it deliver? (It must appear in the Data Integration Map.)
+2. **Error paths** — which failures can actually happen here? Name them. Each becomes a step, not a footnote.
+3. **Edge cases** — enumerate the input space: empty, null, zero, one, max, duplicate, out-of-order, concurrent, malformed. Sampling is not enumerating.
+4. **Tests** — step 1 of the phase is still the failing test; rungs 2 and 3 each need a covering case.
+5. **Observability** — what does a 3am debugger need to see?
 
-Prefer the fewest phases and the shortest diff that satisfies the spec. No phase for a speculative "we might need it." **Boundary:** this prunes SCOPE, never FIDELITY — a phase that a real integration genuinely requires stays (the Data Integration Map is the contract; the ladder never turns a real data source into a placeholder). Mark any deliberate simplification the plan bakes in with a `ponytail:` note so the executor keeps it lazy on purpose.
+Every phase carries the answers as steps. A rung that genuinely does not apply is written down as **not applicable, with the reason** — never left blank, because a blank reads as "covered" to the executor.
+
+**Reuse, not volume:** prefer stdlib → native platform feature → already-installed dependency over new code, and plan no interface with one implementation. Reuse cuts cleverness, never coverage.
+
+**Boundary:** completeness is depth on what the spec asked for. It is not licence to plan features the spec does not contain — work outside the spec is listed under "Out of scope" in one line, never absorbed silently. And it never softens FIDELITY: the Data Integration Map stays the contract, and no phase turns a real data source into a placeholder.
 
 ## Announce at Start
 
@@ -306,42 +312,41 @@ A phase without verification criteria is **INCOMPLETE**. The executor will not k
 
 ## Execution Handoff
 
-**Step 0 — Post-Plan Artifact Offer (always, every plan file, unconditional):**
+**Step 0 — Design Artifact (BLOCKING)** — every plan file, no exceptions:
 
-Every time a plan file finishes being written, offer to render it as a visual artifact —
-no path gate, no silent skip. A written plan document only exists because the work already
-cleared the spike/bounded/architectural funnel (see `gaspol-brainstorm`'s "Three Paths"
-classification in its Phase 1), so there is no case where this offer should be skipped
-without asking.
+Every plan produces exactly ONE design artifact, and execution does not start until a human has
+approved it. This is not the same thing as the optional UI mockup it replaced: a mockup is a design
+*deliverable*, while this gate asks whether a human has approved the **behaviour** before code
+starts. Logic-only work owes one too — that was the gap. "No UI, so no design" is how a wrong flow
+gets built, tested, and reviewed before anyone sees it.
 
-Use **AskUserQuestion**:
+Two lanes, one artifact:
 
-> "Before execution starts, want me to render a design artifact of this plan's flow so you
-> can see it rendered — not just read the plan text — before code starts?"
-> - **Yes, render it** — produce the artifact (see below), then continue to the options.
-> - **Skip** — proceed straight to the execution options, no artifact.
+| Plan contains | Lane |
+|---|---|
+| UI phases (per the Design Deliverable Column above) | render the mockup — `ui-ux-pro-max`, and `skills/gaspol-brainstorm/visual-companion.md` for how the mockup is built and iterated. That file stays the source of truth for the pattern; do not duplicate it here. |
+| no UI phases (logic, data, infra, refactor) | the **Logic Design Artifact** — five mandatory sections, contract in `skills/gaspol-plan/logic-design-artifact.md` |
 
-**On "Yes, render it":**
-- If the plan has UI phases (per the "Design Deliverable Column" convention above), render
-  an HTML mockup with the `Artifact` tool. Follow the pattern already established in
-  `skills/gaspol-brainstorm/visual-companion.md` for how the mockup is built and iterated —
-  that file is the source of truth for the pattern; don't duplicate its content here.
-- If the plan is backend/data-flow-heavy instead, render a mermaid diagram (sequence, flow,
-  or state — whichever fits the plan) embedded in an HTML page via the `Artifact` tool.
-- Once rendered and the user has looked at it and approved, record the artifact's URL/path
-  in the plan file's header as a new `**Artifact:**` field, positioned alongside the
-  existing `**Ticket:**` / `**Ledger:**` fields.
+Both lanes end the same way: publish with the **`Artifact`** tool, approve via **AskUserQuestion**,
+then record the verdict in **two** places —
 
-**On "Skip" (or the step was silently skipped per the path gate above):** proceed straight
-to the three options below, unchanged. Do NOT add an `**Artifact:**` field to the header —
-omit it entirely rather than writing an "n/a" placeholder; absence of the field already
-means "not rendered."
+- `**Artifact:** <url>` in this plan file's header, beside `**Ticket:**` / `**Ledger:**`
+- `design-artifact: approved — <url>` in the ledger, above `## Log`
 
-**Respects the Laziness Gate:** this step is opt-in, not a new mandatory ceremony step — it
-surfaces the pruning question ("does a human need to see this rendered before code starts?")
-as a real choice instead of silently skipping or silently forcing it either way.
+**Three states, kept apart:**
 
-After the plan is written and saved, and the artifact offer above is resolved, offer the user three options:
+| State | Ledger line | What happens |
+|---|---|---|
+| approved | `design-artifact: approved — <url>` | execution may start |
+| pending | `design-artifact: pending — <url>` | **STOP and ask.** Published, not yet approved. |
+| not published | (no line) | execution may not start; publish it |
+
+There is deliberately no "not applicable" state. That state was the defect: it is what let logic
+work ship with nothing anyone could review. If the artifact feels like ceremony for the change in
+front of you, the artifact will be short — five sections about a one-file change fit on half a
+page — but it still gets written and still gets looked at.
+
+After the plan is written and saved, and the design artifact above is **approved**, offer the user three options:
 
 **Option 1: Execute in this session**
 > "Ready to start Phase A? I'll use gaspol-execute to implement with per-phase checkpoints."

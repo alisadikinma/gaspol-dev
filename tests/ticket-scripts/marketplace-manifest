@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# marketplace-manifest — resolve the marketplace manifest that lists gaspol-dev.
+#
+# This repo stopped shipping its own `.claude-plugin/marketplace.json` in commit
+# 50fbbb1 ("distribute via gaspol-one"). Four tests kept asserting against that
+# deleted file, so the version-consistency gate has been dead since — silently,
+# because `grep` on a missing file only writes to stderr and the surrounding
+# `if` read the empty result as a mismatch, not as "never checked".
+#
+# Resolution order (same shape as skills/_shared/kb-root):
+#   1. $GASPOL_MARKETPLACE_MANIFEST
+#   2. <repo>/../gaspol-one/.claude-plugin/marketplace.json   (sibling checkout)
+#
+# Output: the resolved path on stdout.
+# Exit:   0  available — path printed
+#         3  UNKNOWN  — configured but unreadable or not valid JSON-ish
+#         4  none     — nothing configured, nothing to check
+#
+# Callers MUST distinguish 3 from 4. Exit 4 is not a pass: a version gate that
+# did not run is reported as not run, never as agreed.
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+candidate=""
+configured=0
+
+if [ -n "${GASPOL_MARKETPLACE_MANIFEST:-}" ]; then
+    candidate="$GASPOL_MARKETPLACE_MANIFEST"
+    configured=1
+elif [ -e "$repo_root/../gaspol-one/.claude-plugin/marketplace.json" ]; then
+    candidate="$(cd "$repo_root/.." && pwd)/gaspol-one/.claude-plugin/marketplace.json"
+    configured=1
+fi
+
+if [ "$configured" -eq 0 ]; then
+    exit 4
+fi
+
+if [ ! -r "$candidate" ]; then
+    echo "marketplace-manifest: configured path is not readable: $candidate" >&2
+    exit 3
+fi
+
+if ! grep -q '"plugins"' "$candidate" 2>/dev/null; then
+    echo "marketplace-manifest: $candidate has no \"plugins\" array — not a marketplace manifest" >&2
+    exit 3
+fi
+
+echo "$candidate"
+exit 0

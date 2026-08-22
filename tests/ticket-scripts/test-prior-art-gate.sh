@@ -191,14 +191,24 @@ test_docs_consistent() {
       "$(grep -o '\*\*[0-9]* development skills' CLAUDE.md || echo 'no count line found')"
   fi
 
-  local pv mv
+  local pv mv mm_path mm_rc
   pv="$(grep -m1 '"version"' .claude-plugin/plugin.json | tr -dc '0-9.')"
-  mv="$(grep -m1 '"version"' .claude-plugin/marketplace.json | tr -dc '0-9.')"
-  if [[ -n "$pv" && "$pv" == "$mv" ]]; then
-    pass "plugin.json and marketplace.json agree on version ($pv)"
-  else
-    fail "plugin.json and marketplace.json agree on version" "plugin=$pv marketplace=$mv"
-  fi
+  # The marketplace manifest moved to the gaspol-one repo in 50fbbb1. Resolve
+  # it and keep the three states apart -- "not present" is reported as not
+  # checked, never as agreement.
+  mm_path="$(tests/ticket-scripts/marketplace-manifest)"; mm_rc=$?
+  case "$mm_rc" in
+    0)
+      mv="$(grep -m1 '"version"' "$mm_path" | tr -dc '0-9.')"
+      if [[ -n "$pv" && "$pv" == "$mv" ]]; then
+        pass "plugin.json and the marketplace manifest agree on version ($pv)"
+      else
+        fail "plugin.json and the marketplace manifest agree on version" "plugin=$pv marketplace=$mv"
+      fi
+      ;;
+    3) fail "marketplace-manifest resolves" "UNKNOWN -- configured and unreadable" ;;
+    4) echo "  SKIP: marketplace manifest not present -- version agreement NOT checked" ;;
+  esac
 
   if grep -q "^\*\*Version:\*\* ${pv}$" CLAUDE.md; then
     pass "CLAUDE.md footer version matches ($pv)"

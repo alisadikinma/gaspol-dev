@@ -3,7 +3,7 @@ name: gaspol-review
 description: "Use when completing tasks, implementing major features, or before merging to verify work meets requirements."
 ---
 
-# Sparkfluence Code Review
+# gaspol-review
 
 ## Core Principle
 

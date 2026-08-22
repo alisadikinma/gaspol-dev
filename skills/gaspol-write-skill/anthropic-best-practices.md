@@ -1,7 +1,8 @@
 # Anthropic Best Practices for Skill Authoring
 
-> Adapted for the Sparkfluence ecosystem. These principles govern how every
-> skill in `gaspol-dev` should be written, structured, and maintained.
+> These principles govern how every skill in `gaspol-dev` should be written,
+> structured, and maintained. gaspol is project-agnostic: nothing here names a
+> project, a palette, or a shell — those come from the TARGET project's CLAUDE.md.
 
 ---
 
@@ -95,7 +96,7 @@ RISK: Fragile when context doesn't match expectations
 BENEFIT: Predictable, auditable, teachable
 ```
 
-### Freedom Level by Sparkfluence Skill Type
+### Freedom Level by gaspol Skill Type
 
 | Skill | Freedom | Why |
 |-------|---------|-----|
@@ -163,13 +164,16 @@ a lossy compression of the actual skill.
 | Keep under 1024 characters | Write an abstract |
 | Use domain-specific vocabulary | Use marketing language |
 
-#### Sparkfluence-Specific Trigger Terms
+#### Project-Specific Trigger Terms
 
-Include these when relevant to improve skill discovery:
+Read the target project's CLAUDE.md and include ITS vocabulary — its stack, its
+component names, its domain nouns. The block below is the SHAPE of such a list,
+filled in for an illustrative frontend project; copying it verbatim into a
+different project makes the skill trigger on words that codebase never uses.
 
 ```
-Frontend: Tailwind, Shadcn, emerald, glassmorphism, 9:16, dark mode,
-          responsive, segment card, retention border, workspace layout
+Frontend: <css framework>, <component library>, <accent token name>,
+          <layout idiom>, <aspect ratios>, <the project's own component nouns>
 Backend:  Edge Function, Deno, CORS, RLS, api_keys_pool, rotation,
           fal.ai, OpenRouter, Gemini, pgvector
 Process:  deploy, migrate, test, commit, PR, review, brainstorm
@@ -454,8 +458,8 @@ GOOD: Run `tsc --noEmit` (assumes proper PATH/npx setup)
 ```
 
 Skills should work across environments unless explicitly platform-specific.
-Sparkfluence uses Windows CMD, but skills should reference commands generically
-where possible.
+Reference commands generically; when a shell must be named, take it from the
+target project's CLAUDE.md rather than assuming the author's own.
 
 ### Decision Paralysis
 
@@ -548,7 +552,7 @@ Wait for both to complete. Address ALL findings before proceeding.
 
 ---
 
-## 10. Sparkfluence-Specific Conventions
+## 10. Project-Specific Conventions
 
 ### Always Reference CLAUDE.md
 
@@ -574,16 +578,16 @@ Every skill must honor the CLAUDE.md permission rules:
 Skills that include deployment steps must include explicit permission
 checkpoints, not assume consent.
 
-### Windows CMD Awareness
+### Shell Awareness
 
-When skills include shell commands, prefer cross-platform syntax. When
-platform-specific commands are needed, use Windows CMD (not PowerShell,
-not bash) as the default for Sparkfluence:
+When skills include shell commands, prefer cross-platform syntax. When a
+platform-specific command is unavoidable, take the shell from the target
+project's CLAUDE.md — never hardcode the skill author's own:
 
 ```
-PREFERRED: npx tsc --noEmit (cross-platform)
-IF NEEDED: dir /s /b *.tsx (Windows CMD)
-NEVER:     ls -la *.tsx (Linux/Mac)
+PREFERRED: npx tsc --noEmit          (cross-platform)
+IF NEEDED: <the project's documented shell idiom>
+NEVER:     a shell idiom the project never documented
 ```
 
 ---

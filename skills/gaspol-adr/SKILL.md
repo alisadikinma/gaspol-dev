@@ -205,7 +205,7 @@ Notify caller skill (brainstorm/plan) that ADR is captured with id. Caller can r
 
 ```
 Found relevant past decisions:
-  • ADR-2026-03-15-zustand-state-mgmt (project: sparkfluence, tags: state-management)
+  • ADR-2026-03-15-zustand-state-mgmt (project: <project>, tags: state-management)
     Verdict: chose Zustand over Redux for small apps
   • ADR-2026-01-08-react-query-vs-swr (project: portfolio-v2, tags: data-fetching)
     Verdict: chose React Query for SSR support

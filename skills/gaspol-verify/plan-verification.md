@@ -267,7 +267,7 @@ git diff --name-only main...HEAD | xargs grep -n -E "( as any|@ts-ignore|@ts-exp
 
 ```
 ============================================================
-SPARKFLUENCE VERIFICATION REPORT
+VERIFICATION REPORT
 Plan: docs/plans/2026-02-10-IND-42-feature-name-plan.md
 Date: 2026-02-10
 Branch: feat/feature-name

@@ -3,7 +3,7 @@ name: gaspol-verify
 description: "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs."
 ---
 
-# Sparkfluence Verify
+# gaspol-verify
 
 Enhanced verification that goes beyond "does it compile?" to "does it match what was planned?"
 

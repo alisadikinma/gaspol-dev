@@ -155,21 +155,40 @@ beside a documented palette, and re-deriving a convention the project already se
 the plan names something you cannot find in CLAUDE.md, that is a question, not a licence to
 invent.
 
-## Laziness Gate (before writing code for any phase)
+## Design Artifact Gate (BLOCKING — before Phase A, before any code)
 
-Anti-placeholder guarantees the code is REAL; the laziness ladder guarantees it is MINIMAL.
-Both fire; they do not conflict. Before implementing a phase, run the ladder from
-`skills/_shared/laziness-ladder.md`: does this need to exist at all (YAGNI → skip, one-line
-why), then stdlib → native platform feature → already-installed dep → one line → only then
-minimum code. No unrequested abstraction, no scaffolding "for later", fewest files, shortest
-diff.
+Read the ledger before starting. `gaspol-plan` Step 0 records one line above `## Log`:
 
-**Boundary — do not misread:** the ladder cuts SCOPE, never FIDELITY. It never excuses a
-placeholder where the plan specifies a real integration, nor a skipped validation, security
-check, or test. `const data = []` awaiting an API is a PLACEHOLDER under Iron Law 1, not a
-lazy one-liner. A "lazy" move that crosses into fake data or a skipped safety check is
-negligent, not lazy — do the real thing. Mark deliberate simplifications with a `ponytail:`
-comment naming the upgrade path.
+| Ledger line | Action |
+|---|---|
+| `design-artifact: approved — <url>` | proceed |
+| `design-artifact: pending — <url>` | **STOP and ask** — it was published and never approved |
+| no such line | **STOP and ask** — return to `gaspol-plan` Step 0; do not write code |
+
+Counterpart of the TDD gate: TDD refuses a phase with no failing test, this refuses a plan no
+human has seen rendered. It applies to logic-only work too — that was the gap. There is no "not
+applicable" verdict: an absent line means the artifact was not made, not that none was owed.
+
+## Completeness Gate (before writing code for any phase, and again before calling it done)
+
+Anti-placeholder guarantees the code is REAL; the Completeness Ladder guarantees it is WHOLE.
+Both fire. Walk the ladder from `skills/_shared/completeness-ladder.md` — **down**, doing every
+rung, not stopping at the first that holds:
+
+1. happy path, real integration; 2. every error path that can actually happen; 3. every edge
+case the input space allows — enumerate them, don't sample; 4. the tests that prove 1-3,
+written first; 5. the observability a 3am debugger needs; 6. the one comment explaining WHY.
+
+Before ticking the phase, state which rungs it owed and where each is covered. A rung that does
+not apply is skipped **explicitly** — a silent skip is a placeholder-grade lie.
+
+**Reuse, not volume:** prefer stdlib → native feature → already-installed dep over code you
+author; no interface with one implementation. Reuse cuts cleverness, never coverage.
+
+**Boundary:** completeness is depth on the REQUESTED work. It never licenses a placeholder where
+the plan specifies a real integration (`const data = []` awaiting an API is an Iron Law 1
+violation however thorough the rest is), and it is not licence to add features nobody asked for —
+that is scope creep, flagged as separate scope. Only genuinely unrelated work stops the ladder.
 
 ## Anti-Placeholder Rules
 

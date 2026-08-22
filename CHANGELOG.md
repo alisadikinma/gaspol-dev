@@ -1,5 +1,83 @@
 # Changelog
 
+## [1.20.0] - 2026-08-22
+
+Three complaints, one report, one ticket — which is itself the first thing this release fixes.
+
+### Changed — the default coding stance is now COMPLETENESS, not laziness (IDS-10)
+
+v1.9 absorbed the ponytail **Laziness Ladder** as gaspol's always-on stance. Its first rung asked
+*"does this need to exist at all?"* and its rules were *"fewest files possible, shortest working
+diff wins."* The fidelity boundary held — no placeholders, no skipped tests — so output stayed
+REAL. Nothing kept it COMPLETE, and shallow work breaches no boundary. Every task began by looking
+for a reason to do less. That is what "semakin bodoh" described.
+
+`skills/_shared/completeness-ladder.md` replaces it, in all four live slots (the session hook,
+`gaspol-plan`, `gaspol-execute`, `implementer-prompt.md`): walk DOWN and do every rung — happy path,
+every error path that can actually happen, every edge case the input space allows (enumerate, don't
+sample), the tests that prove them, observability, the comment explaining why. The only legitimate
+stop is genuinely unrelated work, flagged as separate scope.
+
+Kept from ponytail, demoted from a scope rule to an implementation rule: the **Reuse Rule** (stdlib
+→ native feature → already-installed dependency) and the anti-abstraction rules. Deleted: rung 1's
+YAGNI-skip, "shortest diff wins", and the `ponytail:` comment convention.
+
+Grounded in `gstack/ETHOS.md` §1, which names the old ladder's own rules as anti-patterns on the
+evidence that AI-assisted coding compresses test writing ~50x and feature implementation ~30x.
+
+### Fixed — one report of N defects minted N tickets (IDS-10)
+
+There was no batching rule anywhere (`grep "multiple bug|each bug" skills/` → 0 hits), and the only
+rule on the topic pushed the other way: brainstorm's decompose gate says *"Each sub-project gets its
+own spec → plan → implement cycle."* The missing question sat upstream of decompose — five bugs in
+one subsystem are one piece of work.
+
+New `skills/_shared/batch-gate.md`, read by `gaspol-brainstorm` (above the decompose gate) and
+`gaspol-debug` (bug reports never reach brainstorm). Default one ticket; split only for disjoint
+subsystems **and** an oversized plan, a blocking dependency, or an explicit request; **ceiling of
+two**, a third needs `AskUserQuestion`. `next-ticket` runs once per batch. Each item still becomes
+its own plan phase with its own regression test — batching changes the container, never the coverage.
+
+### Fixed — logic-only work produced nothing reviewable (IDS-10)
+
+Brainstorm Phase 2.5 offered `[No, pure backend/logic]` and that branch skipped design entirely,
+while the post-plan artifact step was opt-in. For an enhancement that changes behaviour but not
+pixels, the first reviewable thing was the diff.
+
+`gaspol-plan` **Step 0** is now a BLOCKING **Design Artifact** gate — every plan produces exactly
+one, approved before `gaspol-execute` starts. UI work renders a mockup; everything else produces the
+**Logic Design Artifact** (`skills/gaspol-plan/logic-design-artifact.md`): before/after behaviour
+with the current path quoted from real code, a mermaid flow, a data-flow table reusing the Data
+Integration Map columns, an edge-case matrix (empty = failed gate), and the blast-radius statement.
+Three states — approved / pending / not published. **"Not applicable" is deliberately not a state:
+that state was the defect.**
+
+### Fixed — a whole other project's identity was baked into the dispatch prompts (IDS-10)
+
+`implementer-prompt.md` opened with *"You are an implementer subagent for the Sparkfluence
+platform"* and constrained every subagent to *"emerald + charcoal, NOT purple"*; `code-reviewer.md`
+said the same. Three skills carried it as their H1. Twelve files in all, roughly 25 sites, in a
+plugin whose own CLAUDE.md forbids hardcoding project values. A subagent told to use another
+product's design system follows the instruction — it does not notice the mismatch. All of it now
+reads from the target project's CLAUDE.md and `DESIGN.md`.
+
+### Fixed — the deterministic suite had been red since 50fbbb1 (IDS-10)
+
+Dropping this repo's own `.claude-plugin/marketplace.json` (distribution moved to the gaspol-one
+marketplace) left four tests asserting a deleted file, so the version-consistency gate reported
+failure for a reason unrelated to versions and nobody could tell. `gaspol-finish` Step 0 requires
+green before any agent is dispatched, so the whole chain was blocked. New
+`tests/ticket-scripts/marketplace-manifest` resolves the manifest cross-repo with the house
+three-state contract (0 available / 3 UNKNOWN / 4 none); **not checked is printed, never counted as
+a pass.**
+
+### Added
+
+- `tests/ticket-scripts/test-completeness-ladder.sh`, `test-batch-gate.sh`,
+  `test-logic-design-artifact.sh` — 33 deterministic tests, all green.
+- The `test-execute-trim.sh` ceiling moved 25500 → 26200, and now says why: it tracks
+  **obligations**, and IDS-10 added a gate. Raising it to fit wordy prose is the failure it guards.
+
 ## [1.19.0] - 2026-08-21
 
 ### Fixed — the finish chain had no bound (IDS-9)

@@ -224,7 +224,7 @@ LAW 2: NO STEP SKIPPED WITHOUT EXPLICIT USER APPROVAL
 LAW 3: NO COMPLETION CLAIM WITHOUT EVIDENCE
 ```
 
-Paired with an always-on **Laziness Ladder** that governs scope rather than fidelity: does this need to exist at all (YAGNI) → stdlib → native platform feature → already-installed dependency → one line → only then, minimum code.
+Paired with an always-on **Completeness Ladder** that governs coverage rather than fidelity: happy path → every error path that can actually happen → every edge case the input space allows → the tests that prove them → observability → the comment explaining why. Walked down in full; the only legitimate stop is genuinely unrelated work, flagged as separate scope. A Reuse Rule (stdlib → native feature → already-installed dependency, no interface with one implementation) keeps completeness from meaning more code than the job needs.
 
 The two governors are orthogonal. The Iron Laws cut *incorrectness*; the ladder cuts *bloat*. The ladder never excuses a placeholder, a skipped test, or a missing validation — a "lazy" move that crosses into fake data is negligent, not lazy.
 
