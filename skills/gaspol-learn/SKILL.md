@@ -229,7 +229,7 @@ Purpose: allow user to reconsider rejected captures later without losing proposa
 1. **User confirmation mandatory** per candidate — no bulk auto-capture
 2. **Max 3 candidates per feature** — prevents noise flood
 3. **Quality gate with 6 checks** — reject junk before it enters KB
-4. **Status: proposed by default** — user promotes to `accepted` via gaspol-kb-audit after validation in future project
+4. **Status: proposed by default** — gaspol NEVER writes `accepted`. Promotion is the human gate and lives outside gaspol: where the knowledge store resolves inside a personal vault, that vault's own promoter owns it (`superbrain-promote`); where none is configured, promotion is manual and the entry stays `proposed`. Never name a promoter that is not installed — an entry pointing at a missing gate reads as handled.
 5. **Duplicate detection before write** — prevents near-duplicates
 6. **Source location anchored** — every entry points to source code, traceable
 
@@ -256,7 +256,7 @@ Purpose: allow user to reconsider rejected captures later without losing proposa
 | `gaspol-finish` | Auto-triggers gaspol-learn after CLEAN verification |
 | `gaspol-adr` | Architectural decisions captured separately (not by learn) |
 | `gaspol-research` | Research entries captured separately (by research skill) |
-| `gaspol-kb-audit` | Validates proposed entries for promotion to accepted |
+| the store's own promoter (outside gaspol) | Validates proposed entries and promotes them; gaspol only writes `proposed` |
 | `gaspol-brainstorm` Phase 0.5 | Queries captured patterns for future reuse |
 
 ---

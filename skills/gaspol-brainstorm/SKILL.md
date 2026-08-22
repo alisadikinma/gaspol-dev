@@ -207,7 +207,7 @@ Classify task novelty to decide research level:
       (skills.sh). No precedent anywhere in-house is exactly when somebody
       else's packaged, battle-tested skill is the better answer than a design
       you invent. NEVER auto-install what it returns — the install rules live
-      in gaspol-write-skill Step 0 and apply here unchanged.
+      in `skills/_shared/prior-art-gate.md` and apply here unchanged.
     → Then invoke gaspol-research skill (deep research, ~20 min, cached to KB)
     → Wait for research output before Phase 2
 ```

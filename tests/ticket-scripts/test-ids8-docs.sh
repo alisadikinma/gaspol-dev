@@ -44,11 +44,15 @@ for token in 'kb-path.md' 'kb-root' '90-Inbox' 'superbrain-promote' 'show-toplev
     grep -qF "$token" "$CM" || fail "CLAUDE.md does not mention '$token' — the architecture table is what the next session reads instead of the diff"
 done
 
-echo "test-ids8-docs: the deferred overlap is written down, with its reason..."
-grep -qiE 'kb-audit.{0,200}(overlap|superbrain-promote)' "$CM" \
-    || fail "CLAUDE.md does not record that gaspol-kb-audit now overlaps superbrain-promote — an open question left unwritten becomes an open question nobody remembers"
-grep -qiE 'not like-for-like|public and agnostic' "$CM" \
-    || fail "the reason the overlap is DEFERRED rather than resolved is missing; 'deferred' with no reason reads as forgotten"
+echo "test-ids8-docs: the kb-audit overlap is recorded as RESOLVED, with its reason..."
+# IDS-8 deferred this overlap and the test asserted the deferral was written down.
+# IDS-11 resolved it by deleting gaspol-kb-audit, so the assertion changes what it
+# asserts rather than disappearing: a resolution nobody wrote down is a resolution
+# the next reader undoes by rebuilding the skill.
+grep -qiE 'kb-audit.{0,200}(deleted|removed)' "$CM" \
+    || fail "CLAUDE.md does not record that gaspol-kb-audit was REMOVED in favour of the store's own promoter — an unrecorded deletion is how a deleted skill gets rebuilt"
+grep -qiE 'superbrain-promote' "$CM" \
+    || fail "the promoter that took over is not named; 'removed' with no successor reads as a capability simply lost"
 
 echo "test-ids8-docs: the changelog leads with the defect, not the feature..."
 sec=$(awk '/^## \[1.18.0\]/{f=1;next} /^## \[/{f=0} f' "$CH")

@@ -1,5 +1,57 @@
 # Changelog
 
+## [1.21.0] - 2026-08-22
+
+### Removed — three skills, narrowing the plugin to the coding path (IDS-11)
+
+| Deleted | Size | Why |
+|---|---|---|
+| `gaspol-write-skill` | 80K, 4 files | largest skill in the repo; fires only when authoring a skill |
+| `gaspol-kb-audit` | 12K | IDS-8 already recorded it overlapping `superbrain-promote` almost completely and deferred only because the two were "not like-for-like: one public and agnostic, the other private and hardcoded to one vault" — a reason about keeping gaspol usable by strangers, which stopped applying |
+| `gaspol-llm-test` | 8K | eval-driven dev for non-deterministic features; two live referrers, both of which keep the rule inline |
+
+Deleting a skill is easy; deleting the rules that happened to live inside it is the actual risk.
+Three things were rescued rather than dropped:
+
+- **The Prior-Art Gate** moved to `skills/_shared/prior-art-gate.md` and was generalised in the
+  move — from *"before any skill is written"* to *"before anything is built in-house"*, which is
+  also `gstack/ETHOS.md` §2. It was already referenced by name from `gaspol-brainstorm` Phase 1.5
+  and `gaspol-research` lane 6, so deleting its host would have left two live pointers into
+  nothing. It also carries the plugin's ONLY supply-chain rules: never `npx skills add -y`, read
+  the candidate's SKILL.md before recommending it, install count is popularity not an audit, every
+  installed skill is a permanent per-session context tax.
+- **KB promotion** now names a gate that exists. `gaspol-learn` said *"user promotes to accepted via
+  gaspol-kb-audit"*; it now says promotion belongs to the store's own promoter
+  (`superbrain-promote` where a vault is configured) and is manual otherwise, with the entry left
+  `proposed`. A promotion path pointing at a deleted skill reads as handled.
+- **The eval rule** survives inline: `gaspol-plan` still plans `docs/evals/<feature>.md` for
+  non-deterministic work and `gaspol-verify` still runs them. Unit tests still miss LLM regressions.
+
+Dropped deliberately, not moved: the KB health thresholds (🟢 <10% stale / 🟡 10-25% / 🔴 >25%
+blocks new captures). Nothing implements them any more, and a rule with no enforcer is the
+promise-with-no-implementation shape IDS-7 and IDS-8 were both about.
+
+### Kept, and why the reasoning matters more than the list
+
+`using-gaspol` stays. It is the auto-trigger backbone the session hook loads — the 1% rule, the
+routing table, and the anti-rationalization Red Flags. Removing it would make the *coding* skills
+fire less often, which is the opposite of narrowing to coding.
+
+`gaspol-adr`, `gaspol-learn` and `gaspol-research` stay. They are the knowledge base's only
+writers, and `gaspol-brainstorm` Phase 0.5 is its reader. Remove the writers and the reader becomes
+a gate that scans an empty folder every session, paying a cost that can never return anything —
+exactly the dead-gate pattern IDS-7 and IDS-8 were spent removing.
+
+### Changed
+
+- Test assertions followed their subjects instead of being deleted: `test-prior-art-gate.sh` now
+  asserts against `_shared/`, `test-finish-gates.sh` asserts the eval RULE rather than the deleted
+  skill's existence, and `test-ids8-docs.sh` asserts the kb-audit overlap is recorded as **resolved
+  by deletion** rather than as deferred. Only `test-reference-loading.sh` was deleted — its subject
+  was `gaspol-write-skill`'s reference files, which no longer exist.
+- Skill count 20 → 17 across CLAUDE.md, README.md, the frontmatter test, and the gaspol-one
+  marketplace listing.
+
 ## [1.20.0] - 2026-08-22
 
 Three complaints, one report, one ticket — which is itself the first thing this release fixes.

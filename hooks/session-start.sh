@@ -22,7 +22,6 @@ ROUTING — match the user's intent, invoke BEFORE acting:
   parallel / independent work ................. gaspol-worktree → gaspol-parallel
   isolate workspace / protect branch .......... gaspol-worktree
   implement or fix (before code) .............. gaspol-tdd
-  LLM / prompt / agent (non-deterministic) .... gaspol-llm-test
   bug / error / test failure .................. gaspol-debug
   review code ................................. gaspol-review
   auth/secrets/input/endpoint/payment ........ /security-review (CLI built-in)
@@ -30,11 +29,9 @@ ROUTING — match the user's intent, invoke BEFORE acting:
   claim done / ready to commit ................ gaspol-verify
   merge / PR / cleanup a branch ............... gaspol-finish
   sync CLAUDE.md .............................. gaspol-sync-docs
-  create / edit a skill ....................... gaspol-write-skill
   research a lib / API / pattern .............. gaspol-research
   architectural decision ...................... gaspol-adr
   capture patterns after shipping ............. gaspol-learn
-  audit the knowledge base .................... gaspol-kb-audit
 
 REMINDERS:
   • Read the target project's CLAUDE.md FIRST before exploring its codebase.

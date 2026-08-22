@@ -91,10 +91,15 @@ lacks_repo() {
           | xargs -0 grep -n -- "$pattern" /dev/null 2>/dev/null || true)"
   if [[ -z "$hits" ]]; then pass "$desc"; else fail "$desc" "$hits"; fi
 }
-if [[ -f skills/gaspol-llm-test/SKILL.md ]]; then
-  pass "skill renamed to gaspol-llm-test"
+# IDS-11 deleted gaspol-llm-test (8KB, two live referrers). The RULE it carried
+# survives inline: a non-deterministic feature needs evals because unit tests miss
+# its regressions. Assert the rule, not the skill -- otherwise the deletion also
+# deletes the reason the skill existed.
+if grep -q 'docs/evals/' skills/gaspol-plan/SKILL.md && grep -q 'docs/evals/' skills/gaspol-verify/SKILL.md; then
+  pass "the eval rule survives in gaspol-plan and gaspol-verify"
 else
-  fail "skill renamed to gaspol-llm-test"
+  fail "the eval rule survives in gaspol-plan and gaspol-verify" \
+    "gaspol-llm-test was deleted and its rule went with it"
 fi
 if [[ ! -e skills/gaspol-eval ]]; then
   pass "old gaspol-eval directory is gone"

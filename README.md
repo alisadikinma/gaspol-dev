@@ -76,7 +76,7 @@ Three of these gates exist because their absence caused a real, observed failure
 
 ---
 
-## The 20 skills (organized by workflow)
+## The 17 skills (organized by workflow)
 
 ### Planning
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + three-path classification (spike / bounded / architectural)
@@ -90,7 +90,6 @@ Three of these gates exist because their absence caused a real, observed failure
 - **gaspol-parallel** — Multi-agent parallel (`mode: plan-phases` or `mode: independent-domains`) with worktree isolation, **DAG lane scheduling** (dependency waves + file-isolated lanes), and a per-task **Validation Ladder** (static→unit→build→integration→edge)
 - **gaspol-auto** — Autonomous mode for a familiar codebase, with hard-stop guardrails on 8 conditions
 - **gaspol-tdd** — RED-GREEN-REFACTOR, hard-gated by execute: no production code before a failing test
-- **gaspol-llm-test** — Evals for non-deterministic LLM/prompt/agent features (capability + regression, pass@k) where unit tests miss regressions; complements `gaspol-tdd`
 - **gaspol-debug** — Systematic root-cause debugging: no guessing, backward tracing, stop after 3 failed hypotheses
 
 ### Verification & Closure
@@ -102,8 +101,6 @@ Three of these gates exist because their absence caused a real, observed failure
 ### Learning & Maintenance
 - **gaspol-learn** — Quality-gated auto-capture post-finish (6 validation checks, user confirms)
 - **gaspol-sync-docs** — CLAUDE.md sync (3 modes: post-implementation / audit / session learning)
-- **gaspol-kb-audit** — Periodic KB health check (stale / duplicates / conflicts / orphans / broken refs / unpromoted)
-- **gaspol-write-skill** — TDD applied to skill creation (RED-GREEN-REFACTOR), gated by a **BLOCKING prior-art search** before a line of SKILL.md is written
 
 ### Bootstrap
 - **using-gaspol** — Auto-trigger backbone: loaded at session start, enforces the 1% rule (invoke the matching skill BEFORE responding), routing table, instruction priority, and rationalization Red Flags
@@ -126,7 +123,7 @@ The reference is **soft — there is deliberately no `dependencies` key in `plug
 
 **Security review → the built-in `/security-review`.** It's compiled into the Claude Code CLI, so every user already has it — no plugin, no marketplace, no install.
 
-Both of those delegations were deletions — two skills built in-house that never should have been. So v1.15.0 added the gate that would have caught them: `gaspol-write-skill` **Step 0, BLOCKING**, three lookups before any skill is written, because each is blind where the others see. Is it *installed* already? Is it a **built-in `/command`** — those appear in no skill listing, which is exactly how `/security-review` was missed? Is it on the **marketplace** (`npx skills find`, [skills.sh](https://skills.sh)) — one command away from finding `ui-ux-pro-max`? The verdict is recorded as `NONE` / `EXISTS` / `DELTA`, and `DELTA` must **name** the delta. Installing is never automatic: a skill is a prompt that runs inside your agent, so the candidate's own SKILL.md gets read and the user decides.
+Both of those delegations were deletions — two skills built in-house that never should have been. So v1.15.0 added the gate that would have caught them: `skills/_shared/prior-art-gate.md`, **BLOCKING**, three lookups before any skill is written, because each is blind where the others see. Is it *installed* already? Is it a **built-in `/command`** — those appear in no skill listing, which is exactly how `/security-review` was missed? Is it on the **marketplace** (`npx skills find`, [skills.sh](https://skills.sh)) — one command away from finding `ui-ux-pro-max`? The verdict is recorded as `NONE` / `EXISTS` / `DELTA`, and `DELTA` must **name** the delta. Installing is never automatic: a skill is a prompt that runs inside your agent, so the candidate's own SKILL.md gets read and the user decides.
 
 Three things did **not** delegate, because no upstream equivalent exists:
 
@@ -254,7 +251,7 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.15.0** (current) | Prior-art gate: `gaspol-write-skill` Step 0 is BLOCKING — installed / built-in / marketplace, verdict `NONE` · `EXISTS` · `DELTA`; probes wired into `gaspol-brainstorm` Phase 1.5 (`NEW` only) and `gaspol-research` lane 6, every reference soft |
+| **1.15.0** (current) | Prior-art gate is BLOCKING — installed / built-in / marketplace, verdict `NONE` · `EXISTS` · `DELTA`; probes wired into `gaspol-brainstorm` Phase 1.5 (`NEW` only) and `gaspol-research` lane 6, every reference soft |
 | 1.14.0 | Two in-house skills deleted in favour of tooling every user already has — design intelligence to the `ui-ux-pro-max` plugin, security review to the CLI built-in; confidence rubric + false-positive catalogue in `gaspol-review`; `gaspol-finish` gains ledger close, derived test commands, and a publication gate; the eval skill renamed `gaspol-llm-test` |
 | 1.13.0 | Dated `YYYY-MM-DD-<TICKET>-<topic>` spec/plan filenames, `PROGRESS-<TICKET>.md` ledger with per-phase checklist, and `detect-stack` — verification commands derived from the project's stack instead of assuming npm |
 | 1.10.x | Two-lane execution: self-contained plans, per-plan progress ledger as a hard per-phase gate, pluggable external executor |
@@ -368,7 +365,7 @@ The stochastic suites are **samples, not verdicts**. A single run's score proves
 See [CLAUDE.md](CLAUDE.md), "Conventions for Contributors".
 
 Key rules:
-1. New skill → use `gaspol-write-skill` (TDD: RED-GREEN-REFACTOR applied to the skill itself)
+1. New skill → run `skills/_shared/prior-art-gate.md` first, then apply RED-GREEN-REFACTOR to the skill itself
 2. Update the CLAUDE.md Architecture + Skill Routing tables, `hooks/session-start.sh`, and `skills/using-gaspol/SKILL.md` — all four, or the skill won't auto-trigger
 3. Add a deterministic test under `tests/ticket-scripts/`; add a pressure case for rigid skills
 4. Follow the existing SKILL.md structure (Iron Law, Core Principle, Process, Red Flags, Rationalization Table, Integration)

@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
+Claude Code plugin providing **17 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
 
 ## Architecture
 
@@ -34,7 +34,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
-| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 20 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
+| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 17 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -62,18 +62,15 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
-| `skills/gaspol-llm-test/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
 | `skills/gaspol-finish/SKILL.md` | Branch completion with BLOCKING plan-verifier + merge/PR/cleanup |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
-| `skills/gaspol-write-skill/SKILL.md` | Skill creation with TDD (RED-GREEN-REFACTOR for skills) + **BLOCKING Step 0 Prior-Art Search (v1.15)** — three lookups before any skill is written |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
 | `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
 | `skills/gaspol-learn/SKILL.md` | **NEW** — Quality-gated post-ship pattern capture to KB |
-| `skills/gaspol-kb-audit/SKILL.md` | **NEW** — Periodic KB health check (stale, dup, conflict, orphan) |
 | `skills/gaspol-auto/SKILL.md` | **NEW** — Autonomous execution with hard-stop guardrails |
 | `agents/code-reviewer.md` | Code review between commits (model: sonnet) |
 | `agents/code-simplifier.md` | Simplify and refine code for clarity (model: haiku) |
@@ -122,7 +119,6 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Need isolated workspace / protect current branch | `gaspol-worktree` (auto-invoked by parallel Phase 0) |
 | Session start / "which skill applies?" / enforce auto-trigger | `using-gaspol` (loaded by session-start bootstrap) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
-| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-llm-test` (define + run evals; complements `gaspol-tdd`) |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
 | Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (also auto-run by execute Step 3.6 + finish gate) |
@@ -130,11 +126,9 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
-| Create or edit a skill | `gaspol-write-skill` |
 | Research external library/API/pattern | `gaspol-research` |
 | Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
 | Capture patterns after shipping | `gaspol-learn` (auto-triggered by finish) |
-| Audit KB health (stale, duplicates, conflicts) | `gaspol-kb-audit` (quarterly) |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
@@ -145,9 +139,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | "Plan this feature" | invoke `gaspol-brainstorm` or `gaspol-plan` |
 | "Review this code" | invoke `gaspol-review` |
 | "I'm done with this branch" | invoke `gaspol-finish` (which triggers plan-verifier + sync-docs + learn) |
-| "Write a new skill" | invoke `gaspol-write-skill` |
 | "Research X vs Y" | invoke `gaspol-research` (cache-aware) |
-| "Audit the knowledge base" | invoke `gaspol-kb-audit` |
 
 ### Priority Order
 
@@ -167,7 +159,7 @@ When multiple skills apply:
 `gaspol-brainstorm`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
 
 **Meta-skills** — apply to plugin ecosystem:
-`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`, `using-gaspol` (auto-trigger bootstrap)
+`gaspol-sync-docs`, `using-gaspol` (auto-trigger bootstrap)
 
 ## Key Concepts
 
@@ -199,7 +191,6 @@ Parallel branches:
 - `gaspol-parallel mode:independent-domains` — for unrelated multi-domain problems
 - `gaspol-research` — invoked from brainstorm Phase 1.5 (NEW novelty) or standalone
 - `gaspol-adr` — invoked from brainstorm Phase 2 (approach picked) or plan fork point
-- `gaspol-kb-audit` — periodic (quarterly) or size-triggered, independent
 
 ### CLAUDE.md-First Approach
 
@@ -241,7 +232,7 @@ a shell export only exists for processes that inherited that shell.
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
-Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
 
 Structure — **flat, since v1.18** (see "One Knowledge Store" below, which supersedes this
 paragraph wherever they disagree):
@@ -398,7 +389,8 @@ three of its findings changed the code:
   TDD step-1 phrasing). The consulted Red Flags / Rationalizations table moved into
   `anti-placeholder-rules.md` rather than being deleted. A project-specific leak in an agnostic
   plugin ("Sparkfluence", named hooks) went with it.
-- `gaspol-write-skill`'s three heavy references (~11.9k tokens) turned out to be **orphans** —
+- `gaspol-write-skill`'s three heavy references (~11.9k tokens) turned out to be **orphans** (the
+  whole skill was deleted in IDS-11; this stays as the record of what the audit found) —
   SKILL.md never referenced them at all, they only referenced each other. The audit's premise
   (eagerly loaded) was wrong; the fix is a pointer table naming the question each answers, read
   only when that question is live.
@@ -574,10 +566,13 @@ class as the `kb-root` finding this section resolves, not a lesser one. Recordin
 *six* would have carried two runnable invocations out of the next ticket's scope by omission. The
 count is the scope: an undercounted deferral is how a known hazard becomes an unknown one.
 
-**Deferred, named rather than forgotten.** `gaspol-kb-audit` now overlaps `superbrain-promote`
-almost completely — both are scan → cluster → per-finding human decision → apply → audit log.
-Not resolved here because they are **not like-for-like**: one is public and agnostic, the other
-private and hardcoded to one vault.
+**Deferred here, RESOLVED in IDS-11.** `gaspol-kb-audit` overlapped `superbrain-promote` almost
+completely — both are scan → cluster → per-finding human decision → apply → audit log. IDS-8 left
+it standing because they are **not like-for-like**: one is public and agnostic, the other private
+and hardcoded to one vault. IDS-11 **deleted** `gaspol-kb-audit`; that reason was about keeping
+gaspol usable by strangers, and it stopped applying once the plugin was narrowed to its owner's
+coding loop. Promotion now belongs to the store's own promoter. See "Knowledge-store maintenance is
+NOT gaspol's job" below.
 
 **Scope boundary.** This merges knowledge *capture*. It does not touch `~/.claude/projects/<…>/memory/`
 (Claude Code operational feedback), and it does not merge the two brains into each other — the
@@ -679,7 +674,8 @@ Invoked BLOCKING from:
 ### Prior-Art Gate (NEW in v1.15)
 
 **Nothing gets built in-house before somebody looks whether it already exists.**
-Canonical source: `gaspol-write-skill` **Step 0: Prior-Art Search (BLOCKING)**.
+Canonical source: `skills/_shared/prior-art-gate.md` (extracted from the deleted
+`gaspol-write-skill` in IDS-11 and generalised in the move).
 
 The v1.14 deletions below are the baseline failure this gate exists to prevent: two
 skills built, two skills deleted, zero prior-art searches. Three lookups, because each
@@ -708,7 +704,7 @@ never blocks the skill; an unrun search is reported as unrun, never as empty):
 
 | Where | Trigger |
 |---|---|
-| `gaspol-write-skill` Step 0 | any new skill — **BLOCKING** |
+| `skills/_shared/prior-art-gate.md` | anything built in-house — **BLOCKING** |
 | `gaspol-brainstorm` Phase 1.5, `NEW` branch only | no KB hit AND no project pattern — probe before deep research |
 | `gaspol-research` gather lane 6 | reported as a research candidate, never installed by research |
 
@@ -750,21 +746,41 @@ Anti-AI-slop enforcement rules:
 
 Output format: Aesthetic Direction → Color Palette (hex codes) → Typography (font pairings) → Component Examples (code in detected stack) → Layout Blueprint (ASCII) → Component States → Motion Plan → Accessibility → Anti-AI-Slop Self-Check
 
-### KB Self-Maintenance (NEW in v1.2)
+### Knowledge-store maintenance is NOT gaspol's job (CHANGED in v1.21, IDS-11)
 
-`gaspol-kb-audit` skill keeps KB from becoming sampah:
+`gaspol-kb-audit` was **deleted**. IDS-8 had already recorded that it overlapped
+`superbrain-promote` almost completely — both are scan → cluster → per-finding human decision →
+apply → audit log — and deferred the resolution only because *"they are not like-for-like: one is
+public and agnostic, the other private and hardcoded to one vault."* That reason was about keeping
+gaspol usable by strangers; it stopped applying once the plugin was narrowed to its owner's coding
+loop.
 
-6 check types:
-1. Stale (status=accepted, last_validated >180d)
-2. Duplicates (title >80% overlap + tag overlap ≥80%)
-3. Conflicts (same tag+domain, different verdicts)
-4. Orphans (source_project no longer exists locally)
-5. Broken refs (supersedes/superseded_by pointing to nonexistent)
-6. Unpromoted proposed (>90d without validation)
+What this means in practice, and it is a **reduction in scope, not a hidden capability**:
 
-Per-finding resolution via AskUserQuestion: `[Promote]` / `[Supersede]` / `[Archive]` / `[Merge]` / `[Keep — bump last_validated]`
+- gaspol writes `status: proposed` and nothing else. It always did.
+- **Promotion belongs to the store's own promoter** — `superbrain-promote` where the knowledge store
+  resolves inside the owner's vault. Where no vault is configured, promotion is manual and entries
+  stay `proposed` forever, which is honest: an entry pointing at a promoter that is not installed
+  reads as handled.
+- The old health thresholds (🟢 <10% stale / 🟡 10-25% / 🔴 >25% blocks new captures) are **gone**,
+  not moved. Nothing implements them any more, and a rule with no enforcer is the
+  promise-with-no-implementation shape IDS-7 and IDS-8 were both about.
+- Research freshness is unaffected: the tiers live in `gaspol-research` itself and are checked when
+  an entry is read, not swept on a schedule.
 
-Health thresholds: 🟢 Green <10% stale | 🟡 Yellow 10-25% stale → audit recommended | 🔴 Red >25% stale → mandatory audit blocks new captures
+Two other skills went in the same ticket, for their own reasons:
+
+| Deleted | Size | Why | What was rescued |
+|---|---|---|---|
+| `gaspol-write-skill` | 80K, 4 files | largest skill in the repo, fires only when authoring a skill | **Step 0** → `skills/_shared/prior-art-gate.md`, generalised from "before any skill is written" to "before anything is built in-house". Its supply-chain rules (never `npx skills add -y`, read the candidate's SKILL.md, install count is popularity not an audit, every installed skill is a permanent per-session context tax) were the plugin's ONLY ones |
+| `gaspol-llm-test` | 8K | eval-driven dev for non-deterministic features; two live referrers | the RULE, inline: `gaspol-plan` still plans `docs/evals/<feature>.md` for non-deterministic work and `gaspol-verify` still runs them. Unit tests miss LLM regressions — that fact did not change |
+
+**Deliberately kept**, and the reasoning matters more than the list: `using-gaspol` is the
+auto-trigger backbone the session hook loads; deleting it would make the *coding* skills fire less
+often, which is the opposite of narrowing to coding. `gaspol-adr`, `gaspol-learn` and
+`gaspol-research` are the knowledge base's only writers, and `gaspol-brainstorm` Phase 0.5 is its
+reader — remove the writers and the reader becomes a gate that scans an empty folder every session,
+paying a cost that can never return anything.
 
 ### Brainstorming Flow (gaspol-brainstorm) — UPDATED in v1.2, hardened in v1.5
 
@@ -1013,16 +1029,6 @@ NEVER autonomous: merge-to-main, force-push, PR creation, external messaging, pl
 
 Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated report.
 
-### Writing Skills (gaspol-write-skill)
-
-TDD applied to process documentation:
-
-- **RED**: Run agent WITHOUT skill, document failures
-- **GREEN**: Write minimal SKILL.md addressing each failure
-- **REFACTOR**: Re-test WITH skill, close loopholes
-
-SKILL.md frontmatter `description` must start with "Use when..." — triggering conditions ONLY, NEVER summarize the workflow (Claude follows summary instead of reading full skill).
-
 ## Red Flags: Rationalizations for NOT Invoking Skills
 
 | Rationalization | Why It's Wrong |
@@ -1067,14 +1073,17 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | Generic "Inter font" recommendation | anti-AI-slop rules bypassed — check `skills/gaspol-verify/rules/anti-ai-slop.md` |
 | Design not integrated in plan | Phase 2.5 gate skipped — UI detection may need explicit AskUserQuestion |
 | KB growing with junk | `gaspol-learn` quality gate not enforced — require min 200 words, tags, no duplicates |
-| Old ADRs surfacing as precedent | `gaspol-kb-audit` overdue — run quarterly |
 
 ## Conventions for Contributors
 
 ### Adding a New Skill
 
+0. **Run the Prior-Art Gate first** — `skills/_shared/prior-art-gate.md`, BLOCKING. Three lookups,
+   verdict `NONE` / `EXISTS` / `DELTA` recorded before a line of SKILL.md is written. Two skills
+   were built and deleted in one release for want of this.
 1. Create `skills/gaspol-<name>/SKILL.md` with YAML frontmatter including `description` starting "Use when..."
-2. Follow RED-GREEN-REFACTOR process from `gaspol-write-skill`
+2. Apply RED-GREEN-REFACTOR to the skill itself: run an agent WITHOUT the skill and record where it
+   fails, write the minimum SKILL.md that closes each failure, then re-run and close the loopholes
 3. Update this CLAUDE.md with skill entry in Architecture and Skill Routing tables
 4. Update `hooks/session-start.sh` routing block AND `skills/using-gaspol/SKILL.md` routing table to include the new skill
 5. Update `.claude-plugin/plugin.json` skill count / version, and the matching entry in the [gaspol-one marketplace](https://github.com/alisadikinma/gaspol-one) (`.claude-plugin/marketplace.json` there) — this repo no longer carries its own marketplace file
@@ -1102,5 +1111,5 @@ Last ticket: IDS-11
 
 ---
 
-**Version:** 1.20.0
+**Version:** 1.21.0
 **Last Updated:** August 2026

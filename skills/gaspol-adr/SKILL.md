@@ -236,7 +236,7 @@ Found relevant past decisions:
 | `gaspol-brainstorm` Phase 0.5 | Grep the notes for the `design-decisions` tag |
 | `gaspol-plan` | Captures architectural forks within phases |
 | `gaspol-research` | Research verdicts feed into ADR "References" section |
-| `gaspol-kb-audit` | Flags stale ADRs (accepted >180 days without validation) |
+| the store's own promoter (outside gaspol) | Promotes and retires ADRs; gaspol writes `proposed` and records `last_validated`, it does not police staleness |
 | `gaspol-learn` | ADRs as captured patterns in KB |
 
 ---

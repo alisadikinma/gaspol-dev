@@ -100,7 +100,7 @@ Dispatch 3-5 parallel subagents (model: sonnet) to gather from different source 
    already packaged this as an agent skill" is a research finding like any other,
    and the cheapest recommendation available. Report it as a candidate with its
    source and install count; never install it as part of research (install rules:
-   `gaspol-write-skill` Step 0). If the CLI is unavailable, say so — an unrun
+   `skills/_shared/prior-art-gate.md`). If the CLI is unavailable, say so — an unrun
    lane is reported as unrun, never as empty.
 
 Each subagent returns structured findings with URL citations.
@@ -223,7 +223,7 @@ Mini-research (AMBER path):
 |---|---|
 | `gaspol-brainstorm` Phase 1.5 | Auto-invoked when novelty = NEW |
 | `gaspol-adr` | Research verdict captured as ADR input |
-| `gaspol-kb-audit` | Research freshness tracked, stale items flagged |
+| freshness tiers (in this skill) | Every cached entry carries its age tier; a stale entry is re-fetched at read time rather than swept on a schedule |
 | `gaspol-learn` | Research output captured to KB (this skill does it directly) |
 
 ---

@@ -1,7 +1,7 @@
 # gaspol-dev tests
 
 Skills are not prose — they are behavior-shaping code. These tests verify that
-behavior, the same way `gaspol-write-skill` prescribes (RED → GREEN → REFACTOR
+behavior, TDD-style (RED → GREEN → REFACTOR
 for skills). Two suites:
 
 ## 1. Skill triggering (`tests/skill-triggering/`)
@@ -23,7 +23,7 @@ Add a case by dropping `prompts/<skill-name>.txt` (a naive intent prompt that
 never mentions the skill) and listing the skill in `run-all.sh`.
 
 **Second-order (auto-triggered) skills are NOT in this suite.**
-`gaspol-adr`, `gaspol-learn`, and `gaspol-llm-test` are
+`gaspol-adr` and `gaspol-learn` are
 triggered *downstream* by another skill (brainstorm/plan/execute/finish/verify), not
 by a cold naive prompt. A build-framed prompt like "add a login endpoint, let's build
 it" correctly routes to `gaspol-brainstorm` first — so cold-prompt triggering tests for
@@ -78,4 +78,4 @@ silently ship fake data as if it were real (Iron Law 1).
 - Before bumping the plugin version.
 - After editing any rigid skill or the `using-gaspol` / `session-start.sh`
   bootstrap (these are what make triggering work at all).
-- As the REFACTOR-stage check in `gaspol-write-skill` when adding a skill.
+- As the REFACTOR-stage check when adding a skill.

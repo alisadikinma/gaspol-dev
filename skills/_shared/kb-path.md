@@ -1,7 +1,7 @@
 # Where the knowledge store lives — one resolver, three states
 
 Shared reference for every skill that reads or writes the cross-project knowledge base:
-`gaspol-learn`, `gaspol-adr`, `gaspol-research`, `gaspol-kb-audit`, and `gaspol-brainstorm`
+`gaspol-learn`, `gaspol-adr`, `gaspol-research`, and `gaspol-brainstorm`
 Phase 0.5. Same role as `skills/_shared/completeness-ladder.md` — one source, referenced, never
 restated.
 
