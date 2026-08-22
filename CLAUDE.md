@@ -1107,7 +1107,7 @@ Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated repor
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-11
+Last ticket: IDS-12
 
 ---
 
