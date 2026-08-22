@@ -4,7 +4,7 @@
 **Spec:** docs/plans/2026-08-23-IDS-14-regression-gate-and-visual-diff-spec.md
 **Branch:** IDS-14-regression-gate-visual-diff
 **Ledger:** .gaspol/progress/PROGRESS-IDS-14.md
-**Artifact:** <pending — Design Artifact gate, BLOCKING>
+**Artifact:** https://claude.ai/code/artifact/938738a8-6940-4cef-b9c5-57d825119af6 — approved 2026-08-23
 **Execute with:** `gaspol-execute` (continuous; workspace is an isolated worktree)
 
 ## Data Integration Map
