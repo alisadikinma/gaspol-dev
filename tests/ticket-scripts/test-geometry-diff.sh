@@ -192,6 +192,31 @@ else
         || bad "visual-contract.md does not cite IDS-6 as its origin"
 fi
 
+echo "test-geometry-diff: wiring into live-app-check web lane (B4)..."
+
+LIVE_APP_CHECK="$REPO_ROOT/skills/_shared/live-app-check.md"
+VERIFY_SKILL="$REPO_ROOT/skills/gaspol-verify/SKILL.md"
+
+grep -qF 'geometry-diff' "$LIVE_APP_CHECK" \
+    && note "live-app-check.md references geometry-diff" \
+    || bad "live-app-check.md web lane does not run geometry-diff"
+
+# The mobile lane must be excluded AND the reason must be there -- a silent
+# absence reads as an oversight, not a scoping decision.
+grep -qiE 'no DOM behind it|this machine does not apply' "$LIVE_APP_CHECK" \
+    && note "live-app-check.md states WHY the mobile lane is excluded from the visual diff" \
+    || bad "live-app-check.md does not explain why the mobile lane is excluded"
+
+for outcome in 'visual-diff: [0-9]+ blocking' 'visual-diff: none' 'visual-diff: UNKNOWN'; do
+    grep -qE "$outcome" "$LIVE_APP_CHECK" \
+        && note "live-app-check.md lists the '$outcome' outcome" \
+        || bad "live-app-check.md is missing the '$outcome' outcome line"
+done
+
+grep -qF 'visual-diff:' "$VERIFY_SKILL" \
+    && note "gaspol-verify Layer 4 carries a visual-diff: line" \
+    || bad "gaspol-verify Layer 4 does not carry a visual-diff: line"
+
 if [ "$FAILURES" -gt 0 ]; then
     echo "test-geometry-diff: $FAILURES assertion(s) failed" >&2
     exit 1

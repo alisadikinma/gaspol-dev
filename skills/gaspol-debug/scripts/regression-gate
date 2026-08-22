@@ -50,8 +50,18 @@ set -euo pipefail
 FIX_KEYWORDS='(^|[^A-Za-z])(fix|revert|bug|regression|hotfix)([^A-Za-z]|$)'
 
 has_fix_commit() {
-    local base="$1"
-    git log --format=%s "${base}..HEAD" 2>/dev/null | grep -qiE "$FIX_KEYWORDS"
+    # Captured into a variable, NOT piped straight into `grep -q`. Under
+    # `set -o pipefail`, `grep -q` exiting the instant it finds a match can
+    # SIGPIPE `git log` before it finishes writing -- pipefail then reports
+    # the pipeline's exit status as git log's non-zero SIGPIPE code (its
+    # own exit status counts even though it isn't the rightmost command to
+    # run), not grep's successful match. That raced roughly one run in six
+    # in practice: a real fix commit, reported as "not applicable" purely
+    # from OS scheduling timing. Capturing first means grep reads a
+    # finished string, and there is nothing left to race.
+    local base="$1" subjects
+    subjects="$(git log --format=%s "${base}..HEAD" 2>/dev/null || true)"
+    printf '%s\n' "$subjects" | grep -qiE "$FIX_KEYWORDS"
 }
 
 # resolve_ledger GIVEN — prints the resolved ledger path on stdout, returns 1
@@ -165,6 +175,21 @@ self_test() {
     printf 'regression-test: N/A — explicit path\n' > "$tmp/elsewhere/ledger.md"
     rc=0; out="$(cd "$tmp" && "$self" "$base" "elsewhere/ledger.md")" || rc=$?
     [ "$rc" = 0 ] || { echo "self-test: case8 (explicit path) expected exit 0, got $rc ($out)" >&2; return 1; }
+
+    # Case 9: regression guard for a real bug found and fixed mid-ticket.
+    # `git log ... | grep -qiE ...` under `set -o pipefail` raced: grep
+    # exiting the instant it matched could SIGPIPE git log before it
+    # finished writing, and pipefail then reported the pipeline's exit
+    # status as git log's non-zero SIGPIPE code -- turning a REAL fix
+    # commit into a false "not applicable" roughly one run in six. Fixed
+    # by capturing git log's output into a variable before grep ever sees
+    # it (has_fix_commit above). A single run cannot prove a race is gone;
+    # run enough iterations that the original bug's failure rate would
+    # almost certainly have shown up at least once.
+    for _ in $(seq 1 25); do
+        rc=0; out="$(cd "$tmp" && "$self" "$base")" || rc=$?
+        [ "$rc" = 0 ] || { echo "self-test: case9 (pipefail/SIGPIPE race) got exit $rc on a real fix commit ($out)" >&2; return 1; }
+    done
 
     echo "regression-gate: self-test OK"
 }

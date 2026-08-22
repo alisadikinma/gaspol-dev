@@ -55,7 +55,25 @@ gaspol can satisfy this lane's precondition itself: it starts the app.
      page looks fine
    - **failed network requests** — a 4xx/5xx behind a page that renders is exactly the defect that
      survives a green test suite
-5. Tear the app back down.
+5. **If a canvas exists for this ticket** (`docs/plans/YYYY-MM-DD-<TICKET>-<topic>-canvas.html` —
+   format defined in `visual-contract.md`), run the geometry diff:
+
+   ```bash
+   skills/gaspol-verify/scripts/geometry-diff --emit-extractor
+   ```
+
+   Pass the printed JavaScript to `browser_evaluate`, once against the canvas file and once
+   against the live app you already have open, and save both results as JSON snapshots. Then:
+
+   ```bash
+   skills/gaspol-verify/scripts/geometry-diff <canvas.json> <app.json>
+   ```
+
+   Record the result: `visual-diff: <n> blocking, <m> warnings`, or one of `geometry-diff`'s own
+   two other states — `visual-diff: none — no canvas contract` (no canvas for this ticket; not a
+   failure, most branches have none) or `visual-diff: UNKNOWN — <reason>` (a snapshot exists but
+   is not readable — STOP and ask, never treat as clean).
+6. Tear the app back down.
 
 **If the MCP is not connected**, say so and record `live-app-check: web lane not run — Playwright
 MCP unavailable`. Do the closest honest thing (start the app, curl the route, report what came
@@ -68,6 +86,13 @@ back) and label it as the lesser check it is.
 This is the part that makes the two lanes genuinely different, and it must not be papered over.
 An Android or iOS E2E run needs **a real device connected over USB with debugging enabled, or a
 booted emulator/simulator.** gaspol cannot plug in a phone. It can detect, offer, and ask.
+
+**The visual diff gets nothing on this lane, and saying so is the point.** `adb exec-out
+screencap` produces a PNG with no DOM behind it — there is no `getBoundingClientRect`, no
+`getComputedStyle`, no marker to query, so `geometry-diff`'s extractor has nothing to run
+against. This machine does not apply here. IDS-6 already scoped the visual diff as web-only; a
+gate silently absent on one lane is how a partial gate comes to read as a whole one, the same
+reason every other absence in this file is recorded rather than left unmentioned.
 
 ### Finding adb — `command -v adb` is not enough
 
@@ -157,6 +182,9 @@ live-app-check: mobile lane not run — no device connected
 live-app-check: UNKNOWN — adb not installed
 live-app-check: no app surface
 live-app-check: N/A — no UI or user-visible surface in this change (<reason>)
+visual-diff: 2 blocking, 1 warnings
+visual-diff: none — no canvas contract
+visual-diff: UNKNOWN — <file> is not a geometry snapshot
 ```
 
 `N/A` stays available for pure backend, config, and docs changes, with the reason written down.

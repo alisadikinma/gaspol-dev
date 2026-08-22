@@ -332,12 +332,17 @@ INTEGRATION VERIFICATION:
 For a UI changeset, the design sub-check and the WIG lane get their OWN records. Every line
 below is mandatory — including the ones that say a gate did not run. An omitted line is
 indistinguishable from a gate that ran and passed, which is the failure this whole layer was
-rewritten to remove:
+rewritten to remove. `visual-diff:` is captured during Live App Check's web lane (Layer 1,
+`skills/_shared/live-app-check.md`) and recorded here beside `design-contract:` — the two
+gates answer the wrong-colour and wrong-layout halves of the same "doesn't match the mockup"
+complaint, so their verdicts belong next to each other:
 
 ```
 DESIGN COMPLIANCE (design_audit.py --changed-files <BASE> --json):
   design-contract:  loaded (7 colors, 2 fonts)     [or: none — token gate not run
                                                     | UNKNOWN — <reason>, STOPPED]
+  visual-diff:      2 blocking, 1 warnings         [or: none — no canvas contract
+                                                    | UNKNOWN — <reason>]
   font-gate:        active (2 declared families)   [or: not run — <reason>]
   contrast-gate:    active — 2 pair(s) graded, 0 below AA 4.5:1
   files scanned:    4 (diff-scoped)
