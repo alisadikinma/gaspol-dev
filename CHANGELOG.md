@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.24.0] - 2026-08-23
+
+### Added — a regression gate + a visual geometry diff (IDS-14)
+
+Two items recorded as open at the end of IDS-13: no automatic screenshot-vs-mockup comparison,
+and bug fixes not required to leave a checked regression test. Same defect shape this plugin has
+now shipped four fixes for — a rule exists, and no machine enforces it (IDS-7, IDS-8, IDS-12,
+IDS-13).
+
+**Regression gate.** `gaspol-debug` Phase 4 step 1 said *"Create a failing test case (if
+possible)"* — deleted. Now a three-state contract with no silent default: `regression-test:
+<path>::<name> — RED at <sha>, GREEN after fix` (written), `N/A — <reason>` (genuinely not
+testable), `not run — <reason>` (a decision with a name on it). New
+`skills/gaspol-debug/scripts/regression-gate` checks it deterministically — fix-commit detection
+reuses `git-history-reviewer.md`'s exact keyword set — with four exit states (0 satisfied / 1
+BLOCKING / 3 UNKNOWN — ledger unresolved / 4 not applicable, never a pass). Wired into
+`gaspol-verify` Layer 1 and `gaspol-finish` Step 0.
+
+**Visual geometry diff.** New `skills/gaspol-verify/scripts/geometry-diff`, stdlib-only, diffs
+two DOM geometry snapshots per `data-vv` marker: colour normalises across hex/`rgb()`-comma/
+`rgb()`-space to one value, structural/decorative severity reuses `design_audit.py`'s own role
+split, missing marker BLOCKS while an extra one WARNs, and width/horizontal-position get a
+ratio-of-viewport fallback so a fluid layout doesn't false-positive. `--emit-extractor` prints a
+fixed JS literal, checked first in `main()` before any argument is read. New
+`skills/_shared/visual-contract.md` states the canvas format once. Wired into
+`live-app-check.md`'s web lane only — the mobile lane has no DOM to extract from, stated with its
+reason.
+
+**A real bug, found chasing an intermittent failure rather than assumed to be flakiness.**
+`has_fix_commit()` piped `git log | grep -qiE` directly; under `set -o pipefail`, `grep -q`'s
+early exit could `SIGPIPE` `git log` before it finished writing, so pipefail reported the
+pipeline's exit as git log's SIGPIPE code — a real fix commit read as "not applicable" roughly
+one run in six. Fixed by capturing `git log`'s output into a variable before `grep` ever sees it.
+
+Deferred, named so the deferral cannot be mistaken for completion: the rest of IDS-6 Part B
+(`gaspol-visual-verify` as a skill, the two-fidelity brainstorm/plan restructure, the pixel-diff
+trigger), and the eval harness — its own ticket, IDS-15.
+
 ## [1.23.0] - 2026-08-22
 
 ### Fixed — the Live App Check told you to, and had nothing that did (IDS-13)
