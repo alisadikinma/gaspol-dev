@@ -123,6 +123,22 @@ because now somebody believes it was checked.
 `live-app-check: N/A — no UI or user-visible surface (<reason>)`. An unusable gate gets switched
 off, which costs more than the false alarms it prevents.
 
+### Regression Gate
+
+Does this branch fix a bug, and if so did it leave a regression test? Prose could not enforce
+prose — `gaspol-debug` Phase 4 used to say "(if possible)", with nothing checking whether it was
+possible or whether one was written. This is the machine:
+
+```bash
+skills/gaspol-debug/scripts/regression-gate <BASE>
+```
+
+Record the verdict beside `live-app-check:`. Exit 0 satisfied. Exit 1 BLOCKING — a fix commit
+exists in `<BASE>..HEAD` with no `regression-test:` line in the ledger, or only a bare
+`N/A`/`not run` with no reason. Exit 3 UNKNOWN — the ledger could not be resolved or read; STOP
+and ask, never treat this as satisfied. Exit 4 — not applicable, no fix commits in range, **never
+counted as a pass**, the same reason `live-app-check: no app surface` is not one either.
+
 ### Evidence Format
 ```
 TECHNICAL VERIFICATION (detect-stack: node):

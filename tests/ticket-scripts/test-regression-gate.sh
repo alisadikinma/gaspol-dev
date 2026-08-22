@@ -160,6 +160,23 @@ grep -qF 'regression-gate' "$DEBUG_SKILL" \
     && note "gaspol-debug names the machine that checks the ledger line" \
     || bad "gaspol-debug never names regression-gate"
 
+echo "test-regression-gate: wiring into the two callers (A3)..."
+
+FINISH_SKILL="$REPO_ROOT/skills/gaspol-finish/SKILL.md"
+VERIFY_SKILL="$REPO_ROOT/skills/gaspol-verify/SKILL.md"
+
+grep -qF '"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate"' "$FINISH_SKILL" \
+    && note "gaspol-finish Step 0 runs regression-gate, anchored via \$CLAUDE_PLUGIN_ROOT" \
+    || bad "gaspol-finish Step 0 does not run regression-gate"
+
+grep -qF 'skills/gaspol-debug/scripts/regression-gate' "$VERIFY_SKILL" \
+    && note "gaspol-verify Layer 1 runs regression-gate" \
+    || bad "gaspol-verify Layer 1 does not run regression-gate"
+
+grep -qF 'live-app-check' "$VERIFY_SKILL" && grep -qF 'regression-gate' "$VERIFY_SKILL" \
+    && note "gaspol-verify Layer 1 still carries live-app-check alongside regression-gate" \
+    || bad "gaspol-verify Layer 1 lost one of live-app-check / regression-gate"
+
 if [ "$FAILURES" -gt 0 ]; then
     echo "test-regression-gate: $FAILURES assertion(s) failed" >&2
     exit 1
