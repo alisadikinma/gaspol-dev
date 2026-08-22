@@ -1,10 +1,10 @@
 # gaspol-dev
 
-**Process discipline for Claude Code — so AI writes real code, not fake placeholders.**
+**Process discipline for Claude Code — so AI writes code that is real, complete, and actually runs.**
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.15.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-20-orange)](#the-20-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Gates](https://img.shields.io/badge/blocking%20gates-3-red)](#the-finish-chain-six-steps-three-of-them-block)
+[![Version](https://img.shields.io/badge/version-1.23.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-35-brightgreen)](#testing)
 
 ---
 
@@ -17,9 +17,14 @@ You plan a feature carefully. Claude executes it. And then you find:
 - Tests written after implementation (or not at all)
 - A new hook created, when an identical one already exists in the codebase
 - A step reported as done that nothing ever checked
-- No memory of decisions made last month — same debates every session
+- A phase "verified" by a model *reading* the diff, while nothing ever ran `tsc`
+- Five bugs reported in one message, turned into five separate tickets
+- A backend change with nothing to review until the diff lands — too late to say "that's the wrong flow"
+- Green tests, and an app that does not start
 
-**gaspol-dev fixes this.** 20 skills + 4 agents that enforce process discipline, catch placeholders, gate completion with evidence, ground approaches in industry-current research, isolate parallel work in git worktrees, auto-trigger the right skill at the right moment, and build a cross-project knowledge base that **compounds over time**.
+**gaspol-dev fixes this.** 17 skills + 4 agents that enforce process discipline, catch placeholders,
+**run** the checks instead of reading the code, demand a reviewable design before any code, and gate
+completion with evidence — a screenshot and an exit code, never an adjective.
 
 ---
 
@@ -37,23 +42,29 @@ You plan a feature carefully. Claude executes it. And then you find:
 | Single-project context | **Cross-project KB** — works offline out of the box, GitHub sync optional |
 | Fixed model | **Auto-rubric model switching** per task type |
 | Reinvents what the platform already ships | **Delegates** — design to `ui-ux-pro-max`, security to the CLI built-in |
-| KB accumulates junk | **Periodic KB audit** — stale, duplicates, conflicts auto-flagged |
 | Autonomous = unsafe | **Autonomous with hard-stop guardrails** — 8 always-pause conditions |
+| "Write the minimum that works" | **Completeness Ladder** — happy path → every error path → every edge case → the tests that prove them → observability. The only legitimate stop is genuinely unrelated work |
+| N bugs reported → N tickets | **Batch Gate** — one report, one ticket. Splitting needs a listed reason and never exceeds two without asking |
+| Backend work gets no design review | **Design Artifact gate (BLOCKING)** — logic-only work publishes a five-section artifact before execution starts |
+| Checks run once, at the end | **Verification loop per phase** — baseline before Phase A, then L1 static → L2 unit → L3 build, fail-fast, before every checkpoint |
+| "It compiles, so it works" | **Live App Check** — web through the Playwright MCP, mobile through `adb` on a real device or emulator. A check that did not run is never recorded as passed |
 
 ---
 
 ## Quick Start
 
 ```bash
-claude plugin install gaspol-dev
-
-# Or clone directly:
-git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-dev
+claude plugin marketplace add alisadikinma/gaspol-one
+claude plugin install gaspol-dev@gaspol-one
 ```
 
-That's it. The cross-project KB works out of the box — local-only, auto-created on first use. No GitHub repo required; sync is an optional upgrade.
+Restart Claude Code. That's it — the cross-project KB works out of the box (local-only, created on
+first use; GitHub sync is an optional upgrade, never a requirement).
 
-Start with `/gaspol-brainstorm` for any new feature idea. The skill chain takes over from there.
+Start with `/gaspol-brainstorm` for any new feature idea. The chain takes over from there.
+
+**Optional, and soft-referenced:** `claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill` for
+design intelligence. Missing it degrades design quality; nothing breaks.
 
 ---
 
@@ -73,6 +84,116 @@ This is the part most plugins don't have. When you say "I'm done", `gaspol-finis
 Then the ledger is closed with a truthful cursor, other open ledgers are surfaced, and — because **merging is not publishing** — you're told to push, and for a plugin repo to run `claude plugin update <plugin>@<marketplace>` and restart.
 
 Three of these gates exist because their absence caused a real, observed failure. Step 4 always runs because "this diff doesn't look security-sensitive" is a judgement call nobody should make under deadline. Step 5 demands evidence because a self-reported checkbox once shipped a release whose changelog never mentioned half of what was in it.
+
+---
+
+## What 1.20 – 1.23 changed, and why
+
+Four releases in one day, each one repairing something that had been quietly broken. They are worth
+reading together because they form a single argument: **instructions are the weakest lever, and
+gaspol had been pulling it.**
+
+### The default stance told the agent to do less (1.20.0)
+
+v1.9 absorbed a "Laziness Ladder" as the always-on coding stance, injected into every session. Its
+first rung asked *"does this need to exist at all?"* and its rules were *"fewest files possible,
+shortest working diff wins."* The fidelity boundary held — no placeholders, no skipped tests — so
+output stayed **real**. Nothing kept it **complete**, and shallow work breaches no boundary.
+
+It is replaced by the **Completeness Ladder**: walk *down* and do every rung — happy path, every
+error path that can actually happen, every edge case the input space allows (enumerate, don't
+sample), the tests that prove them, the observability a 3am debugger needs, the one comment
+explaining *why*. The only legitimate stop is genuinely unrelated work, flagged as separate scope.
+
+A **Reuse Rule** survives from the old ladder, demoted from a scope rule to an implementation rule:
+stdlib → native platform feature → already-installed dependency, and no interface with one
+implementation. Reuse cuts cleverness, never coverage.
+
+### One report, one ticket (1.20.0)
+
+Five defects in one message used to mint five tickets. Nothing was counting, and the only adjacent
+rule pushed the other way. The **Batch Gate** runs above the decompose gate in `gaspol-brainstorm`
+*and* at the top of `gaspol-debug` — because bug reports route straight to debugging and never reach
+brainstorm, so a rule living only in one of them would never fire for the case it was written for.
+
+Default one ticket. Splitting needs a reason from a closed list, and the ceiling is two. Batching
+changes the container, never the coverage: every item still becomes its own plan phase, ordered by
+severity, with its own regression test.
+
+### Logic-only work owes a design too (1.20.0)
+
+`gaspol-brainstorm` used to offer `[No, pure backend/logic]`, and that branch skipped design
+entirely. For a change that alters behaviour but not pixels, the first reviewable thing was the
+diff — after it was built and tested.
+
+`gaspol-plan` **Step 0** is now BLOCKING: every plan produces exactly one approved design artifact
+before `gaspol-execute` will start. UI work renders a mockup; everything else publishes a
+**Logic Design Artifact** — before/after behaviour with the current path *quoted from real code*, a
+mermaid flow, a data-flow table, an edge-case matrix (empty = failed gate), and a blast-radius
+statement. Three states: approved / pending / not published. *"Not applicable"* is deliberately not
+one of them — that state **was** the defect.
+
+### Three skills deleted, the rules inside them kept (1.21.0)
+
+`gaspol-write-skill` (80K), `gaspol-kb-audit` (12K) and `gaspol-llm-test` (8K) are gone; 20 skills
+became 17. Deleting a skill is easy — deleting the rules that happened to live inside it is the
+risk. The **Prior-Art Gate** moved to `skills/_shared/prior-art-gate.md` and was generalised in the
+move, KB promotion was repointed at a gate that actually exists, and the eval rule stayed inline in
+`gaspol-plan` and `gaspol-verify`.
+
+### The skill that runs on every job never ran anything (1.22.0)
+
+```
+grep -n "detect-stack|npm test|Validation Ladder" skills/gaspol-execute/SKILL.md   →  0 hits
+```
+
+`gaspol-execute` is the in-session execution path. Per phase it wrote a failing test, dispatched a
+model to **read** the diff, and wrote a checkpoint. The Validation Ladder had existed since v1.8 —
+but only in the subagent dispatch templates and `gaspol-parallel`. Every executable check was
+deferred to `gaspol-verify` at the very end, which is the slowest and most expensive place to
+discover a type error and far enough from its cause that fixing it becomes archaeology.
+
+Now: a **verification baseline before Phase A** (a red baseline STOPS and asks, so a suite that was
+already failing is never blamed on your first phase), then a **fail-fast ladder before every
+checkpoint** — L1 static → L2 unit → L3 build. The failing command's output goes into the fix
+**verbatim**, and the ladder re-runs from the failed level. **A phase may not be ticked until its
+ladder ran.** It is the TDD gate's mirror: TDD refuses a phase with no failing test *before*, this
+refuses one with no passing run *after*.
+
+### The Live App Check had no machine (1.23.0)
+
+`gaspol-verify` had carried *"invoke the `run` skill to actually launch the app and observe the
+feature live"* since v1.14 — an instruction with nothing behind it. Everything else gaspol verifies
+is static, and **all of it can be true of an app that does not start.**
+
+Two lanes, and the asymmetry is the design:
+
+| Lane | Precondition | Can gaspol satisfy it? |
+|---|---|---|
+| **web** | an app serving a URL | **yes** — start it, wait *by condition* (never a fixed sleep), drive the surface that changed through the **Playwright MCP**, capture a screenshot, the console, and failed requests |
+| **android / ios / flutter** | a device over **USB debugging**, or a booted emulator | **no.** gaspol cannot plug in a phone. It probes, *offers* to boot a simulator, and asks |
+
+`adb devices` has **four** meaningful outcomes, not two — `device`, **`unauthorized`** (plugged in,
+RSA prompt not accepted), `offline`, and nothing. Answering `unauthorized` with "please connect a
+device" tells you to plug in a phone you already plugged in.
+
+Finding `adb` is itself a defect class: `command -v adb` returns nothing on a normal macOS setup
+where Android Studio installed it to `~/Library/Android/sdk/platform-tools/` and never touched PATH.
+Resolution order is `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux
+defaults. **A detector that is wrong in the common case is worse than no detector, because its
+wrongness looks like a finding.**
+
+**The rule that outranks the rest:** a check that did not run is recorded as **not run**, never as
+passed — the rule `gaspol-finish` already applies to an unavailable `/security-review`. A lane that
+could not run and got summarised as "verified" leaves the gate worse than useless, because now
+somebody believes it was checked.
+
+### The honest boundary
+
+This confirms the app runs, the screen appears, the console is clean and requests succeed. It does
+**not** confirm that what appeared matches the design — the screenshot is captured and attached for
+a human; nothing compares it automatically. And there is still no eval harness proving these
+changes make the *output* better. Both gaps are named here rather than papered over.
 
 ---
 
@@ -123,7 +244,7 @@ The reference is **soft — there is deliberately no `dependencies` key in `plug
 
 **Security review → the built-in `/security-review`.** It's compiled into the Claude Code CLI, so every user already has it — no plugin, no marketplace, no install.
 
-Both of those delegations were deletions — two skills built in-house that never should have been. So v1.15.0 added the gate that would have caught them: `skills/_shared/prior-art-gate.md`, **BLOCKING**, three lookups before any skill is written, because each is blind where the others see. Is it *installed* already? Is it a **built-in `/command`** — those appear in no skill listing, which is exactly how `/security-review` was missed? Is it on the **marketplace** (`npx skills find`, [skills.sh](https://skills.sh)) — one command away from finding `ui-ux-pro-max`? The verdict is recorded as `NONE` / `EXISTS` / `DELTA`, and `DELTA` must **name** the delta. Installing is never automatic: a skill is a prompt that runs inside your agent, so the candidate's own SKILL.md gets read and the user decides.
+Both of those delegations were deletions — two skills built in-house that never should have been. So the gate that would have caught them is now BLOCKING and lives at `skills/_shared/prior-art-gate.md`, **BLOCKING**, three lookups before any skill is written, because each is blind where the others see. Is it *installed* already? Is it a **built-in `/command`** — those appear in no skill listing, which is exactly how `/security-review` was missed? Is it on the **marketplace** (`npx skills find`, [skills.sh](https://skills.sh)) — one command away from finding `ui-ux-pro-max`? The verdict is recorded as `NONE` / `EXISTS` / `DELTA`, and `DELTA` must **name** the delta. Installing is never automatic: a skill is a prompt that runs inside your agent, so the candidate's own SKILL.md gets read and the user decides.
 
 Three things did **not** delegate, because no upstream equivalent exists:
 
@@ -251,7 +372,11 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.15.0** (current) | Prior-art gate is BLOCKING — installed / built-in / marketplace, verdict `NONE` · `EXISTS` · `DELTA`; probes wired into `gaspol-brainstorm` Phase 1.5 (`NEW` only) and `gaspol-research` lane 6, every reference soft |
+| **1.23.0** (current) | **Live App Check gets a machine** — web via the Playwright MCP, mobile via `adb`/`simctl` with a resolution order that survives Android Studio not touching PATH; `adb devices` treated as four outcomes, not two; a check that did not run is never recorded as passed |
+| 1.22.0 | **Per-phase verification loop** — `gaspol-execute` ran *nothing* until now. Baseline before Phase A, fail-fast L1→L3 before every checkpoint, failing output fed back verbatim, and a phase that never ran its ladder cannot be ticked |
+| 1.21.0 | **Three skills deleted** (20 → 17), the rules inside them rescued: Prior-Art Gate to `_shared/`, KB promotion repointed at a promoter that exists, the eval rule kept inline |
+| 1.20.0 | **Completeness Ladder** replaces the scope-cutting Laziness Ladder; **Batch Gate** (one report, one ticket); **Design Artifact gate** BLOCKING for logic-only work; 12 files stripped of another project's hardcoded identity; the deterministic suite, silently red since the marketplace split, repaired |
+| 1.15.0 | Prior-art gate is BLOCKING — installed / built-in / marketplace, verdict `NONE` · `EXISTS` · `DELTA`; probes wired into `gaspol-brainstorm` Phase 1.5 (`NEW` only) and `gaspol-research` lane 6, every reference soft |
 | 1.14.0 | Two in-house skills deleted in favour of tooling every user already has — design intelligence to the `ui-ux-pro-max` plugin, security review to the CLI built-in; confidence rubric + false-positive catalogue in `gaspol-review`; `gaspol-finish` gains ledger close, derived test commands, and a publication gate; the eval skill renamed `gaspol-llm-test` |
 | 1.13.0 | Dated `YYYY-MM-DD-<TICKET>-<topic>` spec/plan filenames, `PROGRESS-<TICKET>.md` ledger with per-phase checklist, and `detect-stack` — verification commands derived from the project's stack instead of assuming npm |
 | 1.10.x | Two-lane execution: self-contained plans, per-plan progress ledger as a hard per-phase gate, pluggable external executor |
@@ -263,7 +388,9 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 | 1.2.0 | Cross-project KB, tiered review, hard gates, research grounding, step-level closure |
 | 1.0.0 | Core skills, anti-placeholder enforcement, per-phase checkpoints |
 
-Next: multi-IDE support (Cursor, Codex, Gemini).
+Next, in order of leverage: an **eval harness** so a plugin change can be proven rather than argued;
+**bug fixes must leave a regression test** (advised today by `gaspol-debug`, checked by nobody);
+layout-geometry comparison against the mockup; then multi-IDE support (Cursor, Codex, Gemini).
 
 ---
 

@@ -111,9 +111,21 @@ echo "test-completeness-ladder: no live file references the retired stance..."
 # CLAUDE.md is exempt at file level for the same reason and checked line-by-line
 # below instead -- it must EXPLAIN the retired stance without ISSUING it.
 leak="$(cd "$REPO_ROOT" && grep -rilE 'laziness|ponytail' \
-          hooks/ skills/ agents/ tests/ticket-scripts/ README.md 2>/dev/null \
+          hooks/ skills/ agents/ tests/ticket-scripts/ 2>/dev/null \
           | grep -vE 'tests/ticket-scripts/test-completeness-ladder\.sh|skills/_shared/completeness-ladder\.md' || true)"
 [ -z "$leak" ] || fail "the retired stance is still live in: $leak"
+
+# README.md gets the same treatment as CLAUDE.md and for the same reason: a
+# release note that cannot name the stance it replaced cannot explain why it
+# changed course, and the next reader reinstates it.
+for doc in "$REPO_ROOT/CLAUDE.md" "$REPO_ROOT/README.md"; do
+    grep -qi "Completeness Ladder" "$doc" \
+        || fail "$(basename "$doc") does not document the current stance"
+    grep -q "Laziness Gate" "$doc" \
+        && fail "$(basename "$doc") still documents a 'Laziness Gate' — that gate exists in no skill"
+    grep -qE '^Default coding stance.*laziness|stop at the first rung' "$doc" \
+        && fail "$(basename "$doc") still ISSUES the retired stance rather than recording that it was replaced"
+done
 
 CMD="$REPO_ROOT/CLAUDE.md"
 has  "$CMD" "Completeness Ladder" "CLAUDE.md does not document the current stance"
