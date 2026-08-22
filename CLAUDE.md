@@ -26,6 +26,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/_shared/completeness-ladder.md` | **NEW (v1.20)** — the default coding stance: happy path → every error path → every edge case → the tests that prove them → observability → the comment explaining why, walked DOWN in full. Carries the Reuse Rule (stdlib → native → installed dep) and the scope-cut Red Flags. **Replaced `laziness-ladder.md`**, whose first rung asked whether the work needed to exist at all. Single source referenced by plan/execute/parallel + the session-start hook |
 | `skills/_shared/batch-gate.md` | **NEW (v1.20)** — one report, one ticket. States the default, the three split reasons, the never-split list, and the hard ceiling of two. Read by `gaspol-brainstorm` and `gaspol-debug`; the threshold is deliberately not repeated in either, for the reason `fix-loop.md` was extracted |
 | `skills/gaspol-plan/logic-design-artifact.md` | **NEW (v1.20)** — the five-section contract for the reviewable artifact logic-only work now owes: before/after behaviour (current path quoted from real code), mermaid flow, data-flow table reusing the Data Integration Map columns, edge-case matrix (empty = failed gate), and the blast-radius statement |
+| `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
 | `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
@@ -334,6 +335,45 @@ for — that is scope creep, flagged as separate scope like any unrelated work.
 absorbed in v1.9 and is **no longer the gaspol stance**; what remains of it here is the Reuse Rule.
 caveman (global) governs prose voice — a different axis, deliberately not absorbed. RTK /
 context-mode compress tool OUTPUT at runtime — a different layer, nothing to absorb.
+
+### Verification Loop (NEW in v1.22) — the hot path stopped only reading
+
+Canonical source: `skills/_shared/verification-loop.md`. Wired into `gaspol-execute` as a
+**Step 7 baseline** (before Phase A) and a **per-phase ladder** (before each checkpoint);
+`gaspol-parallel`'s Validation Ladder now defers to the same file.
+
+**The defect, verified by grep on 1.21.0:**
+
+```
+grep -n "detect-stack|npm test|Validation Ladder" skills/gaspol-execute/SKILL.md   →  0 hits
+```
+
+`gaspol-execute` runs on almost every job and executed **nothing**. Its per-phase "Auto-Review"
+dispatched a model to *read* the code; the Validation Ladder existed since v1.8 but only in the
+dispatch templates and `gaspol-parallel`. Everything executable was deferred to `gaspol-verify` at
+the very end — the slowest and most expensive place to find a type error, and far enough from the
+cause that the fix becomes archaeology.
+
+A gate that reads produces an opinion. A gate that runs produces evidence, which is what the Iron
+Laws already demand.
+
+**Three parts, each closing a specific way the loop fails:**
+
+| Part | Without it |
+|---|---|
+| **Baseline before Phase A** (`verification-baseline:` in the ledger; red baseline → STOP and ask) | a suite that was already red is blamed on Phase A, and the fix loop burns its rounds on somebody else's failure — the reason `gaspol-finish` gained Step 0 in IDS-9 |
+| **Proportionality** (docs-only / config-only / rename-only skip L2-L3; explicit skips only) | a one-line docs phase pays for a full build. IDS-10 removed the scope governor, and this is where its absence would show first |
+| **Verbatim error text into the fix** | a paraphrased error converts a fact you already hold into a guess |
+
+**The gate:** a phase **may not be ticked** `[x]` until its ladder ran and every applicable level
+passed or was explicitly skipped with a reason. It is the TDD gate's mirror — TDD refuses a phase
+with no failing test *before*, this refuses one with no passing run *after*. The round cap comes
+from `skills/_shared/fix-loop.md` and is deliberately not repeated.
+
+**What this does NOT do, and it matters.** It verifies that code compiles, tests pass and the build
+succeeds. It does **not** verify that the running product behaves correctly — no browser, no real
+request. That gap is the open `/qa` lane and IDS-6's deferred Part B, and this ticket does not
+close it. Claiming otherwise would make a partial gate read as a whole one.
 
 ### Batch Gate (NEW in v1.20) — one report, one ticket
 
@@ -1111,5 +1151,5 @@ Last ticket: IDS-12
 
 ---
 
-**Version:** 1.21.0
+**Version:** 1.22.0
 **Last Updated:** August 2026

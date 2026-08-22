@@ -1,5 +1,61 @@
 # Changelog
 
+## [1.22.0] - 2026-08-22
+
+### Fixed — the skill that runs on every job never ran anything (IDS-12)
+
+```
+grep -n "detect-stack|npm test|Validation Ladder" skills/gaspol-execute/SKILL.md   ->  0 hits
+```
+
+`gaspol-execute` is the in-session execution path and it executed nothing. Its per-phase
+"Auto-Review" dispatched a model to **read** the code; the Validation Ladder had existed since
+v1.8 but only in the implementer dispatch templates and `gaspol-parallel`. Every executable check
+was deferred to `gaspol-verify` at the very end — the slowest and most expensive place to discover
+a type error, and far enough from its cause that fixing it becomes archaeology.
+
+A gate that reads produces an opinion. A gate that runs produces evidence — which is what Iron
+Law 3 has demanded since v1.0.
+
+New `skills/_shared/verification-loop.md`, wired into `gaspol-execute` in two places and shared
+with `gaspol-parallel`, whose Validation Ladder now defers to it rather than restating it:
+
+- **Step 7 — Verification Baseline, before Phase A.** Commands derived from `detect-stack` with
+  its three states kept apart (`<level>: <command>` run it / `UNKNOWN` STOP and ask / no markers
+  fall back to plan-declared, recorded as such). Result written to the ledger as
+  `verification-baseline:`. **A red baseline STOPS and asks** — without this, a suite that was
+  already failing gets blamed on Phase A and the fix loop burns its rounds on somebody else's
+  failure. `gaspol-finish` learned exactly this in IDS-9; the same reasoning applies one layer
+  earlier, where it is cheaper still.
+- **Per-phase ladder, before each checkpoint.** L1 static → L2 unit → L3 build → L4 integration →
+  L5 edge, fail-fast, cheapest first. On failure the command's **actual output goes into the fix
+  verbatim** — a paraphrase converts a fact you already hold into a guess — then the ladder
+  **re-runs from the failed level**. Bounded by `skills/_shared/fix-loop.md`; the round cap is not
+  repeated here.
+- **The gate:** a phase may not be ticked `[x]` until its ladder ran and every applicable level
+  passed or was explicitly skipped with a reason. The TDD gate's mirror — TDD refuses a phase with
+  no failing test *before*, this refuses one with no passing run *after*.
+
+**Proportionality, deliberately.** A `docs-only` / `config-only` / `rename-only` phase skips L2 and
+L3 and still runs L1 where a linter covers those files. IDS-10 removed the scope governor when it
+replaced the Laziness Ladder; a full build after a one-line docs edit is precisely where that
+absence would have shown first.
+
+### Changed
+
+- `checkpoint-template.md` gains a **Verification** table: level, command, **exit code**, result,
+  plus new-failures-against-baseline. A blank cell is not a skip — every level is run with its exit
+  code recorded or skipped with the reason written down.
+- `test-execute-trim.sh` ceiling 26200 → 29000, and `Verification Loop` + `detect-stack` join the
+  list of obligations the trim may never remove. The ceiling tracks obligations, not bytes; it
+  moves when a gate is added and the gate is named in the comment.
+
+### Scope boundary — do not overclaim
+
+This verifies that code compiles, tests pass and the build succeeds. It does **not** verify that
+the running product behaves correctly: no browser, no real request, no rendered page. That is the
+open `/qa` lane and IDS-6's deferred Part B, and this release does not close it.
+
 ## [1.21.0] - 2026-08-22
 
 ### Removed — three skills, narrowing the plugin to the coding path (IDS-11)

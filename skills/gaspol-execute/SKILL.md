@@ -146,6 +146,51 @@ as the binding authority, and record the **ruling** beside its row. If the scan 
 clean — rows written, nothing found — proceed without further comment. The review loop
 remains the net for conflicts that only emerge from implementation.
 
+### Step 7: Verification Baseline (BLOCKING — before Phase A runs)
+
+Derive the commands, then run them **once, before any phase**:
+
+```bash
+skills/gaspol-execute/scripts/detect-stack <project-root>
+```
+
+Three states, never blurred: `<level>: <command>` → run it; `<level>: UNKNOWN` (marker present,
+tool missing) → **STOP and ask**; **no stack markers / zero lines** → fall back to the
+plan-declared commands, recorded as `detect-stack: no stack markers, using plan-declared commands`.
+
+Run the ladder and write the result to the ledger, e.g.
+`verification-baseline: L1 pass · L2 pass (142 tests) — captured at <SHA>`.
+
+**If the baseline is already red, STOP and ask** (`AskUserQuestion`): `[Fix the baseline first]` /
+`[Proceed, treating these N failures as pre-existing]` / `[Something else]`. On "proceed", record
+the failing test names; phases are then judged against **new** failures only. Without this, a suite
+that was red before you arrived is blamed on Phase A and the fix loop burns rounds on somebody
+else's failure — the reason `gaspol-finish` gained its Step 0 in IDS-9.
+
+## Verification Loop (per phase — the checkpoint's evidence comes from here)
+
+Full rule: **[skills/_shared/verification-loop.md](../_shared/verification-loop.md)**. Same ladder
+the implementer dispatch templates have carried since v1.8; one source, do not restate its detail.
+
+After the code of a phase is written and **before its checkpoint**, run the ladder **fail-fast**,
+cheapest first — **L1** static (typecheck + lint) → **L2** unit → **L3** build → L4 integration →
+L5 edge. Stop at the first failure.
+
+- **Proportionality:** a `docs-only` / `config-only` / `rename-only` phase — the classes the
+  complexity classifier already knows — skips L2 and L3, and still runs L1 where a linter covers
+  those files. A level that does not apply is skipped **explicitly, with the reason**; a silent
+  skip is a placeholder-grade lie.
+- **On failure:** feed the failing command's **actual output, verbatim** into the fix — never a
+  paraphrase; you already hold the fact. Fix the cause, then **re-run from the failed level**.
+  Three failed attempts on one error is a `gaspol-debug` problem, not a retry problem.
+- **Bounded** by [skills/_shared/fix-loop.md](../_shared/fix-loop.md). The round cap lives there
+  and is deliberately not repeated here.
+
+**The gate:** a phase **may not be ticked** `[x]` until its ladder ran and every applicable level
+passed or was explicitly skipped with a reason. "The code looks right" and "the review found
+nothing" are opinions; an exit code is evidence. This is the TDD gate's mirror — TDD refuses a
+phase with no failing test before, this refuses one with no passing run after.
+
 ## CLAUDE.md-First Rule
 
 Pre-Execution Step 2 is not a formality. Reading the target project's CLAUDE.md before any
