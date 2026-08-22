@@ -26,6 +26,8 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/_shared/completeness-ladder.md` | **NEW (v1.20)** — the default coding stance: happy path → every error path → every edge case → the tests that prove them → observability → the comment explaining why, walked DOWN in full. Carries the Reuse Rule (stdlib → native → installed dep) and the scope-cut Red Flags. **Replaced `laziness-ladder.md`**, whose first rung asked whether the work needed to exist at all. Single source referenced by plan/execute/parallel + the session-start hook |
 | `skills/_shared/batch-gate.md` | **NEW (v1.20)** — one report, one ticket. States the default, the three split reasons, the never-split list, and the hard ceiling of two. Read by `gaspol-brainstorm` and `gaspol-debug`; the threshold is deliberately not repeated in either, for the reason `fix-loop.md` was extracted |
 | `skills/gaspol-plan/logic-design-artifact.md` | **NEW (v1.20)** — the five-section contract for the reviewable artifact logic-only work now owes: before/after behaviour (current path quoted from real code), mermaid flow, data-flow table reusing the Data Integration Map columns, edge-case matrix (empty = failed gate), and the blast-radius statement |
+| `skills/_shared/live-app-check.md` | **NEW (v1.23)** — the only check that answers *does it actually run*. Two lanes with different preconditions: **web** starts the app, waits by condition, and drives the changed surface through the **Playwright MCP**; **mobile** needs a device over USB debugging or a booted emulator, which gaspol cannot provide — so it probes, offers, and asks. A lane that could not run is recorded as **not run**, never as passed |
+| `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
 | `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
 | `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
@@ -335,6 +337,48 @@ for — that is scope creep, flagged as separate scope like any unrelated work.
 absorbed in v1.9 and is **no longer the gaspol stance**; what remains of it here is the Reuse Rule.
 caveman (global) governs prose voice — a different axis, deliberately not absorbed. RTK /
 context-mode compress tool OUTPUT at runtime — a different layer, nothing to absorb.
+
+### Live App Check (NEW in v1.23) — the gate that had no machine
+
+Canonical source: `skills/_shared/live-app-check.md`, driven by
+`skills/gaspol-execute/scripts/detect-app-target`, invoked from `gaspol-verify` Layer 1.
+
+`gaspol-verify` has carried a *"Live App Check (mandatory for UI / user-visible changes)"* since
+v1.14. Its entire content was an instruction — *"invoke the `run` skill to actually launch the app
+and observe the feature live"* — with nothing to detect what kind of app it was, nothing to check
+whether launching was even possible, and nothing to record what was seen. The same shape as IDS-7's
+design gate that was never wired up and IDS-8's setting that nothing read.
+
+**Two lanes, and the difference is the point.** IDS-12 closed the static half (compile, test,
+build). This closes the half that needs the product actually running — and the two lanes do not
+have the same preconditions:
+
+| Lane | Precondition | Can gaspol satisfy it? |
+|---|---|---|
+| web | an app serving a URL | **yes** — start it, wait **by condition** (never a fixed sleep), drive the changed surface through the **Playwright MCP**, capture screenshot + console + failed requests |
+| android / ios / flutter | a device connected over **USB debugging**, or a booted emulator | **no.** gaspol cannot plug in a phone. It probes, **offers** to boot a simulator, and asks |
+
+**`adb devices` has four outcomes, not two**, and conflating them wastes the user's time in a
+specific way: `device` (ready) · **`unauthorized`** (plugged in, RSA prompt not accepted — telling
+them to connect a phone they already connected is the useless reply) · `offline` (stale server,
+restart once) · nothing (no device, ask).
+
+**Finding adb is itself a defect class.** `command -v adb` alone returned nothing on the first
+machine this ran on, while adb sat at `~/Library/Android/sdk/platform-tools/adb` with
+`ANDROID_HOME` unset — Android Studio does not put adb on PATH and most people never export the
+variable, so that is the *common* case. Under this plugin's own contract a false `UNKNOWN` means
+STOP-and-ask for a tool that is right there. A detector wrong in the common case is worse than no
+detector, because its wrongness looks like a finding.
+
+**The rule that outranks the rest:** a check that did not run is recorded as **not run**, never as
+passed — the rule `gaspol-finish` already applies to an unavailable `/security-review`. A mobile
+lane that could not run and got summarised as "verified" leaves the gate worse than useless,
+because now somebody believes it was checked. `N/A` stays available for pure backend, config and
+docs changes **with the reason written down**: an unusable gate gets switched off, which costs more
+than the false alarms it prevents.
+
+**Forbidden verdicts**, because an adjective is not an observation: "looks right", "should work
+now", "the tests pass so the app works", and any pass with no screenshot attached.
 
 ### Verification Loop (NEW in v1.22) — the hot path stopped only reading
 
@@ -1151,5 +1195,5 @@ Last ticket: IDS-13
 
 ---
 
-**Version:** 1.22.0
+**Version:** 1.23.0
 **Last Updated:** August 2026

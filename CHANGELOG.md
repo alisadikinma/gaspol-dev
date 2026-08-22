@@ -1,5 +1,60 @@
 # Changelog
 
+## [1.23.0] - 2026-08-22
+
+### Fixed — the Live App Check told you to, and had nothing that did (IDS-13)
+
+`gaspol-verify` has carried a "Live App Check (mandatory for UI / user-visible changes)" since
+v1.14. Its whole content was one instruction: *"invoke the `run` skill to actually launch the app
+and observe the feature live."* Nothing detected what kind of app it was, nothing checked whether
+launching was possible, nothing recorded what was seen. IDS-7's design gate that was never wired
+up and IDS-8's setting that nothing read are the same shape.
+
+IDS-12 closed the static half of verification — compile, test, build. **This closes the half that
+needs the product running**, and the two lanes genuinely differ:
+
+- **web** — gaspol can satisfy the precondition itself: start the app, wait **by condition** (never
+  a fixed sleep — `condition-based-waiting.md` already documents why that is a flake generator),
+  drive **the surface that changed** through the Playwright MCP, and capture a screenshot, the
+  console output, and failed network requests. A 4xx behind a page that renders is exactly the
+  defect a green suite survives.
+- **mobile** — the precondition is a device over USB debugging or a booted emulator, and **gaspol
+  cannot provide either**. It probes, **offers** to boot a simulator (never boots one silently —
+  the `extract-design-tokens` restraint), and asks.
+
+New `skills/gaspol-execute/scripts/detect-app-target`, sibling of `detect-stack`, answering the
+other question: not "what verifies this code?" but "what does it take to RUN this app right now?".
+One lane per detected surface, `--self-test`, same security invariant (printed commands are
+literals; nothing read out of a scanned repo reaches stdout, because the caller runs it).
+
+**Two findings the first real run produced, both now fixed and both tested:**
+
+- `command -v adb` returned nothing while adb sat at `~/Library/Android/sdk/platform-tools/adb`
+  with `ANDROID_HOME` unset. Android Studio does not add adb to PATH and most people never export
+  the variable, so PATH-only detection fails in the **common** case. Under this plugin's contract a
+  false `UNKNOWN` means STOP-and-ask for a tool that is right there. Resolution order is now
+  `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → macOS default → Linux default, and a
+  resolved path containing a space is printed quoted so the caller does not word-split it.
+- `adb devices` has **four** meaningful outcomes, not two. `unauthorized` means the phone is
+  plugged in and the RSA prompt was not accepted — answering that with "please connect a device"
+  is the reply that wastes the user's time. `offline` means a stale server, restart once.
+
+Practical details that decide whether the run works at all, now written down: clear the log with
+`logcat -c` **before** the run or the dump carries hours of unrelated history and hides the real
+error; use `exec-out screencap`, never `shell screencap`, which corrupts the PNG on some hosts.
+
+### The rule that outranks the rest
+
+**A check that did not run is recorded as not run. Never as passed.** The rule `gaspol-finish`
+already applies to an unavailable `/security-review`. A mobile lane that could not run and got
+summarised as "verified" leaves the gate worse than useless — somebody now believes it was checked.
+
+`N/A` stays available for pure backend, config and docs changes, with the reason written down. An
+unusable gate gets switched off, which costs more than the false alarms it prevents.
+
+Forbidden verdicts, because an adjective is not an observation: "looks right", "should work now",
+"the tests pass so the app works", and any pass with no screenshot attached.
+
 ## [1.22.0] - 2026-08-22
 
 ### Fixed — the skill that runs on every job never ran anything (IDS-12)

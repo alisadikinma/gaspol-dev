@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+# detect-app-target — scan a project root for APP marker files and print which
+# live-app lane applies, plus the literal readiness probe for that lane.
+#
+# Sibling of detect-stack. detect-stack answers "what verifies this code?";
+# this answers "what does it take to actually RUN this app right now?" — a
+# different question with a different failure mode, because the mobile lane's
+# precondition is a physical device gaspol cannot provide.
+#
+# Usage:  detect-app-target <project-root>
+#         detect-app-target --self-test
+#
+# Contract:
+#   $1        path to a project root directory
+#   stdout    zero or more lines, one per detected lane:
+#               "web: <literal start command>"
+#               "android: adb devices"
+#               "ios: xcrun simctl list devices booted"
+#               "flutter: flutter devices"
+#             or, when the marker is present but the tool that drives it is not:
+#               "<lane>: UNKNOWN — <tool> not installed"
+#   exit 0    always on a normal scan; ZERO LINES IS NOT AN ERROR, it means the
+#             project has no runnable app surface (a library, a docs repo, a
+#             skills repo). The caller records "no app surface", never "passed".
+#   exit 1    usage error (missing arg / directory not found)
+#
+# SECURITY INVARIANT — do not break this:
+#   Every command printed on stdout is a LITERAL from the table below. No value
+#   read out of a scanned project file (package.json script bodies, gradle
+#   properties, Info.plist, pubspec.yaml) is ever echoed or interpolated into
+#   output. Project files are only ever TESTED for presence or grepped for a
+#   fixed key name. This matters because the consumer RUNS what this prints:
+#   the moment attacker-controlled text from a scanned repo reaches stdout, this
+#   becomes command injection in every caller. Same invariant detect-stack
+#   carries, for the same reason.
+#
+#   ONE deliberate exception, and the boundary is different: an SDK tool path
+#   resolved from the USER'S OWN environment ($ADB, $ANDROID_HOME,
+#   $ANDROID_SDK_ROOT) or from a standard SDK install location is printed as the
+#   command. That is the same trust level as PATH itself — the user's machine,
+#   not a scanned repository. Repo-controlled text still never reaches stdout.
+#   A resolved path containing a space is printed double-quoted so the caller
+#   runs it as one argument.
+set -euo pipefail
+
+# resolve_adb — find adb the way a human's machine actually has it.
+#
+# `command -v adb` alone is WRONG and produced a false UNKNOWN on the very first
+# machine this ran on: adb was present at ~/Library/Android/sdk/platform-tools/adb
+# with ANDROID_HOME unset and nothing on PATH. Under this file's own contract a
+# false UNKNOWN means "STOP and ask the user", i.e. gaspol halting to ask for a
+# tool sitting right there. Android Studio does not put adb on PATH, and most
+# people never export ANDROID_HOME, so PATH-only detection fails in the COMMON
+# case, not the exotic one.
+#
+# Order (first hit wins), widest-trust to narrowest:
+#   $ADB -> PATH -> $ANDROID_HOME -> $ANDROID_SDK_ROOT -> macOS default -> Linux default
+# Prints the resolved command (quoted if it contains a space); exit 1 if none.
+resolve_adb() {
+    local c
+    if [ -n "${ADB:-}" ] && [ -x "${ADB}" ]; then quote_cmd "$ADB"; return 0; fi
+    if command -v adb >/dev/null 2>&1; then echo "adb"; return 0; fi
+    for c in "${ANDROID_HOME:-}/platform-tools/adb" \
+             "${ANDROID_SDK_ROOT:-}/platform-tools/adb" \
+             "$HOME/Library/Android/sdk/platform-tools/adb" \
+             "$HOME/Android/Sdk/platform-tools/adb"; do
+        case "$c" in /platform-tools/adb) continue ;; esac   # unset var -> bare path
+        [ -x "$c" ] && { quote_cmd "$c"; return 0; }
+    done
+    return 1
+}
+
+# quote_cmd — print a path the caller can run as ONE argument. A space in
+# "/Users/.../Android Sdk/..." would otherwise be word-split into two arguments
+# and fail with a misleading "no such file".
+quote_cmd() {
+    case "$1" in
+        *[[:space:]]*) printf '"%s"\n' "$1" ;;
+        *)             printf '%s\n'   "$1" ;;
+    esac
+}
+
+emit_lanes() {
+    local root="$1"
+
+    # ---- web -------------------------------------------------------------
+    # Marker: package.json carrying a dev/start script, or a bare index.html.
+    # The script BODY is never read — only the key's presence is tested, and the
+    # command printed is the literal npm invocation of that key.
+    if [ -f "$root/package.json" ]; then
+        if grep -q '"dev"[[:space:]]*:' "$root/package.json" 2>/dev/null; then
+            echo "web: npm run dev"
+        elif grep -q '"start"[[:space:]]*:' "$root/package.json" 2>/dev/null; then
+            echo "web: npm start"
+        elif grep -q '"serve"[[:space:]]*:' "$root/package.json" 2>/dev/null; then
+            echo "web: npm run serve"
+        fi
+    elif [ -f "$root/index.html" ]; then
+        echo "web: python3 -m http.server"
+    fi
+
+    # ---- flutter ---------------------------------------------------------
+    # Checked before android/ios: a Flutter project ships BOTH platform folders,
+    # and reporting three lanes for one app would triple the work for one probe.
+    if [ -f "$root/pubspec.yaml" ] && grep -q '^[[:space:]]*flutter[[:space:]]*:' "$root/pubspec.yaml" 2>/dev/null; then
+        if command -v flutter >/dev/null 2>&1; then
+            echo "flutter: flutter devices"
+        else
+            echo "flutter: UNKNOWN — flutter not installed"
+        fi
+        return 0
+    fi
+
+    # ---- android ---------------------------------------------------------
+    if [ -d "$root/android" ] || [ -f "$root/build.gradle" ] || [ -f "$root/build.gradle.kts" ] \
+       || [ -f "$root/app/src/main/AndroidManifest.xml" ]; then
+        local adb
+        adb="$(resolve_adb || true)"
+        if [ -n "$adb" ]; then
+            echo "android: $adb devices"
+        else
+            echo "android: UNKNOWN — adb not installed"
+        fi
+    fi
+
+    # ---- ios -------------------------------------------------------------
+    local has_ios=0
+    [ -d "$root/ios" ] && has_ios=1
+    for d in "$root"/*.xcodeproj "$root"/*.xcworkspace; do
+        [ -e "$d" ] && has_ios=1
+    done
+    if [ "$has_ios" -eq 1 ]; then
+        if command -v xcrun >/dev/null 2>&1; then
+            echo "ios: xcrun simctl list devices booted"
+        else
+            echo "ios: UNKNOWN — xcrun not installed"
+        fi
+    fi
+}
+
+# ---------------------------------------------------------------------------
+self_test() {
+    local tmp rc out
+    tmp="$(mktemp -d)"
+
+    # Case 1: no markers at all -> zero lines, exit 0. A library or docs repo is
+    # not a failure; treating it as one would make every non-app repo look broken.
+    mkdir -p "$tmp/bare"
+    out="$(emit_lanes "$tmp/bare")"
+    [ -z "$out" ] || { echo "self-test: bare dir should emit nothing, got: $out" >&2; return 1; }
+
+    # Case 2: web via package.json "dev" — and the script BODY must not leak.
+    mkdir -p "$tmp/web"
+    printf '{\n "scripts": { "dev": "vite --port 3000 && echo PWNED" }\n}\n' > "$tmp/web/package.json"
+    out="$(emit_lanes "$tmp/web")"
+    [ "$out" = "web: npm run dev" ] \
+        || { echo "self-test: expected 'web: npm run dev', got: $out" >&2; return 1; }
+    case "$out" in
+        *PWNED*|*vite*) echo "self-test: script body leaked into stdout — security invariant broken" >&2; return 1 ;;
+    esac
+
+    # Case 3: android markers -> either the probe or UNKNOWN, never silence.
+    mkdir -p "$tmp/droid/android"
+    out="$(emit_lanes "$tmp/droid")"
+    # The probe may be bare `adb` (on PATH) or an absolute SDK path (resolved) --
+    # both are a real probe. Only silence, or something that is neither, fails.
+    case "$out" in
+        "android: "*" devices"|"android: UNKNOWN"*) : ;;
+        *) echo "self-test: android marker produced neither probe nor UNKNOWN: $out" >&2; rm -rf "$tmp"; return 1 ;;
+    esac
+
+    # Case 4: a Flutter project has android/ AND ios/, and must still report ONE
+    # lane. Reporting three would triple the work for a single app.
+    mkdir -p "$tmp/flut/android" "$tmp/flut/ios"
+    printf 'name: demo\ndependencies:\n  flutter:\n    sdk: flutter\n' > "$tmp/flut/pubspec.yaml"
+    out="$(emit_lanes "$tmp/flut")"
+    [ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" = "1" ] \
+        || { echo "self-test: flutter project should emit exactly one lane, got: $out" >&2; return 1; }
+    case "$out" in flutter:*) : ;; *) echo "self-test: expected a flutter lane, got: $out" >&2; return 1 ;; esac
+
+    # Case 5: adb resolution must find an SDK-located adb with nothing on PATH
+    # and ANDROID_HOME unset -- the exact machine state that produced a false
+    # UNKNOWN on first run. A fake adb is placed at a custom root and pointed to
+    # by $ANDROID_HOME, which is the same code path as the two default locations.
+    mkdir -p "$tmp/sdk/platform-tools" "$tmp/droid2/android"
+    printf '#!/bin/sh\necho fake\n' > "$tmp/sdk/platform-tools/adb"
+    chmod +x "$tmp/sdk/platform-tools/adb"
+    out="$(ANDROID_HOME="$tmp/sdk" PATH=/nonexistent-for-test emit_lanes "$tmp/droid2" 2>/dev/null || true)"
+    case "$out" in
+        *"$tmp/sdk/platform-tools/adb devices") : ;;
+        *) echo "self-test: adb under ANDROID_HOME was not resolved, got: $out" >&2; rm -rf "$tmp"; return 1 ;;
+    esac
+
+    # Case 5b: a path containing a space must come back quoted, or the caller
+    # word-splits it and reports a file-not-found that sends the reader nowhere.
+    mkdir -p "$tmp/sdk with space/platform-tools"
+    printf '#!/bin/sh\n' > "$tmp/sdk with space/platform-tools/adb"
+    chmod +x "$tmp/sdk with space/platform-tools/adb"
+    out="$(ANDROID_HOME="$tmp/sdk with space" PATH=/nonexistent-for-test emit_lanes "$tmp/droid2" 2>/dev/null || true)"
+    case "$out" in
+        *'"'*'sdk with space'*'"'*) : ;;
+        *) echo "self-test: a spaced adb path was not quoted, got: $out" >&2; rm -rf "$tmp"; return 1 ;;
+    esac
+
+    # Case 6: usage error is exit 1, distinct from "scanned and found nothing".
+    # Invoked as a SUBPROCESS deliberately: that is how every caller invokes it,
+    # and an in-process call would test a code path nobody uses.
+    rc=0; "${BASH_SOURCE[0]}" "$tmp/definitely-not-here" >/dev/null 2>&1 || rc=$?
+    rm -rf "$tmp"
+    [ "$rc" = "1" ] || { echo "self-test: missing directory should exit 1, got $rc" >&2; return 1; }
+
+    echo "detect-app-target: self-test OK"
+}
+
+main() {
+    if [ "${1:-}" = "--self-test" ]; then self_test; return $?; fi
+    if [ $# -lt 1 ]; then
+        echo "usage: detect-app-target <project-root>" >&2
+        return 1
+    fi
+    if [ ! -d "$1" ]; then
+        echo "detect-app-target: not a directory: $1" >&2
+        return 1
+    fi
+    emit_lanes "$1"
+}
+
+main "$@"
