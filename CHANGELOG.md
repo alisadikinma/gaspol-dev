@@ -1,5 +1,246 @@
 # Changelog
 
+## [1.23.0] - 2026-08-22
+
+### Fixed — the Live App Check told you to, and had nothing that did (IDS-13)
+
+`gaspol-verify` has carried a "Live App Check (mandatory for UI / user-visible changes)" since
+v1.14. Its whole content was one instruction: *"invoke the `run` skill to actually launch the app
+and observe the feature live."* Nothing detected what kind of app it was, nothing checked whether
+launching was possible, nothing recorded what was seen. IDS-7's design gate that was never wired
+up and IDS-8's setting that nothing read are the same shape.
+
+IDS-12 closed the static half of verification — compile, test, build. **This closes the half that
+needs the product running**, and the two lanes genuinely differ:
+
+- **web** — gaspol can satisfy the precondition itself: start the app, wait **by condition** (never
+  a fixed sleep — `condition-based-waiting.md` already documents why that is a flake generator),
+  drive **the surface that changed** through the Playwright MCP, and capture a screenshot, the
+  console output, and failed network requests. A 4xx behind a page that renders is exactly the
+  defect a green suite survives.
+- **mobile** — the precondition is a device over USB debugging or a booted emulator, and **gaspol
+  cannot provide either**. It probes, **offers** to boot a simulator (never boots one silently —
+  the `extract-design-tokens` restraint), and asks.
+
+New `skills/gaspol-execute/scripts/detect-app-target`, sibling of `detect-stack`, answering the
+other question: not "what verifies this code?" but "what does it take to RUN this app right now?".
+One lane per detected surface, `--self-test`, same security invariant (printed commands are
+literals; nothing read out of a scanned repo reaches stdout, because the caller runs it).
+
+**Two findings the first real run produced, both now fixed and both tested:**
+
+- `command -v adb` returned nothing while adb sat at `~/Library/Android/sdk/platform-tools/adb`
+  with `ANDROID_HOME` unset. Android Studio does not add adb to PATH and most people never export
+  the variable, so PATH-only detection fails in the **common** case. Under this plugin's contract a
+  false `UNKNOWN` means STOP-and-ask for a tool that is right there. Resolution order is now
+  `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → macOS default → Linux default, and a
+  resolved path containing a space is printed quoted so the caller does not word-split it.
+- `adb devices` has **four** meaningful outcomes, not two. `unauthorized` means the phone is
+  plugged in and the RSA prompt was not accepted — answering that with "please connect a device"
+  is the reply that wastes the user's time. `offline` means a stale server, restart once.
+
+Practical details that decide whether the run works at all, now written down: clear the log with
+`logcat -c` **before** the run or the dump carries hours of unrelated history and hides the real
+error; use `exec-out screencap`, never `shell screencap`, which corrupts the PNG on some hosts.
+
+### The rule that outranks the rest
+
+**A check that did not run is recorded as not run. Never as passed.** The rule `gaspol-finish`
+already applies to an unavailable `/security-review`. A mobile lane that could not run and got
+summarised as "verified" leaves the gate worse than useless — somebody now believes it was checked.
+
+`N/A` stays available for pure backend, config and docs changes, with the reason written down. An
+unusable gate gets switched off, which costs more than the false alarms it prevents.
+
+Forbidden verdicts, because an adjective is not an observation: "looks right", "should work now",
+"the tests pass so the app works", and any pass with no screenshot attached.
+
+## [1.22.0] - 2026-08-22
+
+### Fixed — the skill that runs on every job never ran anything (IDS-12)
+
+```
+grep -n "detect-stack|npm test|Validation Ladder" skills/gaspol-execute/SKILL.md   ->  0 hits
+```
+
+`gaspol-execute` is the in-session execution path and it executed nothing. Its per-phase
+"Auto-Review" dispatched a model to **read** the code; the Validation Ladder had existed since
+v1.8 but only in the implementer dispatch templates and `gaspol-parallel`. Every executable check
+was deferred to `gaspol-verify` at the very end — the slowest and most expensive place to discover
+a type error, and far enough from its cause that fixing it becomes archaeology.
+
+A gate that reads produces an opinion. A gate that runs produces evidence — which is what Iron
+Law 3 has demanded since v1.0.
+
+New `skills/_shared/verification-loop.md`, wired into `gaspol-execute` in two places and shared
+with `gaspol-parallel`, whose Validation Ladder now defers to it rather than restating it:
+
+- **Step 7 — Verification Baseline, before Phase A.** Commands derived from `detect-stack` with
+  its three states kept apart (`<level>: <command>` run it / `UNKNOWN` STOP and ask / no markers
+  fall back to plan-declared, recorded as such). Result written to the ledger as
+  `verification-baseline:`. **A red baseline STOPS and asks** — without this, a suite that was
+  already failing gets blamed on Phase A and the fix loop burns its rounds on somebody else's
+  failure. `gaspol-finish` learned exactly this in IDS-9; the same reasoning applies one layer
+  earlier, where it is cheaper still.
+- **Per-phase ladder, before each checkpoint.** L1 static → L2 unit → L3 build → L4 integration →
+  L5 edge, fail-fast, cheapest first. On failure the command's **actual output goes into the fix
+  verbatim** — a paraphrase converts a fact you already hold into a guess — then the ladder
+  **re-runs from the failed level**. Bounded by `skills/_shared/fix-loop.md`; the round cap is not
+  repeated here.
+- **The gate:** a phase may not be ticked `[x]` until its ladder ran and every applicable level
+  passed or was explicitly skipped with a reason. The TDD gate's mirror — TDD refuses a phase with
+  no failing test *before*, this refuses one with no passing run *after*.
+
+**Proportionality, deliberately.** A `docs-only` / `config-only` / `rename-only` phase skips L2 and
+L3 and still runs L1 where a linter covers those files. IDS-10 removed the scope governor when it
+replaced the Laziness Ladder; a full build after a one-line docs edit is precisely where that
+absence would have shown first.
+
+### Changed
+
+- `checkpoint-template.md` gains a **Verification** table: level, command, **exit code**, result,
+  plus new-failures-against-baseline. A blank cell is not a skip — every level is run with its exit
+  code recorded or skipped with the reason written down.
+- `test-execute-trim.sh` ceiling 26200 → 29000, and `Verification Loop` + `detect-stack` join the
+  list of obligations the trim may never remove. The ceiling tracks obligations, not bytes; it
+  moves when a gate is added and the gate is named in the comment.
+
+### Scope boundary — do not overclaim
+
+This verifies that code compiles, tests pass and the build succeeds. It does **not** verify that
+the running product behaves correctly: no browser, no real request, no rendered page. That is the
+open `/qa` lane and IDS-6's deferred Part B, and this release does not close it.
+
+## [1.21.0] - 2026-08-22
+
+### Removed — three skills, narrowing the plugin to the coding path (IDS-11)
+
+| Deleted | Size | Why |
+|---|---|---|
+| `gaspol-write-skill` | 80K, 4 files | largest skill in the repo; fires only when authoring a skill |
+| `gaspol-kb-audit` | 12K | IDS-8 already recorded it overlapping `superbrain-promote` almost completely and deferred only because the two were "not like-for-like: one public and agnostic, the other private and hardcoded to one vault" — a reason about keeping gaspol usable by strangers, which stopped applying |
+| `gaspol-llm-test` | 8K | eval-driven dev for non-deterministic features; two live referrers, both of which keep the rule inline |
+
+Deleting a skill is easy; deleting the rules that happened to live inside it is the actual risk.
+Three things were rescued rather than dropped:
+
+- **The Prior-Art Gate** moved to `skills/_shared/prior-art-gate.md` and was generalised in the
+  move — from *"before any skill is written"* to *"before anything is built in-house"*, which is
+  also `gstack/ETHOS.md` §2. It was already referenced by name from `gaspol-brainstorm` Phase 1.5
+  and `gaspol-research` lane 6, so deleting its host would have left two live pointers into
+  nothing. It also carries the plugin's ONLY supply-chain rules: never `npx skills add -y`, read
+  the candidate's SKILL.md before recommending it, install count is popularity not an audit, every
+  installed skill is a permanent per-session context tax.
+- **KB promotion** now names a gate that exists. `gaspol-learn` said *"user promotes to accepted via
+  gaspol-kb-audit"*; it now says promotion belongs to the store's own promoter
+  (`superbrain-promote` where a vault is configured) and is manual otherwise, with the entry left
+  `proposed`. A promotion path pointing at a deleted skill reads as handled.
+- **The eval rule** survives inline: `gaspol-plan` still plans `docs/evals/<feature>.md` for
+  non-deterministic work and `gaspol-verify` still runs them. Unit tests still miss LLM regressions.
+
+Dropped deliberately, not moved: the KB health thresholds (🟢 <10% stale / 🟡 10-25% / 🔴 >25%
+blocks new captures). Nothing implements them any more, and a rule with no enforcer is the
+promise-with-no-implementation shape IDS-7 and IDS-8 were both about.
+
+### Kept, and why the reasoning matters more than the list
+
+`using-gaspol` stays. It is the auto-trigger backbone the session hook loads — the 1% rule, the
+routing table, and the anti-rationalization Red Flags. Removing it would make the *coding* skills
+fire less often, which is the opposite of narrowing to coding.
+
+`gaspol-adr`, `gaspol-learn` and `gaspol-research` stay. They are the knowledge base's only
+writers, and `gaspol-brainstorm` Phase 0.5 is its reader. Remove the writers and the reader becomes
+a gate that scans an empty folder every session, paying a cost that can never return anything —
+exactly the dead-gate pattern IDS-7 and IDS-8 were spent removing.
+
+### Changed
+
+- Test assertions followed their subjects instead of being deleted: `test-prior-art-gate.sh` now
+  asserts against `_shared/`, `test-finish-gates.sh` asserts the eval RULE rather than the deleted
+  skill's existence, and `test-ids8-docs.sh` asserts the kb-audit overlap is recorded as **resolved
+  by deletion** rather than as deferred. Only `test-reference-loading.sh` was deleted — its subject
+  was `gaspol-write-skill`'s reference files, which no longer exist.
+- Skill count 20 → 17 across CLAUDE.md, README.md, the frontmatter test, and the gaspol-one
+  marketplace listing.
+
+## [1.20.0] - 2026-08-22
+
+Three complaints, one report, one ticket — which is itself the first thing this release fixes.
+
+### Changed — the default coding stance is now COMPLETENESS, not laziness (IDS-10)
+
+v1.9 absorbed the ponytail **Laziness Ladder** as gaspol's always-on stance. Its first rung asked
+*"does this need to exist at all?"* and its rules were *"fewest files possible, shortest working
+diff wins."* The fidelity boundary held — no placeholders, no skipped tests — so output stayed
+REAL. Nothing kept it COMPLETE, and shallow work breaches no boundary. Every task began by looking
+for a reason to do less. That is what "semakin bodoh" described.
+
+`skills/_shared/completeness-ladder.md` replaces it, in all four live slots (the session hook,
+`gaspol-plan`, `gaspol-execute`, `implementer-prompt.md`): walk DOWN and do every rung — happy path,
+every error path that can actually happen, every edge case the input space allows (enumerate, don't
+sample), the tests that prove them, observability, the comment explaining why. The only legitimate
+stop is genuinely unrelated work, flagged as separate scope.
+
+Kept from ponytail, demoted from a scope rule to an implementation rule: the **Reuse Rule** (stdlib
+→ native feature → already-installed dependency) and the anti-abstraction rules. Deleted: rung 1's
+YAGNI-skip, "shortest diff wins", and the `ponytail:` comment convention.
+
+Grounded in `gstack/ETHOS.md` §1, which names the old ladder's own rules as anti-patterns on the
+evidence that AI-assisted coding compresses test writing ~50x and feature implementation ~30x.
+
+### Fixed — one report of N defects minted N tickets (IDS-10)
+
+There was no batching rule anywhere (`grep "multiple bug|each bug" skills/` → 0 hits), and the only
+rule on the topic pushed the other way: brainstorm's decompose gate says *"Each sub-project gets its
+own spec → plan → implement cycle."* The missing question sat upstream of decompose — five bugs in
+one subsystem are one piece of work.
+
+New `skills/_shared/batch-gate.md`, read by `gaspol-brainstorm` (above the decompose gate) and
+`gaspol-debug` (bug reports never reach brainstorm). Default one ticket; split only for disjoint
+subsystems **and** an oversized plan, a blocking dependency, or an explicit request; **ceiling of
+two**, a third needs `AskUserQuestion`. `next-ticket` runs once per batch. Each item still becomes
+its own plan phase with its own regression test — batching changes the container, never the coverage.
+
+### Fixed — logic-only work produced nothing reviewable (IDS-10)
+
+Brainstorm Phase 2.5 offered `[No, pure backend/logic]` and that branch skipped design entirely,
+while the post-plan artifact step was opt-in. For an enhancement that changes behaviour but not
+pixels, the first reviewable thing was the diff.
+
+`gaspol-plan` **Step 0** is now a BLOCKING **Design Artifact** gate — every plan produces exactly
+one, approved before `gaspol-execute` starts. UI work renders a mockup; everything else produces the
+**Logic Design Artifact** (`skills/gaspol-plan/logic-design-artifact.md`): before/after behaviour
+with the current path quoted from real code, a mermaid flow, a data-flow table reusing the Data
+Integration Map columns, an edge-case matrix (empty = failed gate), and the blast-radius statement.
+Three states — approved / pending / not published. **"Not applicable" is deliberately not a state:
+that state was the defect.**
+
+### Fixed — a whole other project's identity was baked into the dispatch prompts (IDS-10)
+
+`implementer-prompt.md` opened with *"You are an implementer subagent for the Sparkfluence
+platform"* and constrained every subagent to *"emerald + charcoal, NOT purple"*; `code-reviewer.md`
+said the same. Three skills carried it as their H1. Twelve files in all, roughly 25 sites, in a
+plugin whose own CLAUDE.md forbids hardcoding project values. A subagent told to use another
+product's design system follows the instruction — it does not notice the mismatch. All of it now
+reads from the target project's CLAUDE.md and `DESIGN.md`.
+
+### Fixed — the deterministic suite had been red since 50fbbb1 (IDS-10)
+
+Dropping this repo's own `.claude-plugin/marketplace.json` (distribution moved to the gaspol-one
+marketplace) left four tests asserting a deleted file, so the version-consistency gate reported
+failure for a reason unrelated to versions and nobody could tell. `gaspol-finish` Step 0 requires
+green before any agent is dispatched, so the whole chain was blocked. New
+`tests/ticket-scripts/marketplace-manifest` resolves the manifest cross-repo with the house
+three-state contract (0 available / 3 UNKNOWN / 4 none); **not checked is printed, never counted as
+a pass.**
+
+### Added
+
+- `tests/ticket-scripts/test-completeness-ladder.sh`, `test-batch-gate.sh`,
+  `test-logic-design-artifact.sh` — 33 deterministic tests, all green.
+- The `test-execute-trim.sh` ceiling moved 25500 → 26200, and now says why: it tracks
+  **obligations**, and IDS-10 added a gate. Raising it to fit wordy prose is the failure it guards.
+
 ## [1.19.0] - 2026-08-21
 
 ### Fixed — the finish chain had no bound (IDS-9)

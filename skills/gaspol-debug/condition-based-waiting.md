@@ -61,9 +61,10 @@ async function waitFor(
 | Wait for DB row | `await waitFor(() => supabase.from('jobs').select().eq('id', jobId).single().then(r => r.data?.status === 'completed'))` |
 | Wait for queue | `await waitFor(() => queue.length === 0, { timeout: 30000 })` |
 
-### fal.ai Polling (Sparkfluence-Specific)
+### Prefer the SDK's own subscription over hand-rolled polling
 
-fal.ai's `fal.subscribe()` already implements condition-based waiting internally. Use it instead of manual polling:
+Most job/queue SDKs already implement condition-based waiting; reach for that before writing a
+loop. Example shape, using a client that exposes a `subscribe` with queue updates:
 
 ```typescript
 // GOOD: fal.subscribe handles polling automatically

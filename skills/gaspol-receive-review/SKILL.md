@@ -3,7 +3,7 @@ name: gaspol-receive-review
 description: "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable. Requires technical rigor and verification, not performative agreement or blind implementation."
 ---
 
-# Sparkfluence Receive Review
+# gaspol-receive-review
 
 ## Core Principle
 

@@ -8,7 +8,9 @@
 # /security-review command already compiled into the Claude Code binary.
 # Two builds, two deletions, zero prior-art searches.
 #
-#   test_write_skill_step0   (Phase A) — BLOCKING Step 0 in gaspol-write-skill
+#   test_prior_art_gate      (Phase A) — the BLOCKING gate at _shared/prior-art-gate.md
+#                              (IDS-11 moved it out of gaspol-write-skill, which was deleted;
+#                              bound to skill-authoring the rule would have died with its host)
 #   test_brainstorm_probe    (Phase B) — NEW branch of Phase 1.5 probes the market
 #   test_research_lane       (Phase C) — gaspol-research treats skills as a source
 #   test_docs_consistent     (Phase D) — counts, versions, ticket counter agree
@@ -21,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
-WRITE_SKILL="skills/gaspol-write-skill/SKILL.md"
+GATE="skills/_shared/prior-art-gate.md"
 BRAINSTORM="skills/gaspol-brainstorm/SKILL.md"
 RESEARCH="skills/gaspol-research/SKILL.md"
 
@@ -62,10 +64,10 @@ assert_absent_grep() {
 # still find a string that is definitely there.
 self_check() {
   local f
-  for f in "$WRITE_SKILL" "$BRAINSTORM" "$RESEARCH"; do
+  for f in "$GATE" "$BRAINSTORM" "$RESEARCH"; do
     [[ -f "$f" ]] || { fail "self-check: target file exists" "missing: $f"; return; }
   done
-  if grep -qF 'NO SKILL WITHOUT A FAILING TEST FIRST' "$WRITE_SKILL"; then
+  if grep -qF 'NOTHING GETS BUILT IN-HOUSE BEFORE A PRIOR-ART SEARCH' "$GATE"; then
     pass "self-check: grep helper still matches a known-present string"
   else
     fail "self-check: grep helper still matches a known-present string" \
@@ -74,65 +76,70 @@ self_check() {
 }
 
 # ---------------------------------------------------------------------------
-# Phase A — gaspol-write-skill gains a BLOCKING Step 0
+# Phase A — the shared Prior-Art Gate is BLOCKING and complete
 # ---------------------------------------------------------------------------
 # Three lookups, not one. "Is it installed?" misses built-in slash commands
 # (/security-review was never in any skill listing) and misses the marketplace
 # (ui-ux-pro-max was one `npx skills find` away). Each lookup is asserted
 # individually so a reword that quietly drops one cannot pass.
-test_write_skill_step0() {
-  assert_grep "Step 0 exists and is BLOCKING" \
-    "## Step 0: Prior-Art Search (BLOCKING" "$WRITE_SKILL"
+test_prior_art_gate() {
+  assert_grep "the gate exists and is BLOCKING" \
+    "NOTHING GETS BUILT IN-HOUSE BEFORE A PRIOR-ART SEARCH" "$GATE"
+
+  # It must NOT be bound to skill-authoring any more: the two live referrers are
+  # brainstorm and research, neither of which is writing a skill.
+  assert_grep "the gate names its non-skill triggers" \
+    "gaspol-brainstorm" "$GATE"
 
   assert_grep "lookup 1 — already installed" \
-    "Installed already?" "$WRITE_SKILL"
+    "Installed already?" "$GATE"
 
   assert_grep "lookup 2 — built into the harness" \
-    "Built into the harness?" "$WRITE_SKILL"
+    "Built into the harness?" "$GATE"
 
   assert_grep "lookup 3 — the marketplace" \
-    "npx skills find" "$WRITE_SKILL"
+    "npx skills find" "$GATE"
 
   assert_grep "marketplace browse URL is named" \
-    "https://skills.sh" "$WRITE_SKILL"
+    "https://skills.sh" "$GATE"
 
   # Three verdicts, because the interesting one is DELTA. A binary
   # exists/doesn't-exist verdict is what produced the 1.4MB fork: "ours needs to
   # be different" is true and still does not justify rebuilding the other 95%.
-  assert_grep "verdict NONE defined" "\`NONE\`" "$WRITE_SKILL"
-  assert_grep "verdict EXISTS defined" "\`EXISTS\`" "$WRITE_SKILL"
-  assert_grep "verdict DELTA defined" "\`DELTA\`" "$WRITE_SKILL"
-  assert_grep "DELTA requires naming the delta" "name the delta" "$WRITE_SKILL"
+  assert_grep "verdict NONE defined" "\`NONE\`" "$GATE"
+  assert_grep "verdict EXISTS defined" "\`EXISTS\`" "$GATE"
+  assert_grep "verdict DELTA defined" "\`DELTA\`" "$GATE"
+  assert_grep "DELTA requires naming the delta" "name the delta" "$GATE"
 
   # Install safety. Upstream find-skills documents `npx skills add <x> -g -y`
   # verbatim; a skill is a prompt that executes inside the agent, so an
   # unattended install of an unknown repo is a supply-chain decision.
   assert_grep "auto-install with -y is forbidden" \
-    "npx skills add ... -y" "$WRITE_SKILL"
+    "npx skills add ... -y" "$GATE"
   assert_grep "install goes through AskUserQuestion" \
-    "AskUserQuestion" "$WRITE_SKILL"
+    "AskUserQuestion" "$GATE"
   assert_grep "candidate SKILL.md must be read before recommending" \
-    "READ the candidate's SKILL.md" "$WRITE_SKILL"
+    "READ the candidate's SKILL.md" "$GATE"
   assert_grep "install count is not an audit" \
-    "not an audit" "$WRITE_SKILL"
+    "not an audit" "$GATE"
   assert_grep "standing context cost of an installed skill is stated" \
-    "every** session" "$WRITE_SKILL"
+    "every** session" "$GATE"
 
   # Soft dependency, same rule the ui-ux-pro-max delegation established: the CLI
   # missing degrades the search, it never blocks the skill.
   assert_grep "missing CLI degrades gracefully" \
-    "if the command is unavailable" "$WRITE_SKILL"
+    "if the command is unavailable" "$GATE"
   assert_grep "an unrun search is never recorded as done" \
-    "never record the search as done" "$WRITE_SKILL"
+    "never record the search as done" "$GATE"
 
   # The gate has to survive contact with the checklist and the excuse table, or
   # it is prose nobody executes.
   assert_grep "RED-phase checklist carries the prior-art item" \
-    "- [ ] Prior-art search run" "$WRITE_SKILL"
+    "- [ ] Prior-art search run" "$GATE"
   assert_grep "rationalization table blocks 'I would remember it'" \
-    "I'd remember if a skill existed" "$WRITE_SKILL"
+    "I'd remember if something existed" "$GATE"
   assert_grep "rationalization table blocks the ours-is-different excuse" \
-    "Ours needs to be different" "$WRITE_SKILL"
+    "Ours needs to be different" "$GATE"
 }
 
 # ---------------------------------------------------------------------------
@@ -147,8 +154,8 @@ test_brainstorm_probe() {
   assert_grep "Phase 1.5 NEW branch probes the skills marketplace" \
     "npx skills find" "$BRAINSTORM"
 
-  assert_grep "probe defers install rules to write-skill Step 0" \
-    "gaspol-write-skill Step 0" "$BRAINSTORM"
+  assert_grep "probe defers install rules to the shared gate" \
+    "_shared/prior-art-gate.md" "$BRAINSTORM"
 
   # The probe must not leak into the cheap paths.
   local phase05
@@ -191,14 +198,24 @@ test_docs_consistent() {
       "$(grep -o '\*\*[0-9]* development skills' CLAUDE.md || echo 'no count line found')"
   fi
 
-  local pv mv
+  local pv mv mm_path mm_rc
   pv="$(grep -m1 '"version"' .claude-plugin/plugin.json | tr -dc '0-9.')"
-  mv="$(grep -m1 '"version"' .claude-plugin/marketplace.json | tr -dc '0-9.')"
-  if [[ -n "$pv" && "$pv" == "$mv" ]]; then
-    pass "plugin.json and marketplace.json agree on version ($pv)"
-  else
-    fail "plugin.json and marketplace.json agree on version" "plugin=$pv marketplace=$mv"
-  fi
+  # The marketplace manifest moved to the gaspol-one repo in 50fbbb1. Resolve
+  # it and keep the three states apart -- "not present" is reported as not
+  # checked, never as agreement.
+  mm_path="$(tests/ticket-scripts/marketplace-manifest)"; mm_rc=$?
+  case "$mm_rc" in
+    0)
+      mv="$(grep -m1 '"version"' "$mm_path" | tr -dc '0-9.')"
+      if [[ -n "$pv" && "$pv" == "$mv" ]]; then
+        pass "plugin.json and the marketplace manifest agree on version ($pv)"
+      else
+        fail "plugin.json and the marketplace manifest agree on version" "plugin=$pv marketplace=$mv"
+      fi
+      ;;
+    3) fail "marketplace-manifest resolves" "UNKNOWN -- configured and unreadable" ;;
+    4) echo "  SKIP: marketplace manifest not present -- version agreement NOT checked" ;;
+  esac
 
   if grep -q "^\*\*Version:\*\* ${pv}$" CLAUDE.md; then
     pass "CLAUDE.md footer version matches ($pv)"
@@ -221,8 +238,12 @@ test_docs_consistent() {
       "$(grep -m1 '^Last ticket:' CLAUDE.md || echo 'no counter line')"
   fi
 
+  # IDS-11 moved the gate out of the deleted gaspol-write-skill, so the assertion
+  # follows the gate to its new home rather than to the phrase it used to carry.
   assert_grep "CLAUDE.md documents the prior-art gate" \
-    "Prior-Art Search" CLAUDE.md
+    "Prior-Art Gate" CLAUDE.md
+  assert_grep "CLAUDE.md names the gate's canonical file" \
+    "_shared/prior-art-gate.md" CLAUDE.md
 
   # No hard dependency on the skills CLI, for the same all-or-nothing reason
   # ui-ux-pro-max was kept soft.
@@ -238,7 +259,7 @@ test_docs_consistent() {
 # Runner
 # ---------------------------------------------------------------------------
 self_check
-test_write_skill_step0
+test_prior_art_gate
 test_brainstorm_probe
 test_research_lane
 test_docs_consistent

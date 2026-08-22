@@ -146,6 +146,51 @@ as the binding authority, and record the **ruling** beside its row. If the scan 
 clean — rows written, nothing found — proceed without further comment. The review loop
 remains the net for conflicts that only emerge from implementation.
 
+### Step 7: Verification Baseline (BLOCKING — before Phase A runs)
+
+Derive the commands, then run them **once, before any phase**:
+
+```bash
+skills/gaspol-execute/scripts/detect-stack <project-root>
+```
+
+Three states, never blurred: `<level>: <command>` → run it; `<level>: UNKNOWN` (marker present,
+tool missing) → **STOP and ask**; **no stack markers / zero lines** → fall back to the
+plan-declared commands, recorded as `detect-stack: no stack markers, using plan-declared commands`.
+
+Run the ladder and write the result to the ledger, e.g.
+`verification-baseline: L1 pass · L2 pass (142 tests) — captured at <SHA>`.
+
+**If the baseline is already red, STOP and ask** (`AskUserQuestion`): `[Fix the baseline first]` /
+`[Proceed, treating these N failures as pre-existing]` / `[Something else]`. On "proceed", record
+the failing test names; phases are then judged against **new** failures only. Without this, a suite
+that was red before you arrived is blamed on Phase A and the fix loop burns rounds on somebody
+else's failure — the reason `gaspol-finish` gained its Step 0 in IDS-9.
+
+## Verification Loop (per phase — the checkpoint's evidence comes from here)
+
+Full rule: **[skills/_shared/verification-loop.md](../_shared/verification-loop.md)**. Same ladder
+the implementer dispatch templates have carried since v1.8; one source, do not restate its detail.
+
+After the code of a phase is written and **before its checkpoint**, run the ladder **fail-fast**,
+cheapest first — **L1** static (typecheck + lint) → **L2** unit → **L3** build → L4 integration →
+L5 edge. Stop at the first failure.
+
+- **Proportionality:** a `docs-only` / `config-only` / `rename-only` phase — the classes the
+  complexity classifier already knows — skips L2 and L3, and still runs L1 where a linter covers
+  those files. A level that does not apply is skipped **explicitly, with the reason**; a silent
+  skip is a placeholder-grade lie.
+- **On failure:** feed the failing command's **actual output, verbatim** into the fix — never a
+  paraphrase; you already hold the fact. Fix the cause, then **re-run from the failed level**.
+  Three failed attempts on one error is a `gaspol-debug` problem, not a retry problem.
+- **Bounded** by [skills/_shared/fix-loop.md](../_shared/fix-loop.md). The round cap lives there
+  and is deliberately not repeated here.
+
+**The gate:** a phase **may not be ticked** `[x]` until its ladder ran and every applicable level
+passed or was explicitly skipped with a reason. "The code looks right" and "the review found
+nothing" are opinions; an exit code is evidence. This is the TDD gate's mirror — TDD refuses a
+phase with no failing test before, this refuses one with no passing run after.
+
 ## CLAUDE.md-First Rule
 
 Pre-Execution Step 2 is not a formality. Reading the target project's CLAUDE.md before any
@@ -155,21 +200,40 @@ beside a documented palette, and re-deriving a convention the project already se
 the plan names something you cannot find in CLAUDE.md, that is a question, not a licence to
 invent.
 
-## Laziness Gate (before writing code for any phase)
+## Design Artifact Gate (BLOCKING — before Phase A, before any code)
 
-Anti-placeholder guarantees the code is REAL; the laziness ladder guarantees it is MINIMAL.
-Both fire; they do not conflict. Before implementing a phase, run the ladder from
-`skills/_shared/laziness-ladder.md`: does this need to exist at all (YAGNI → skip, one-line
-why), then stdlib → native platform feature → already-installed dep → one line → only then
-minimum code. No unrequested abstraction, no scaffolding "for later", fewest files, shortest
-diff.
+Read the ledger before starting. `gaspol-plan` Step 0 records one line above `## Log`:
 
-**Boundary — do not misread:** the ladder cuts SCOPE, never FIDELITY. It never excuses a
-placeholder where the plan specifies a real integration, nor a skipped validation, security
-check, or test. `const data = []` awaiting an API is a PLACEHOLDER under Iron Law 1, not a
-lazy one-liner. A "lazy" move that crosses into fake data or a skipped safety check is
-negligent, not lazy — do the real thing. Mark deliberate simplifications with a `ponytail:`
-comment naming the upgrade path.
+| Ledger line | Action |
+|---|---|
+| `design-artifact: approved — <url>` | proceed |
+| `design-artifact: pending — <url>` | **STOP and ask** — it was published and never approved |
+| no such line | **STOP and ask** — return to `gaspol-plan` Step 0; do not write code |
+
+Counterpart of the TDD gate: TDD refuses a phase with no failing test, this refuses a plan no
+human has seen rendered. It applies to logic-only work too — that was the gap. There is no "not
+applicable" verdict: an absent line means the artifact was not made, not that none was owed.
+
+## Completeness Gate (before writing code for any phase, and again before calling it done)
+
+Anti-placeholder guarantees the code is REAL; the Completeness Ladder guarantees it is WHOLE.
+Both fire. Walk the ladder from `skills/_shared/completeness-ladder.md` — **down**, doing every
+rung, not stopping at the first that holds:
+
+1. happy path, real integration; 2. every error path that can actually happen; 3. every edge
+case the input space allows — enumerate them, don't sample; 4. the tests that prove 1-3,
+written first; 5. the observability a 3am debugger needs; 6. the one comment explaining WHY.
+
+Before ticking the phase, state which rungs it owed and where each is covered. A rung that does
+not apply is skipped **explicitly** — a silent skip is a placeholder-grade lie.
+
+**Reuse, not volume:** prefer stdlib → native feature → already-installed dep over code you
+author; no interface with one implementation. Reuse cuts cleverness, never coverage.
+
+**Boundary:** completeness is depth on the REQUESTED work. It never licenses a placeholder where
+the plan specifies a real integration (`const data = []` awaiting an API is an Iron Law 1
+violation however thorough the rest is), and it is not licence to add features nobody asked for —
+that is scope creep, flagged as separate scope. Only genuinely unrelated work stops the ladder.
 
 ## Anti-Placeholder Rules
 

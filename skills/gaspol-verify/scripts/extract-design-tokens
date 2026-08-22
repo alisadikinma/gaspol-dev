@@ -25,7 +25,7 @@ Two rules this script will not bend:
     someone's repository unasked is the same overreach as auto-installing a
     marketplace skill; the write is offered by gaspol-verify via
     AskUserQuestion, and declining is a real answer.
-    ponytail: stdout-only by design. If writing is ever wanted, that is a
+    Note: stdout-only by design. If writing is ever wanted, that is a
     deliberate upgrade with its own confirmation, not a quiet default.
 
 Usage:

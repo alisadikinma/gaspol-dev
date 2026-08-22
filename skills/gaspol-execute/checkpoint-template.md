@@ -44,6 +44,19 @@ OR
 OR
 - [Issue description] — Impact: [what this affects] — Proposed fix: [suggestion]
 
+### Verification (commands actually run — evidence, not claims)
+
+| Level | Command | Exit code | Result |
+|---|---|---|---|
+| L1 static | `[from detect-stack]` | `0` | pass |
+| L2 unit | `[from detect-stack]` | `0` | pass — [N] tests |
+| L3 build | `[from detect-stack]` | — | skipped — not the last phase, no build config touched |
+| L4 integration | — | — | skipped — [reason] |
+| L5 edge | — | — | [pass / skipped — reason] |
+
+A blank cell is not a skip. Every level is either run with its exit code recorded, or skipped
+**with the reason written down**. New failures against the baseline: [none / list].
+
 ### Auto-Review (Tiered)
 
 Complexity classifier result: `REVIEW` / `SKIP`

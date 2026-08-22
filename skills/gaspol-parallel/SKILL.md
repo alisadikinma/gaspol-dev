@@ -240,6 +240,10 @@ The implementer:
 
 ##### Validation Ladder (fail-fast, cheapest first)
 
+> Same ladder as `skills/_shared/verification-loop.md`, which IDS-12 extracted so the in-session
+> path (`gaspol-execute`) could run it too. The levels, the fail-fast rule and the explicit-skip
+> rule are stated there; what follows is this skill's per-task application of them.
+
 A passing unit test proves nothing if the types don't compile, and a green build proves
 nothing if the edge cases were never exercised. Run these levels **in order, stopping at the
 first failure** — cheap fast checks gate the expensive slow ones, so a typo never costs a full

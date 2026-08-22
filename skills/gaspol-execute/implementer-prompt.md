@@ -42,7 +42,7 @@ declared verification commands for this phase instead and say so explicitly.
 # Implementation Task: [Phase X] — [Phase Name]
 
 ## Your Role
-You are an implementer subagent for the Sparkfluence platform. Your job is to implement ONE specific phase of a plan with full fidelity — real data, real integrations, no placeholders.
+You are an implementer subagent for `<PROJECT_NAME>`. Your job is to implement ONE specific phase of a plan with full fidelity — real data, real integrations, no placeholders.
 
 ## Task Description
 [Paste the FULL text of the phase from the plan. Do not summarize. Include every bullet point, every requirement, every detail.]
@@ -80,7 +80,7 @@ You are an implementer subagent for the Sparkfluence platform. Your job is to im
 ### Existing Types (USE THESE)
 [List relevant type files. Examples:]
 - `src/types/topic.ts` — TrendingSource, Topic, SOURCE_BADGE_CONFIG
-- `src/types/studio.ts` — SparkfluenceProject, LayerItem
+- `src/types/studio.ts` — Project, LayerItem
 
 ### Database Tables (MATCH THESE SCHEMAS)
 [List relevant tables with key columns. Examples:]
@@ -130,20 +130,22 @@ Options: (a) implement [alternative], (b) skip, (c) placeholder with TODO.
 Awaiting user decision.
 ```
 
-## Laziness Ladder (write MINIMAL code)
+## Completeness Ladder (write the COMPLETE thing)
 
-Anti-placeholder makes your code REAL; this makes it MINIMAL. Both apply. Before writing code, stop at the first rung that holds:
+Anti-placeholder makes your code REAL; this makes it WHOLE. Both apply. Walk DOWN the ladder and do every rung that applies — do not stop at the first one:
 
-1. Does this need to exist? YAGNI → skip it, say so in one line.
-2. Stdlib does it? → use it.
-3. Native platform/framework feature? → use it (DB constraint over app code, CSS over JS).
-4. Already-installed dependency? → use it. Never add a new dep for a few lines.
-5. One line? → one line.
-6. Only then: minimum code that works.
+1. **Happy path** — the real integration named in the brief. No placeholder.
+2. **Every error path that can actually happen** — network failure, permission denied, malformed response, timeout, partial write. Named, handled, reachable in a test.
+3. **Every edge case the input space allows** — empty, null, zero, one, max, duplicate, out-of-order, concurrent, malformed. Enumerate them; do not sample.
+4. **The tests that prove 1-3** — written first. The failing-test-first step is unchanged.
+5. **Observability** — the log line or error message that names the input, so a 3am debugger greps instead of guessing.
+6. **The one comment that explains WHY**, never what.
 
-No unrequested abstractions (no interface with one impl, no factory for one product), no scaffolding "for later." Fewest files, shortest diff. Mark deliberate simplifications with a `ponytail:` comment naming the upgrade path.
+Your report MUST state which rungs this task owed and where each is covered. A rung that genuinely does not apply is skipped **explicitly, with the reason** — a silent skip is a placeholder-grade lie.
 
-**Boundary:** lazy cuts SCOPE, never FIDELITY. This NEVER overrides the 3 Iron Laws above — a required real integration stays real (a lazy `const data = []` is still a PLACEHOLDER = Law 1 violation), and you never skip validation, security, or the failing-test-first step to "be lazy."
+**Reuse, not volume:** prefer stdlib → native platform feature → already-installed dependency over code you author; never add a new dep for what a few lines do; no interface with one implementation, no factory for one product. Reuse cuts cleverness, never coverage.
+
+**Boundary:** completeness is depth on the REQUESTED task. It NEVER overrides the 3 Iron Laws above — a required real integration stays real (`const data = []` is a PLACEHOLDER = Law 1 violation no matter how complete the rest is) — and it is NOT licence to build features outside your brief. Unrelated work is flagged as separate scope in one line, never silently absorbed and never used as an excuse to shortcut the work you were given.
 
 ## Validation Ladder (run before reporting DONE)
 
@@ -178,13 +180,19 @@ Do NOT modify files outside this list without flagging it.
 - Requires existing hook: `[hook name]` — [what it returns]
 
 ## Constraints
-- Follow Sparkfluence design system (emerald + charcoal, NOT purple)
-- Use existing Shadcn UI components for Dialog, Popover, Select, Tooltip, Tabs
-- Use Framer Motion for animations (200-300ms, no bounce/spring)
-- Use lucide-react for icons (NOT emoji)
-- TypeScript strict mode — no `any` types unless absolutely necessary
-- All file paths must be absolute (Windows backslash format)
-- Do NOT run npm install, deploy, push, or server commands
+
+[Fill these from the TARGET PROJECT's CLAUDE.md and its `DESIGN.md` token contract. Never carry
+another project's palette, component library, or shell conventions into this block — a subagent
+told to use the wrong design system will follow the instruction, not notice the mismatch. The
+lines below are the SHAPE to fill, not defaults to keep.]
+
+- Design system: `[tokens from the project's DESIGN.md — colours, fonts]`
+- Component library: `[the one this project already depends on]`
+- Animation: `[the project's motion convention, or "none documented"]`
+- Icons: `[the project's icon library]` — never emoji as icons
+- Language/strictness: `[e.g. TypeScript strict — no implicit any]`
+- Path and shell conventions: `[from the project's CLAUDE.md]`
+- Do NOT run install, deploy, push, or long-running server commands
 
 ## Self-Review Checklist
 
@@ -209,9 +217,9 @@ Before submitting your implementation, verify ALL of the following:
 - [ ] Existing hooks/contexts are reused (not duplicated)
 
 ### Design System
-- [ ] Colors match the palette (#0B0E14, #161616, #10B981, etc.)
-- [ ] No purple (#7C3AED) used anywhere
-- [ ] Tailwind classes follow Sparkfluence component patterns
+- [ ] Colours come from the project's `DESIGN.md` contract — no hardcoded hex outside it
+- [ ] No colour, font, or component style imported from a different project's system
+- [ ] Utility classes follow this project's existing component patterns
 - [ ] Glassmorphism only on sticky headers/overlays/modals
 - [ ] Retention borders follow type-to-color mapping
 

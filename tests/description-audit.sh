@@ -4,7 +4,7 @@
 # A skill `description` field must contain ONLY triggering conditions
 # ("Use when ...") — never a workflow/mechanism summary. The description
 # loads into every session and Claude follows it as a shortcut instead of
-# reading the full skill body (see skills/gaspol-write-skill/SKILL.md).
+# reading the full skill body.
 #
 # For each skills/gaspol-*/SKILL.md, extracts the YAML `description` value,
 # strips the leading "Use when ..." (trigger-condition) clause, and FAILS

@@ -3,7 +3,7 @@ name: gaspol-verify
 description: "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs."
 ---
 
-# Sparkfluence Verify
+# gaspol-verify
 
 Enhanced verification that goes beyond "does it compile?" to "does it match what was planned?"
 
@@ -91,13 +91,37 @@ Report each executed check the same way regardless of level name (`static`/`lint
 
 ### Live App Check (mandatory for UI / user-visible changes)
 
-For any change touching UI or user-visible behavior, Layer 1 must also invoke the `run` skill
-(the harness's app-launch skill) to actually launch the app and observe the feature live — not
-only `npm run build` / `npx tsc --noEmit` / `npm test` / lint. A passing per-phase gate is not by
-itself a quality claim — defects have shipped past green unit tests and per-feature e2e,
-surfacing only in cross-file integration and real browser/app use. Non-UI, non-user-visible
-changes (pure backend logic, config, docs) skip this check — note "Live app check: N/A (no
-UI/user-visible surface)".
+Everything else in this layer is static: it compiles, the tests pass, the build succeeds. All of
+that can be true of an app that does not work. This is the only check that answers *does it
+actually run* — and defects have shipped past green unit tests and per-feature e2e, surfacing only
+in real browser or device use.
+
+**Derive the lane, never assume it:**
+
+```bash
+skills/gaspol-execute/scripts/detect-app-target <project-root>
+```
+
+Full protocol: **[skills/_shared/live-app-check.md](../_shared/live-app-check.md)** — read it
+rather than improvising; the two lanes have different preconditions and one of them gaspol cannot
+satisfy on its own.
+
+- **web** → start the app, wait **by condition** (never a fixed sleep), drive the changed surface
+  through the **Playwright MCP**, capture a screenshot + console output + failed requests.
+- **android / ios / flutter** → probe first (`adb devices`, `xcrun simctl list devices booted`).
+  A run needs **a device connected over USB with debugging enabled, or a booted emulator**, and
+  gaspol cannot plug in a phone. No device → **AskUserQuestion**: connect one / let gaspol *offer*
+  to boot a simulator / skip. Tooling missing → `UNKNOWN`, STOP and ask.
+- **no lines printed** → `live-app-check: no app surface`. Not a failure, not a pass.
+
+**The rule that outranks the rest:** a check that did not run is recorded as **not run**, never as
+passed — the same rule this skill's chain already applies to an unavailable `/security-review`. A
+lane that could not run and got summarised as "verified" leaves the gate worse than useless,
+because now somebody believes it was checked.
+
+`N/A` stays available for pure backend, config and docs changes, **with the reason written down** —
+`live-app-check: N/A — no UI or user-visible surface (<reason>)`. An unusable gate gets switched
+off, which costs more than the false alarms it prevents.
 
 ### Evidence Format
 ```
@@ -117,7 +141,7 @@ TECHNICAL VERIFICATION (detect-stack: no stack markers, using plan-declared comm
 ### Evals (for non-deterministic / LLM features)
 
 If the work includes an LLM/prompt/agent feature, deterministic tests are not
-sufficient evidence. Run the evals defined for it (`gaspol-llm-test`, `docs/evals/<feature>.md`)
+sufficient evidence. Run the evals defined for it (`docs/evals/<feature>.md`)
 and report pass@k — a single successful demo is not verification.
 
 ```

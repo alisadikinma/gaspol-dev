@@ -208,16 +208,38 @@ assert_not_grep "CLAUDE.md still documents the old .gaspol/progress/<slug>.md le
 # Version must be byte-identical across plugin.json, marketplace.json and
 # CLAUDE.md's footer — a mismatch here means the release docs drifted from
 # the shipped plugin metadata.
-echo "-- checking version string is identical across plugin.json / marketplace.json / CLAUDE.md --"
+echo "-- checking version string is identical across plugin.json / marketplace / CLAUDE.md --"
 plugin_version="$(grep -m1 '"version"' .claude-plugin/plugin.json | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
-marketplace_version="$(grep -m1 '"version"' .claude-plugin/marketplace.json | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
 claude_md_version="$(grep -m1 '\*\*Version:\*\*' CLAUDE.md | sed -E 's/\*\*Version:\*\* *//')"
-if [[ -n "$plugin_version" && "$plugin_version" == "$marketplace_version" && "$plugin_version" == "$claude_md_version" ]]; then
-  echo "PASS: version string identical across plugin.json ($plugin_version), marketplace.json, CLAUDE.md"
+if [[ -n "$plugin_version" && "$plugin_version" == "$claude_md_version" ]]; then
+  echo "PASS: version string identical across plugin.json ($plugin_version) and CLAUDE.md"
 else
-  echo "FAIL: version string mismatch — plugin.json=$plugin_version marketplace.json=$marketplace_version CLAUDE.md=$claude_md_version"
+  echo "FAIL: version string mismatch — plugin.json=$plugin_version CLAUDE.md=$claude_md_version"
   FAILURES=$((FAILURES + 1))
 fi
+
+# The marketplace manifest lives in the gaspol-one repo since 50fbbb1. Three
+# states, kept apart: agreed / UNKNOWN / not checked. "Not checked" is printed,
+# never counted as a pass — a dead gate reporting green is what this repairs.
+mm_path="$(tests/ticket-scripts/marketplace-manifest)"; mm_rc=$?
+case "$mm_rc" in
+  0)
+    marketplace_version="$(grep -m1 '"version"' "$mm_path" | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
+    if [[ "$plugin_version" == "$marketplace_version" ]]; then
+      echo "PASS: marketplace manifest agrees on version ($marketplace_version)"
+    else
+      echo "FAIL: marketplace manifest disagrees — plugin.json=$plugin_version marketplace=$marketplace_version ($mm_path)"
+      FAILURES=$((FAILURES + 1))
+    fi
+    ;;
+  3)
+    echo "FAIL: marketplace-manifest UNKNOWN — configured and unreadable"
+    FAILURES=$((FAILURES + 1))
+    ;;
+  4)
+    echo "SKIP: marketplace manifest not present — cross-repo version agreement NOT checked"
+    ;;
+esac
 
 echo "test-naming-convention: checking gaspol-worktree carries ticket-document conventions (Phase G)..."
 

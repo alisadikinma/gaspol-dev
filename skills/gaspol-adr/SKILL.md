@@ -205,7 +205,7 @@ Notify caller skill (brainstorm/plan) that ADR is captured with id. Caller can r
 
 ```
 Found relevant past decisions:
-  • ADR-2026-03-15-zustand-state-mgmt (project: sparkfluence, tags: state-management)
+  • ADR-2026-03-15-zustand-state-mgmt (project: <project>, tags: state-management)
     Verdict: chose Zustand over Redux for small apps
   • ADR-2026-01-08-react-query-vs-swr (project: portfolio-v2, tags: data-fetching)
     Verdict: chose React Query for SSR support
@@ -236,7 +236,7 @@ Found relevant past decisions:
 | `gaspol-brainstorm` Phase 0.5 | Grep the notes for the `design-decisions` tag |
 | `gaspol-plan` | Captures architectural forks within phases |
 | `gaspol-research` | Research verdicts feed into ADR "References" section |
-| `gaspol-kb-audit` | Flags stale ADRs (accepted >180 days without validation) |
+| the store's own promoter (outside gaspol) | Promotes and retires ADRs; gaspol writes `proposed` and records `last_validated`, it does not police staleness |
 | `gaspol-learn` | ADRs as captured patterns in KB |
 
 ---

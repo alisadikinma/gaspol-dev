@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **20 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.9 (the always-on **Laziness Ladder** absorbed from the ponytail plugin — a SCOPE governor that pairs with the fidelity Iron Laws so code is both real and minimal).
+Claude Code plugin providing **17 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
 
 ## Architecture
 
@@ -22,8 +22,13 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 |------|---------|
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author) |
 | `hooks/hooks.json` | SessionStart hook definition |
-| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Laziness Ladder into every session (loads `using-gaspol`) |
-| `skills/_shared/laziness-ladder.md` | **NEW (v1.9)** — the default lazy-coding stance (absorbed from the ponytail plugin): YAGNI → stdlib → native → existing dep → one line ladder, with the explicit SCOPE-vs-FIDELITY boundary. Single source referenced by plan/execute/parallel + the session-start hook |
+| `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Completeness Ladder into every session (loads `using-gaspol`) |
+| `skills/_shared/completeness-ladder.md` | **NEW (v1.20)** — the default coding stance: happy path → every error path → every edge case → the tests that prove them → observability → the comment explaining why, walked DOWN in full. Carries the Reuse Rule (stdlib → native → installed dep) and the scope-cut Red Flags. **Replaced `laziness-ladder.md`**, whose first rung asked whether the work needed to exist at all. Single source referenced by plan/execute/parallel + the session-start hook |
+| `skills/_shared/batch-gate.md` | **NEW (v1.20)** — one report, one ticket. States the default, the three split reasons, the never-split list, and the hard ceiling of two. Read by `gaspol-brainstorm` and `gaspol-debug`; the threshold is deliberately not repeated in either, for the reason `fix-loop.md` was extracted |
+| `skills/gaspol-plan/logic-design-artifact.md` | **NEW (v1.20)** — the five-section contract for the reviewable artifact logic-only work now owes: before/after behaviour (current path quoted from real code), mermaid flow, data-flow table reusing the Data Integration Map columns, edge-case matrix (empty = failed gate), and the blast-radius statement |
+| `skills/_shared/live-app-check.md` | **NEW (v1.23)** — the only check that answers *does it actually run*. Two lanes with different preconditions: **web** starts the app, waits by condition, and drives the changed surface through the **Playwright MCP**; **mobile** needs a device over USB debugging or a booted emulator, which gaspol cannot provide — so it probes, offers, and asks. A lane that could not run is recorded as **not run**, never as passed |
+| `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
+| `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
 | `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
@@ -32,7 +37,7 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
-| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 20 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
+| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 17 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
 | `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -60,18 +65,15 @@ Claude Code plugin providing **20 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
-| `skills/gaspol-llm-test/SKILL.md` | **NEW (v1.4)** — Eval-driven dev for non-deterministic/LLM features (capability + regression evals, pass@k, 3 grader types); complements tdd (ECC port) |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
 | `skills/gaspol-finish/SKILL.md` | Branch completion with BLOCKING plan-verifier + merge/PR/cleanup |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
-| `skills/gaspol-write-skill/SKILL.md` | Skill creation with TDD (RED-GREEN-REFACTOR for skills) + **BLOCKING Step 0 Prior-Art Search (v1.15)** — three lookups before any skill is written |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
 | `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
 | `skills/gaspol-learn/SKILL.md` | **NEW** — Quality-gated post-ship pattern capture to KB |
-| `skills/gaspol-kb-audit/SKILL.md` | **NEW** — Periodic KB health check (stale, dup, conflict, orphan) |
 | `skills/gaspol-auto/SKILL.md` | **NEW** — Autonomous execution with hard-stop guardrails |
 | `agents/code-reviewer.md` | Code review between commits (model: sonnet) |
 | `agents/code-simplifier.md` | Simplify and refine code for clarity (model: haiku) |
@@ -120,7 +122,6 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Need isolated workspace / protect current branch | `gaspol-worktree` (auto-invoked by parallel Phase 0) |
 | Session start / "which skill applies?" / enforce auto-trigger | `using-gaspol` (loaded by session-start bootstrap) |
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
-| Implement an LLM/prompt/agent (non-deterministic) feature | `gaspol-llm-test` (define + run evals; complements `gaspol-tdd`) |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
 | Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (also auto-run by execute Step 3.6 + finish gate) |
@@ -128,11 +129,9 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
-| Create or edit a skill | `gaspol-write-skill` |
 | Research external library/API/pattern | `gaspol-research` |
 | Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
 | Capture patterns after shipping | `gaspol-learn` (auto-triggered by finish) |
-| Audit KB health (stale, duplicates, conflicts) | `gaspol-kb-audit` (quarterly) |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
@@ -143,9 +142,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | "Plan this feature" | invoke `gaspol-brainstorm` or `gaspol-plan` |
 | "Review this code" | invoke `gaspol-review` |
 | "I'm done with this branch" | invoke `gaspol-finish` (which triggers plan-verifier + sync-docs + learn) |
-| "Write a new skill" | invoke `gaspol-write-skill` |
 | "Research X vs Y" | invoke `gaspol-research` (cache-aware) |
-| "Audit the knowledge base" | invoke `gaspol-kb-audit` |
 
 ### Priority Order
 
@@ -165,7 +162,7 @@ When multiple skills apply:
 `gaspol-brainstorm`, `gaspol-plan`, `gaspol-review`, `gaspol-research`
 
 **Meta-skills** — apply to plugin ecosystem:
-`gaspol-write-skill`, `gaspol-sync-docs`, `gaspol-kb-audit`, `using-gaspol` (auto-trigger bootstrap)
+`gaspol-sync-docs`, `using-gaspol` (auto-trigger bootstrap)
 
 ## Key Concepts
 
@@ -197,7 +194,6 @@ Parallel branches:
 - `gaspol-parallel mode:independent-domains` — for unrelated multi-domain problems
 - `gaspol-research` — invoked from brainstorm Phase 1.5 (NEW novelty) or standalone
 - `gaspol-adr` — invoked from brainstorm Phase 2 (approach picked) or plan fork point
-- `gaspol-kb-audit` — periodic (quarterly) or size-triggered, independent
 
 ### CLAUDE.md-First Approach
 
@@ -239,7 +235,7 @@ a shell export only exists for processes that inherited that shell.
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
-Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-kb-audit`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
 
 Structure — **flat, since v1.18** (see "One Knowledge Store" below, which supersedes this
 paragraph wherever they disagree):
@@ -294,22 +290,169 @@ LAW 3: NO COMPLETION CLAIM WITHOUT EVIDENCE
 | Mock function returning static data | PLACEHOLDER | `() => mockData` |
 | Commented-out API call | PLACEHOLDER | `// TODO: fetch` |
 
-### Laziness Ladder (NEW in v1.9) — absorbed from ponytail
+### Completeness Ladder (NEW in v1.20) — replaced the Laziness Ladder
 
-Default coding stance, always-on. Canonical source: `skills/_shared/laziness-ladder.md`. Injected ambiently by `hooks/session-start.sh` and enforced as an explicit gate in `gaspol-plan` (scope), `gaspol-execute`, and the `implementer-prompt.md` template (`gaspol-parallel`).
+Default coding stance, always-on. Canonical source: `skills/_shared/completeness-ladder.md`.
+Injected ambiently by `hooks/session-start.sh` and enforced as an explicit gate in `gaspol-plan`
+(coverage decided at plan time), `gaspol-execute`, and the `implementer-prompt.md` dispatch template.
 
-Write the laziest code that actually works. Before any code, stop at the first rung that holds: (1) does it need to exist? YAGNI → skip. (2) stdlib → (3) native platform feature → (4) already-installed dep → (5) one line → (6) only then minimum code. Fewest files, shortest diff, no unrequested abstractions. Mark deliberate cuts with a `ponytail:` comment.
+**Why it replaced v1.9's Laziness Ladder.** That ladder made a scope-cutting stance the default:
+rung 1 asked *"does this need to exist at all?"*, and its rules were *"fewest files possible,
+shortest working diff wins."* Its fidelity boundary held — no placeholders, no skipped tests — so
+the output stayed REAL. Nothing kept it COMPLETE, and shallow work breaches no boundary. Every task
+began by looking for a reason to do less, which is precisely the complaint that opened IDS-10:
+*"saya merasa versi baru ini malah semakin bodoh."*
+
+The reference the user named, `gstack/ETHOS.md` §1 "Boil the Ocean", takes the opposite position and
+lists the old ladder's own rules as anti-patterns — *"Choose B, it covers 90% with less code"* and
+*"let's defer tests to a follow-up PR"* — on the grounds that AI-assisted coding compresses test
+writing ~50x and feature implementation ~30x, so the last 10% of completeness now costs seconds.
+
+Walk DOWN and do every rung: (1) happy path, real integration; (2) every error path that can
+actually happen; (3) every edge case the input space allows — enumerate, don't sample; (4) the tests
+that prove 1-3, written first; (5) observability a 3am debugger needs; (6) the one comment
+explaining WHY. The only legitimate stop is genuinely unrelated work — flagged as separate scope,
+never as a reason to ship the shortcut.
 
 **Orthogonal, not conflicting — the two governors:**
 
-| Governor | Rule | Cuts |
-|----------|------|------|
-| 3 Iron Laws (fidelity) | build what the plan says, real data, evidence | correctness |
-| Laziness Ladder (scope) | build the minimum that satisfies it | bloat |
+| Governor | Rule | Guarantees |
+|----------|------|------------|
+| 3 Iron Laws (fidelity) | build what the plan says, real data, evidence | the code is REAL |
+| Completeness Ladder (coverage) | build all of what it says, including the paths nobody asked about | the code is WHOLE |
 
-**The boundary (must not be misread):** the ladder cuts SCOPE, never FIDELITY. It NEVER excuses a placeholder when a real integration is specified (`const data = []` awaiting an API is a Law-1 PLACEHOLDER, not a lazy one-liner), nor skipping validation/security/tests. A "lazy" move that crosses into fake data or a skipped safety check is negligent, not lazy. Structured reports (checkpoints, data-source tables, plan-verifier evidence) stay — their CONTENT is safety — but write them terse (hemat token = ringkas laporan, not less fidelity).
+**The Reuse Rule survived** from the old ladder's rungs 2-4, demoted from a scope rule to an
+implementation rule: prefer stdlib → native platform feature → already-installed dependency over
+code you author; no interface with one implementation, no factory for one product. Reuse cuts
+cleverness, never coverage — writing your own retry loop when the HTTP client ships one is *less*
+complete with more code. Deleted outright: rung 1 (YAGNI-skip), "fewest files / shortest diff wins",
+and the `ponytail:` comment convention, whose only purpose was recording a shortcut.
 
-**Relationship to peer plugins:** ponytail (global) governs code minimalism and is **absorbed here** so gaspol is self-contained on the coding path; caveman (global) governs prose voice — a different axis, deliberately NOT absorbed; RTK / context-mode compress tool OUTPUT at runtime — a different layer, help gaspol automatically, nothing to absorb.
+**The boundary (must not be misread):** completeness is depth on the REQUESTED work. It never
+excuses a placeholder where a real integration is specified (`const data = []` awaiting an API is a
+Law-1 violation however thorough the rest is), and it is not licence to build features nobody asked
+for — that is scope creep, flagged as separate scope like any unrelated work.
+
+**Relationship to peer plugins:** ponytail (global) governs code minimalism — its ladder was
+absorbed in v1.9 and is **no longer the gaspol stance**; what remains of it here is the Reuse Rule.
+caveman (global) governs prose voice — a different axis, deliberately not absorbed. RTK /
+context-mode compress tool OUTPUT at runtime — a different layer, nothing to absorb.
+
+### Live App Check (NEW in v1.23) — the gate that had no machine
+
+Canonical source: `skills/_shared/live-app-check.md`, driven by
+`skills/gaspol-execute/scripts/detect-app-target`, invoked from `gaspol-verify` Layer 1.
+
+`gaspol-verify` has carried a *"Live App Check (mandatory for UI / user-visible changes)"* since
+v1.14. Its entire content was an instruction — *"invoke the `run` skill to actually launch the app
+and observe the feature live"* — with nothing to detect what kind of app it was, nothing to check
+whether launching was even possible, and nothing to record what was seen. The same shape as IDS-7's
+design gate that was never wired up and IDS-8's setting that nothing read.
+
+**Two lanes, and the difference is the point.** IDS-12 closed the static half (compile, test,
+build). This closes the half that needs the product actually running — and the two lanes do not
+have the same preconditions:
+
+| Lane | Precondition | Can gaspol satisfy it? |
+|---|---|---|
+| web | an app serving a URL | **yes** — start it, wait **by condition** (never a fixed sleep), drive the changed surface through the **Playwright MCP**, capture screenshot + console + failed requests |
+| android / ios / flutter | a device connected over **USB debugging**, or a booted emulator | **no.** gaspol cannot plug in a phone. It probes, **offers** to boot a simulator, and asks |
+
+**`adb devices` has four outcomes, not two**, and conflating them wastes the user's time in a
+specific way: `device` (ready) · **`unauthorized`** (plugged in, RSA prompt not accepted — telling
+them to connect a phone they already connected is the useless reply) · `offline` (stale server,
+restart once) · nothing (no device, ask).
+
+**Finding adb is itself a defect class.** `command -v adb` alone returned nothing on the first
+machine this ran on, while adb sat at `~/Library/Android/sdk/platform-tools/adb` with
+`ANDROID_HOME` unset — Android Studio does not put adb on PATH and most people never export the
+variable, so that is the *common* case. Under this plugin's own contract a false `UNKNOWN` means
+STOP-and-ask for a tool that is right there. A detector wrong in the common case is worse than no
+detector, because its wrongness looks like a finding.
+
+**The rule that outranks the rest:** a check that did not run is recorded as **not run**, never as
+passed — the rule `gaspol-finish` already applies to an unavailable `/security-review`. A mobile
+lane that could not run and got summarised as "verified" leaves the gate worse than useless,
+because now somebody believes it was checked. `N/A` stays available for pure backend, config and
+docs changes **with the reason written down**: an unusable gate gets switched off, which costs more
+than the false alarms it prevents.
+
+**Forbidden verdicts**, because an adjective is not an observation: "looks right", "should work
+now", "the tests pass so the app works", and any pass with no screenshot attached.
+
+### Verification Loop (NEW in v1.22) — the hot path stopped only reading
+
+Canonical source: `skills/_shared/verification-loop.md`. Wired into `gaspol-execute` as a
+**Step 7 baseline** (before Phase A) and a **per-phase ladder** (before each checkpoint);
+`gaspol-parallel`'s Validation Ladder now defers to the same file.
+
+**The defect, verified by grep on 1.21.0:**
+
+```
+grep -n "detect-stack|npm test|Validation Ladder" skills/gaspol-execute/SKILL.md   →  0 hits
+```
+
+`gaspol-execute` runs on almost every job and executed **nothing**. Its per-phase "Auto-Review"
+dispatched a model to *read* the code; the Validation Ladder existed since v1.8 but only in the
+dispatch templates and `gaspol-parallel`. Everything executable was deferred to `gaspol-verify` at
+the very end — the slowest and most expensive place to find a type error, and far enough from the
+cause that the fix becomes archaeology.
+
+A gate that reads produces an opinion. A gate that runs produces evidence, which is what the Iron
+Laws already demand.
+
+**Three parts, each closing a specific way the loop fails:**
+
+| Part | Without it |
+|---|---|
+| **Baseline before Phase A** (`verification-baseline:` in the ledger; red baseline → STOP and ask) | a suite that was already red is blamed on Phase A, and the fix loop burns its rounds on somebody else's failure — the reason `gaspol-finish` gained Step 0 in IDS-9 |
+| **Proportionality** (docs-only / config-only / rename-only skip L2-L3; explicit skips only) | a one-line docs phase pays for a full build. IDS-10 removed the scope governor, and this is where its absence would show first |
+| **Verbatim error text into the fix** | a paraphrased error converts a fact you already hold into a guess |
+
+**The gate:** a phase **may not be ticked** `[x]` until its ladder ran and every applicable level
+passed or was explicitly skipped with a reason. It is the TDD gate's mirror — TDD refuses a phase
+with no failing test *before*, this refuses one with no passing run *after*. The round cap comes
+from `skills/_shared/fix-loop.md` and is deliberately not repeated.
+
+**What this does NOT do, and it matters.** It verifies that code compiles, tests pass and the build
+succeeds. It does **not** verify that the running product behaves correctly — no browser, no real
+request. That gap is the open `/qa` lane and IDS-6's deferred Part B, and this ticket does not
+close it. Claiming otherwise would make a partial gate read as a whole one.
+
+### Batch Gate (NEW in v1.20) — one report, one ticket
+
+Canonical source: `skills/_shared/batch-gate.md`, read by `gaspol-brainstorm` (Phase 1, above the
+decompose gate) and `gaspol-debug` (top of Phase 1, because bug reports route straight to debugging
+and never reach brainstorm).
+
+Five defects reported in one message used to mint five tickets. Nothing was counting, and the only
+rule on the topic pushed the other way — brainstorm's decompose gate says *"Each sub-project gets
+its own spec → plan → implement cycle."* The missing question sits **upstream** of decompose:
+decompose asks *"one project or several?"*, and nothing first asked *"one piece of WORK or
+several?"*. Five bugs in one subsystem are one piece of work.
+
+**Default: one ticket.** Split into two only when the items touch disjoint subsystems **and** the
+combined plan exceeds the phase threshold, or one item blocks another, or the user asked. Never for
+"they are different bugs", "different files", or "the ticket would be big". **Ceiling: two** — a
+third requires `AskUserQuestion`. `next-ticket` is called once per batch, not once per item.
+
+Batching changes the container, never the coverage: each item becomes its own plan phase, ordered
+by severity, keeping its own regression test. A dropped item is an Iron Law 2 violation.
+
+### Design Artifact Gate (NEW in v1.20) — logic-only work owes one too
+
+`gaspol-plan` **Step 0** is now BLOCKING and unconditional: every plan produces exactly one design
+artifact, approved by a human, before `gaspol-execute` will start. Two lanes — UI work renders a
+mockup via `ui-ux-pro-max`; everything else produces the **Logic Design Artifact**
+(`skills/gaspol-plan/logic-design-artifact.md`), published as an HTML Artifact.
+
+It exists because brainstorm Phase 2.5 offered `[No, pure backend/logic]` and that branch skipped
+design entirely, while the post-plan artifact step was opt-in with "Skip" as one of two answers. For
+an enhancement that changes behaviour but not pixels, the first reviewable thing was the diff.
+
+Verdict is recorded twice — `**Artifact:** <url>` in the plan header, `design-artifact: approved —
+<url>` in the ledger, which is the line `gaspol-execute` reads. **Three states, and "not applicable"
+is deliberately not one of them** — that state was the defect.
 
 ### Measured Trims (NEW in v1.16) — what the token audit actually found
 
@@ -330,7 +473,8 @@ three of its findings changed the code:
   TDD step-1 phrasing). The consulted Red Flags / Rationalizations table moved into
   `anti-placeholder-rules.md` rather than being deleted. A project-specific leak in an agnostic
   plugin ("Sparkfluence", named hooks) went with it.
-- `gaspol-write-skill`'s three heavy references (~11.9k tokens) turned out to be **orphans** —
+- `gaspol-write-skill`'s three heavy references (~11.9k tokens) turned out to be **orphans** (the
+  whole skill was deleted in IDS-11; this stays as the record of what the audit found) —
   SKILL.md never referenced them at all, they only referenced each other. The audit's premise
   (eagerly loaded) was wrong; the fix is a pointer table naming the question each answers, read
   only when that question is live.
@@ -506,10 +650,13 @@ class as the `kb-root` finding this section resolves, not a lesser one. Recordin
 *six* would have carried two runnable invocations out of the next ticket's scope by omission. The
 count is the scope: an undercounted deferral is how a known hazard becomes an unknown one.
 
-**Deferred, named rather than forgotten.** `gaspol-kb-audit` now overlaps `superbrain-promote`
-almost completely — both are scan → cluster → per-finding human decision → apply → audit log.
-Not resolved here because they are **not like-for-like**: one is public and agnostic, the other
-private and hardcoded to one vault.
+**Deferred here, RESOLVED in IDS-11.** `gaspol-kb-audit` overlapped `superbrain-promote` almost
+completely — both are scan → cluster → per-finding human decision → apply → audit log. IDS-8 left
+it standing because they are **not like-for-like**: one is public and agnostic, the other private
+and hardcoded to one vault. IDS-11 **deleted** `gaspol-kb-audit`; that reason was about keeping
+gaspol usable by strangers, and it stopped applying once the plugin was narrowed to its owner's
+coding loop. Promotion now belongs to the store's own promoter. See "Knowledge-store maintenance is
+NOT gaspol's job" below.
 
 **Scope boundary.** This merges knowledge *capture*. It does not touch `~/.claude/projects/<…>/memory/`
 (Claude Code operational feedback), and it does not merge the two brains into each other — the
@@ -611,7 +758,8 @@ Invoked BLOCKING from:
 ### Prior-Art Gate (NEW in v1.15)
 
 **Nothing gets built in-house before somebody looks whether it already exists.**
-Canonical source: `gaspol-write-skill` **Step 0: Prior-Art Search (BLOCKING)**.
+Canonical source: `skills/_shared/prior-art-gate.md` (extracted from the deleted
+`gaspol-write-skill` in IDS-11 and generalised in the move).
 
 The v1.14 deletions below are the baseline failure this gate exists to prevent: two
 skills built, two skills deleted, zero prior-art searches. Three lookups, because each
@@ -640,7 +788,7 @@ never blocks the skill; an unrun search is reported as unrun, never as empty):
 
 | Where | Trigger |
 |---|---|
-| `gaspol-write-skill` Step 0 | any new skill — **BLOCKING** |
+| `skills/_shared/prior-art-gate.md` | anything built in-house — **BLOCKING** |
 | `gaspol-brainstorm` Phase 1.5, `NEW` branch only | no KB hit AND no project pattern — probe before deep research |
 | `gaspol-research` gather lane 6 | reported as a research candidate, never installed by research |
 
@@ -682,21 +830,41 @@ Anti-AI-slop enforcement rules:
 
 Output format: Aesthetic Direction → Color Palette (hex codes) → Typography (font pairings) → Component Examples (code in detected stack) → Layout Blueprint (ASCII) → Component States → Motion Plan → Accessibility → Anti-AI-Slop Self-Check
 
-### KB Self-Maintenance (NEW in v1.2)
+### Knowledge-store maintenance is NOT gaspol's job (CHANGED in v1.21, IDS-11)
 
-`gaspol-kb-audit` skill keeps KB from becoming sampah:
+`gaspol-kb-audit` was **deleted**. IDS-8 had already recorded that it overlapped
+`superbrain-promote` almost completely — both are scan → cluster → per-finding human decision →
+apply → audit log — and deferred the resolution only because *"they are not like-for-like: one is
+public and agnostic, the other private and hardcoded to one vault."* That reason was about keeping
+gaspol usable by strangers; it stopped applying once the plugin was narrowed to its owner's coding
+loop.
 
-6 check types:
-1. Stale (status=accepted, last_validated >180d)
-2. Duplicates (title >80% overlap + tag overlap ≥80%)
-3. Conflicts (same tag+domain, different verdicts)
-4. Orphans (source_project no longer exists locally)
-5. Broken refs (supersedes/superseded_by pointing to nonexistent)
-6. Unpromoted proposed (>90d without validation)
+What this means in practice, and it is a **reduction in scope, not a hidden capability**:
 
-Per-finding resolution via AskUserQuestion: `[Promote]` / `[Supersede]` / `[Archive]` / `[Merge]` / `[Keep — bump last_validated]`
+- gaspol writes `status: proposed` and nothing else. It always did.
+- **Promotion belongs to the store's own promoter** — `superbrain-promote` where the knowledge store
+  resolves inside the owner's vault. Where no vault is configured, promotion is manual and entries
+  stay `proposed` forever, which is honest: an entry pointing at a promoter that is not installed
+  reads as handled.
+- The old health thresholds (🟢 <10% stale / 🟡 10-25% / 🔴 >25% blocks new captures) are **gone**,
+  not moved. Nothing implements them any more, and a rule with no enforcer is the
+  promise-with-no-implementation shape IDS-7 and IDS-8 were both about.
+- Research freshness is unaffected: the tiers live in `gaspol-research` itself and are checked when
+  an entry is read, not swept on a schedule.
 
-Health thresholds: 🟢 Green <10% stale | 🟡 Yellow 10-25% stale → audit recommended | 🔴 Red >25% stale → mandatory audit blocks new captures
+Two other skills went in the same ticket, for their own reasons:
+
+| Deleted | Size | Why | What was rescued |
+|---|---|---|---|
+| `gaspol-write-skill` | 80K, 4 files | largest skill in the repo, fires only when authoring a skill | **Step 0** → `skills/_shared/prior-art-gate.md`, generalised from "before any skill is written" to "before anything is built in-house". Its supply-chain rules (never `npx skills add -y`, read the candidate's SKILL.md, install count is popularity not an audit, every installed skill is a permanent per-session context tax) were the plugin's ONLY ones |
+| `gaspol-llm-test` | 8K | eval-driven dev for non-deterministic features; two live referrers | the RULE, inline: `gaspol-plan` still plans `docs/evals/<feature>.md` for non-deterministic work and `gaspol-verify` still runs them. Unit tests miss LLM regressions — that fact did not change |
+
+**Deliberately kept**, and the reasoning matters more than the list: `using-gaspol` is the
+auto-trigger backbone the session hook loads; deleting it would make the *coding* skills fire less
+often, which is the opposite of narrowing to coding. `gaspol-adr`, `gaspol-learn` and
+`gaspol-research` are the knowledge base's only writers, and `gaspol-brainstorm` Phase 0.5 is its
+reader — remove the writers and the reader becomes a gate that scans an empty folder every session,
+paying a cost that can never return anything.
 
 ### Brainstorming Flow (gaspol-brainstorm) — UPDATED in v1.2, hardened in v1.5
 
@@ -945,16 +1113,6 @@ NEVER autonomous: merge-to-main, force-push, PR creation, external messaging, pl
 
 Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated report.
 
-### Writing Skills (gaspol-write-skill)
-
-TDD applied to process documentation:
-
-- **RED**: Run agent WITHOUT skill, document failures
-- **GREEN**: Write minimal SKILL.md addressing each failure
-- **REFACTOR**: Re-test WITH skill, close loopholes
-
-SKILL.md frontmatter `description` must start with "Use when..." — triggering conditions ONLY, NEVER summarize the workflow (Claude follows summary instead of reading full skill).
-
 ## Red Flags: Rationalizations for NOT Invoking Skills
 
 | Rationalization | Why It's Wrong |
@@ -999,14 +1157,17 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 | Generic "Inter font" recommendation | anti-AI-slop rules bypassed — check `skills/gaspol-verify/rules/anti-ai-slop.md` |
 | Design not integrated in plan | Phase 2.5 gate skipped — UI detection may need explicit AskUserQuestion |
 | KB growing with junk | `gaspol-learn` quality gate not enforced — require min 200 words, tags, no duplicates |
-| Old ADRs surfacing as precedent | `gaspol-kb-audit` overdue — run quarterly |
 
 ## Conventions for Contributors
 
 ### Adding a New Skill
 
+0. **Run the Prior-Art Gate first** — `skills/_shared/prior-art-gate.md`, BLOCKING. Three lookups,
+   verdict `NONE` / `EXISTS` / `DELTA` recorded before a line of SKILL.md is written. Two skills
+   were built and deleted in one release for want of this.
 1. Create `skills/gaspol-<name>/SKILL.md` with YAML frontmatter including `description` starting "Use when..."
-2. Follow RED-GREEN-REFACTOR process from `gaspol-write-skill`
+2. Apply RED-GREEN-REFACTOR to the skill itself: run an agent WITHOUT the skill and record where it
+   fails, write the minimum SKILL.md that closes each failure, then re-run and close the loopholes
 3. Update this CLAUDE.md with skill entry in Architecture and Skill Routing tables
 4. Update `hooks/session-start.sh` routing block AND `skills/using-gaspol/SKILL.md` routing table to include the new skill
 5. Update `.claude-plugin/plugin.json` skill count / version, and the matching entry in the [gaspol-one marketplace](https://github.com/alisadikinma/gaspol-one) (`.claude-plugin/marketplace.json` there) — this repo no longer carries its own marketplace file
@@ -1030,9 +1191,9 @@ SKILL.md frontmatter `description` must start with "Use when..." — triggering 
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-9
+Last ticket: IDS-13
 
 ---
 
-**Version:** 1.19.0
+**Version:** 1.23.0
 **Last Updated:** August 2026

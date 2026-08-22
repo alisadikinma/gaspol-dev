@@ -90,7 +90,7 @@ unrequested change.
 Found relevant past work:
   • [image-generation-ui](ui-patterns/image-generation-ui.md)
     Tags: [image-gen, gallery, 3-pane]
-    Source: sparkfluence 2026-03 — 🟢 accepted
+    Source: <project> 2026-03 — 🟢 accepted
     Hook: 3-pane layout (prompt + preview + history) works best
 
   • [ADR-2026-02-10: state-mgmt-zustand](design-decisions/...)
@@ -116,6 +116,23 @@ If no KB matches, proceed silently to Phase 1.
 Saves additional 10-30k tokens per session by avoiding re-exploration of solved problems.
 
 ## Phase 1: Understanding the Idea
+
+### Batch Gate (BLOCKING — before classifying, before any question)
+
+```
+A request carrying MORE THAN ONE item is ONE ticket by default.
+Splitting needs a reason from the closed list. The ceiling is two.
+```
+
+Full rule, thresholds, and Red Flags: `skills/_shared/batch-gate.md`. Read it whenever a
+request carries more than one item; do not restate its numbers here.
+
+State the ruling out loud before anything else — *"Five items, one ticket: same subsystem"* —
+then classify that ONE piece of work through the Three Paths below. Every item becomes its own
+phase of the one plan, ordered by severity, each keeping its own regression test.
+
+If the rule says split, say which reason applies. If you want a third ticket, you do not get
+one: ask via **AskUserQuestion**.
 
 ### Three Paths: Classify Before Asking
 
@@ -156,12 +173,16 @@ artifact weight (spec file / short in-chat design / probe plan), never in whethe
 approval is required before implementation.
 
 - Check project state (branch, recent commits)
-- **Decompose gate (BEFORE refining details):** if the request spans multiple independent
-  subsystems (e.g. "build a platform with chat, file storage, billing, and analytics"),
-  flag it immediately — do NOT spend clarifying questions on a project that must be
-  decomposed first. Help the user split it into sub-projects: what are the independent
-  pieces, how do they relate, what build order? Then brainstorm the FIRST sub-project
-  through the normal flow. Each sub-project gets its own spec → plan → implement cycle.
+- **Decompose gate (AFTER the Batch Gate, BEFORE refining details):** this gate is for a
+  request that is genuinely several *projects* — "build a platform with chat, file storage,
+  billing, and analytics" — never for a request that is several *items of one job*. The Batch
+  Gate above has already ruled on that, and its ruling stands: a list of defects in one
+  subsystem reaches this gate as ONE piece of work and passes straight through.
+  When it really is multi-project: flag it immediately — do NOT spend clarifying questions on a
+  project that must be decomposed first. Help the user split it into sub-projects: what are the
+  independent pieces, how do they relate, what build order? Then brainstorm the FIRST
+  sub-project through the normal flow. Each sub-project gets its own spec → plan → implement
+  cycle.
 - Ask questions ONE at a time using the **AskUserQuestion** tool (MANDATORY)
 - EVERY clarifying question MUST use `AskUserQuestion` with selectable options — this shows an interactive popup modal for the user to pick from
 - Format: provide a clear question text + 3-5 option strings (include "Something else" as last option for custom input)
@@ -186,7 +207,7 @@ Classify task novelty to decide research level:
       (skills.sh). No precedent anywhere in-house is exactly when somebody
       else's packaged, battle-tested skill is the better answer than a design
       you invent. NEVER auto-install what it returns — the install rules live
-      in gaspol-write-skill Step 0 and apply here unchanged.
+      in `skills/_shared/prior-art-gate.md` and apply here unchanged.
     → Then invoke gaspol-research skill (deep research, ~20 min, cached to KB)
     → Wait for research output before Phase 2
 ```
@@ -227,22 +248,33 @@ Trade-offs:
 - Grounded in research, not generic
 ```
 
-## Phase 2.5: Design Gate (architectural path only — if UI work detected)
+## Phase 2.5: Design Gate (architectural path only — which design lane, never whether)
 
 ```
+This gate routes; it never exempts. Every ticket produces exactly one design
+artifact before code starts (gaspol-plan Step 0, BLOCKING). What this phase
+decides is WHICH kind.
+
 If Phase 3 design triggers fire from Phase 1 intent keywords OR file extension hints OR approach involves UI:
-  → Phase 3 auto-triggers (proceed)
+  → Phase 3 auto-triggers (UI lane: ui-ux-pro-max)
 
 If Phase 3 triggers are AMBIGUOUS (mixed signals — some UI, some backend):
   → AskUserQuestion explicitly:
      "Apakah task ini butuh design UI/UX intelligence?"
-     [Yes, include design phase]
-     [No, pure backend/logic]
-     [Minimal UI, no design needed]
+     [Yes, include design phase]                    → UI lane
+     [No UI — logic design artifact at plan stage]  → logic lane
+     [Minimal UI, tokens only]                      → UI lane, tokens scope only
 
 If clearly non-UI (pure backend/API/DB/business logic):
-  → Skip Phase 3, proceed to Phase 4
+  → Skip Phase 3 and proceed to Phase 4 — the LOGIC lane, not "no design".
+    gaspol-plan Step 0 will produce the logic design artifact
+    (`skills/gaspol-plan/logic-design-artifact.md`) once the plan is written.
 ```
+
+**Skipping Phase 3 is not skipping design.** Phase 3 is the *UI* design phase; the logic lane's
+artifact is produced later, at plan stage, because it describes the flow the plan lays out. What
+was removed here is the branch that led to no artifact at all — logic work whose first reviewable
+output was the diff.
 
 Design triggers (Phase 3 fires if any match):
 
@@ -379,7 +411,9 @@ Before finalizing:
 
 ## Phase 6: Documentation (Spec File)
 
-- (architectural path only) Mint this feature's ticket before writing the file:
+- (architectural path only) Mint this feature's ticket before writing the file. **once per batch** — the Batch Gate in Phase 1 already decided how many tickets exist, and this step
+  never re-opens that. Five reported items that batched into one ticket call `next-ticket`
+  exactly once:
   1. Run `skills/gaspol-execute/scripts/next-ticket <path to the target project's CLAUDE.md>`.
   2. **Exit 0** — stdout is the new ticket id (e.g. `IND-85`). Use it below.
   3. **Exit 2** — no `## gaspol Ticket Counter` section exists yet. Use **AskUserQuestion**

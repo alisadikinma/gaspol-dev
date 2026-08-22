@@ -132,14 +132,17 @@ Step 4: Examine D for shared state mutations
 | Timers | Fake timers not restored | `jest.useRealTimers()` in afterEach |
 | Module-level side effects | Import triggers initialization | Lazy-initialize, reset between tests |
 
-### Sparkfluence-Specific Pollution
+### Project-Specific Pollution (build this table from the project's CLAUDE.md)
 
-| Source | Location | Fix |
+Every codebase has its own leak sources. Read the target project's CLAUDE.md and list them before
+you blame the test; these are the shapes to look for:
+
+| Shape | Where it hides | Fix |
 |---|---|---|
-| WorkspaceContext state | Shared reducer state | Reset state in test setup |
-| localStorage cache | `gaspol_scriptlab_topics_v3` | Clear localStorage in beforeEach |
-| Supabase client | Shared singleton | Mock per test, not globally |
-| API key pool state | In-memory rotation state | Reset pool state between tests |
+| Shared reducer / store state | a context or global store the tests share | reset the state in test setup |
+| Browser storage cache | a versioned `localStorage` key | clear it in `beforeEach` |
+| Client singletons | one DB/HTTP client for the whole suite | mock per test, not globally |
+| In-memory rotation/pool state | key pools, connection pools, round-robin counters | reset the pool between tests |
 
 ## When Backward Tracing Gets Stuck
 
