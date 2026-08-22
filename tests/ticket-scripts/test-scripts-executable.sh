@@ -26,6 +26,7 @@ DIRECT=(
     skills/_shared/kb-root
     skills/gaspol-execute/scripts/detect-stack
     skills/gaspol-execute/scripts/detect-app-target
+    skills/gaspol-debug/scripts/regression-gate
     skills/gaspol-execute/scripts/next-ticket
     skills/gaspol-execute/scripts/scan-active-ledgers
     skills/gaspol-parallel/scripts/dag-lanes
