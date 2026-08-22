@@ -59,15 +59,18 @@ gaspol can satisfy this lane's precondition itself: it starts the app.
    format defined in `visual-contract.md`), run the geometry diff:
 
    ```bash
-   skills/gaspol-verify/scripts/geometry-diff --emit-extractor
+   python3 skills/gaspol-verify/scripts/geometry-diff --emit-extractor
    ```
 
    Pass the printed JavaScript to `browser_evaluate`, once against the canvas file and once
    against the live app you already have open, and save both results as JSON snapshots. Then:
 
    ```bash
-   skills/gaspol-verify/scripts/geometry-diff <canvas.json> <app.json>
+   python3 skills/gaspol-verify/scripts/geometry-diff <canvas.json> <app.json>
    ```
+
+   `geometry-diff` is invoked as `python3 <path>`, same as its sibling `design_audit.py` — it is
+   not committed executable, and running it bare fails on a fresh clone.
 
    Record the result: `visual-diff: <n> blocking, <m> warnings`, or one of `geometry-diff`'s own
    two other states — `visual-diff: none — no canvas contract` (no canvas for this ticket; not a

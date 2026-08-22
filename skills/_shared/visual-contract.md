@@ -63,7 +63,7 @@ easier because there is now something real to decide about.
 
 ## What reads this file
 
-- `skills/gaspol-verify/scripts/geometry-diff --emit-extractor` — the extractor this contract's
-  markers feed.
+- `python3 skills/gaspol-verify/scripts/geometry-diff --emit-extractor` — the extractor this
+  contract's markers feed.
 - `skills/_shared/live-app-check.md`, web lane — runs the extractor against the canvas (if one
   exists for the ticket) and against the running app, then diffs the two snapshots.

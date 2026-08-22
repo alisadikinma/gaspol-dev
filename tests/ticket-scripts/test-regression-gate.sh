@@ -169,9 +169,24 @@ grep -qF '"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate"' "$F
     && note "gaspol-finish Step 0 runs regression-gate, anchored via \$CLAUDE_PLUGIN_ROOT" \
     || bad "gaspol-finish Step 0 does not run regression-gate"
 
-grep -qF 'skills/gaspol-debug/scripts/regression-gate' "$VERIFY_SKILL" \
-    && note "gaspol-verify Layer 1 runs regression-gate" \
-    || bad "gaspol-verify Layer 1 does not run regression-gate"
+# Anchored, not relative -- a relative call site executes whatever script a
+# repo carrying that path happens to ship, since gaspol-verify runs with the
+# TARGET PROJECT as its working directory (the same invariant IDS-8 fixed
+# for kb-root). A plain substring match on the unanchored path would have
+# passed on the relative form too, which is exactly how this regressed once
+# already (plan-verifier audit, IDS-14 post-run) -- checking the anchored
+# literal closes that hole.
+grep -qF '"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate"' "$VERIFY_SKILL" \
+    && note "gaspol-verify Layer 1 runs regression-gate, anchored via \$CLAUDE_PLUGIN_ROOT" \
+    || bad "gaspol-verify Layer 1 does not run regression-gate anchored via \$CLAUDE_PLUGIN_ROOT"
+
+grep -qF '${CLAUDE_PLUGIN_ROOT:?' "$VERIFY_SKILL" \
+    && note "gaspol-verify Layer 1's regression-gate call carries the \${CLAUDE_PLUGIN_ROOT:?...} guard" \
+    || bad "gaspol-verify Layer 1's regression-gate call has no \${CLAUDE_PLUGIN_ROOT:?...} guard"
+
+grep -qF '${CLAUDE_PLUGIN_ROOT:?' "$FINISH_SKILL" \
+    && note "gaspol-finish Step 0's regression-gate call carries the \${CLAUDE_PLUGIN_ROOT:?...} guard" \
+    || bad "gaspol-finish Step 0's regression-gate call has no \${CLAUDE_PLUGIN_ROOT:?...} guard"
 
 grep -qF 'live-app-check' "$VERIFY_SKILL" && grep -qF 'regression-gate' "$VERIFY_SKILL" \
     && note "gaspol-verify Layer 1 still carries live-app-check alongside regression-gate" \

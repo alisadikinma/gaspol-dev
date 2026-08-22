@@ -201,6 +201,14 @@ grep -qF 'geometry-diff' "$LIVE_APP_CHECK" \
     && note "live-app-check.md references geometry-diff" \
     || bad "live-app-check.md web lane does not run geometry-diff"
 
+# geometry-diff is invoked as `python3 <path>`, like its sibling
+# design_audit.py -- it is not committed executable, and a bare invocation
+# fails with "Permission denied" on a fresh clone (plan-verifier audit,
+# IDS-14 post-run, caught by reproducing a fresh clone).
+grep -qF 'python3 skills/gaspol-verify/scripts/geometry-diff' "$LIVE_APP_CHECK" \
+    && note "live-app-check.md invokes geometry-diff via python3, not bare" \
+    || bad "live-app-check.md invokes geometry-diff bare -- fails on a fresh clone (not committed executable)"
+
 # The mobile lane must be excluded AND the reason must be there -- a silent
 # absence reads as an oversight, not a scoping decision.
 grep -qiE 'no DOM behind it|this machine does not apply' "$LIVE_APP_CHECK" \

@@ -130,7 +130,9 @@ prose — `gaspol-debug` Phase 4 used to say "(if possible)", with nothing check
 possible or whether one was written. This is the machine:
 
 ```bash
-skills/gaspol-debug/scripts/regression-gate <BASE>
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+script the target project happens to ship at a matching relative path}"
+"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate" <BASE>
 ```
 
 Record the verdict beside `live-app-check:`. Exit 0 satisfied. Exit 1 BLOCKING — a fix commit

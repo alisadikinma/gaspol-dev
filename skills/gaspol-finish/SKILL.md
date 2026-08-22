@@ -45,6 +45,8 @@ dispatched — a missing regression test is exactly the finding that must not co
 to discover:
 
 ```bash
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+script the target project happens to ship at a matching relative path}"
 "$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate" "$(git merge-base main HEAD)"
 ```
 
