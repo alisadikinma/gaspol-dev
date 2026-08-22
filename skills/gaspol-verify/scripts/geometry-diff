@@ -7,8 +7,10 @@ only, no network, no dependency.
 Answers the wrong-LAYOUT half of "the screenshot doesn't match the mockup" --
 design_audit.py's DESIGN.md token contract already answers the wrong-COLOUR
 half. Neither script may absorb the other's job: geometry-diff never reads
-DESIGN.md, and it reuses design_audit's structural/decorative role split for
-colour severity only so the two scripts cannot disagree about the same
+DESIGN.md, and its colour severity split mirrors design_audit's
+structural/decorative role split -- same property names, same verdict per
+property, kept in sync by hand as a parallel independent set rather than a
+shared imported constant -- so the two scripts read as agreeing about one
 property.
 
 Snapshot shape, produced by the extractor this script emits
@@ -60,8 +62,12 @@ RATIO_TOLERANCE = 0.02
 RATIO_ELIGIBLE_BOX_PROPS = {"x", "w"}
 PIXEL_ONLY_BOX_PROPS = {"y", "h"}
 
-# Same role split design_audit.py already uses for colours, reused rather
-# than reinvented so the two scripts cannot disagree about one property.
+# Same role split design_audit.py already uses for colours -- same property
+# names and the same structural/decorative verdict for each, kept in sync
+# by hand (a parallel, independent set here, not a shared imported constant
+# -- gaspol-review Tier 0, Minor: the header comment previously said
+# "reused", which overstated a code-sharing relationship that doesn't
+# exist) -- so the two scripts read as agreeing about one property.
 STRUCTURAL_COLOR_PROPS = {"color", "background-color", "border-color"}
 DECORATIVE_COLOR_PROPS = {"outline-color"}
 # Style properties compared as a plain pixel length (after stripping "px").
@@ -371,6 +377,30 @@ def load_snapshot(path: Path) -> dict:
         raise SnapshotError(f"{path}: not a geometry snapshot (missing 'elements' key)")
     if not isinstance(data.get("viewport"), dict):
         raise SnapshotError(f"{path}: not a geometry snapshot (missing 'viewport' object)")
+
+    # Box values must be numeric, matching EXACTLY what the real extractor
+    # emits (Math.round() -- always a plain number, never a string). Without
+    # this check, a hand-edited or buggy-extractor snapshot with e.g. a
+    # string box.x sailed through this function's structural check and
+    # reached diff_box()'s float() conversion unguarded, crashing with an
+    # unhandled traceback at exit 1 -- the SAME exit code the contract uses
+    # for "diff ran, a BLOCKING finding stands". A caller checking only the
+    # exit code could not tell a crash from a real verdict (gaspol-review
+    # Tier 0, CONFIRMED 90/100). Caught HERE, at the one place this file
+    # already raises SnapshotError, so the three-state contract stays whole
+    # rather than growing an unhandled fourth state.
+    elements = data.get("elements")
+    if isinstance(elements, dict):
+        for marker, el in elements.items():
+            box = el.get("box", {}) if isinstance(el, dict) else {}
+            if not isinstance(box, dict):
+                continue
+            for prop, value in box.items():
+                if prop in ("x", "y", "w", "h") and not isinstance(value, (int, float)):
+                    raise SnapshotError(
+                        f"{path}: not a geometry snapshot "
+                        f"(element {marker!r} has a non-numeric box.{prop}: {value!r})"
+                    )
     return data
 
 
@@ -407,6 +437,18 @@ def run(canvas_path: Path, app_path: Path, tolerance_px: float = None):
 
 # ---------------------------------------------------------------------------
 def _self_test():
+    # PIXEL_ONLY_BOX_PROPS was declared and never referenced anywhere --
+    # diff_box() only ever consults RATIO_ELIGIBLE_BOX_PROPS, so y/h fell
+    # into pixel-only comparison implicitly rather than by the constant
+    # actually being read. Dead code that could silently drift out of sync
+    # with RATIO_ELIGIBLE_BOX_PROPS if a box property were ever added
+    # (gaspol-review Tier 0, Minor). This assertion is what makes the
+    # constant load-bearing: if the two sets ever stop partitioning the
+    # box's four coordinates exactly, this fails loudly instead of a third
+    # property silently falling through unhandled.
+    assert RATIO_ELIGIBLE_BOX_PROPS | PIXEL_ONLY_BOX_PROPS == {"x", "y", "w", "h"}, \
+        "self-test: RATIO_ELIGIBLE_BOX_PROPS + PIXEL_ONLY_BOX_PROPS must partition all four box coordinates"
+
     tmp_ok = {"source": "canvas", "viewport": {"w": 1440, "h": 900},
               "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 160, "h": 44},
                                          "style": {"font-size": "16px", "color": "#3B82F6"}}}}
@@ -460,6 +502,22 @@ def _self_test():
     findings = diff_box("m", {"w": 100}, {"w": 200}, {"w": 0}, {"w": 1000})
     assert any(f["property"] == "w" for f in findings), \
         "self-test: zero-width viewport should still run the pixel test and find 100px drift"
+
+    # Case 8b: a non-numeric box value must raise SnapshotError from
+    # load_snapshot(), not crash diff_box()'s float() unguarded further
+    # down the call chain (gaspol-review Tier 0, CONFIRMED 90/100).
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        bad_path = Path(td) / "badbox.json"
+        bad_path.write_text(json.dumps({
+            "viewport": {"w": 1440, "h": 900},
+            "elements": {"hero.cta": {"box": {"x": "abc", "y": 200, "w": 160, "h": 44}, "style": {}}},
+        }))
+        try:
+            load_snapshot(bad_path)
+            raise AssertionError("self-test: a non-numeric box.x should have raised SnapshotError")
+        except SnapshotError:
+            pass
 
     # Case 9: the round trip. EXTRACTOR_JS's declared style keys must match
     # EXACTLY what diff_style() classifies -- if the two lists silently

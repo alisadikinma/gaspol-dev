@@ -129,6 +129,23 @@ rc=0; out="$(python3 "$DIFF" "$tmp/canvas_ok.json" "$tmp/malformed.json")" || rc
 [ "$rc" -eq 3 ] && note "malformed app snapshot -> exit 3 (UNKNOWN)" \
                 || bad "malformed app snapshot: expected exit 3, got $rc ($out)"
 
+echo "test-geometry-diff: non-numeric box value -> exit 3, never an unhandled crash..."
+# gaspol-review Tier 0, CONFIRMED 90/100: load_snapshot() validated only
+# "elements"/"viewport" presence, never box VALUE types, so a hand-edited or
+# buggy-extractor snapshot with e.g. a string box.x reached diff_box()'s
+# unguarded float() and crashed with a Python traceback at exit 1 -- the
+# SAME exit code the contract uses for "diff ran, a BLOCKING finding
+# stands". A caller checking only the exit code could not tell a crash from
+# a real verdict, which the file's own docstring says must never happen.
+CANVAS_BADBOX='{"source": "canvas", "viewport": {"w": 1440, "h": 900},
+ "elements": {"hero.cta": {"box": {"x": "abc", "y": 200, "w": 160, "h": 44}, "style": {}}}}'
+printf '%s' "$CANVAS_BADBOX" > "$tmp/canvas_badbox.json"
+rc=0; out="$(python3 "$DIFF" "$tmp/canvas_badbox.json" "$tmp/app_ok.json" 2>&1)" || rc=$?
+[ "$rc" -eq 3 ] && note "non-numeric box value -> exit 3 (UNKNOWN), not an unhandled crash" \
+                || bad "non-numeric box value: expected exit 3, got $rc ($out)"
+case "$out" in *Traceback*) bad "a raw Python traceback reached stdout/stderr — the crash is unhandled" ;; \
+  *) note "no raw traceback — the bad value was caught and reported as UNKNOWN" ;; esac
+
 echo "test-geometry-diff: --emit-extractor (B2)..."
 
 rc=0; out1="$(python3 "$DIFF" --emit-extractor)" || rc=$?
@@ -208,6 +225,18 @@ grep -qF 'geometry-diff' "$LIVE_APP_CHECK" \
 grep -qF 'python3 skills/gaspol-verify/scripts/geometry-diff' "$LIVE_APP_CHECK" \
     && note "live-app-check.md invokes geometry-diff via python3, not bare" \
     || bad "live-app-check.md invokes geometry-diff bare -- fails on a fresh clone (not committed executable)"
+
+# The plan's own Data Integration Map named a literal snapshot path
+# (.gaspol/design/<TICKET>/{canvas,app}.json); the shipped instructions only
+# said "save both results as JSON snapshots" with no fixed location -- a
+# real gap (plan-artifact-reviewer, PARTIAL) that leaves an implementer with
+# nowhere consistent to write snapshots to.
+grep -qF '.gaspol/design/<TICKET>/canvas.json' "$LIVE_APP_CHECK" \
+    && note "live-app-check.md pins the literal canvas snapshot path" \
+    || bad "live-app-check.md does not pin a snapshot path -- matches the plan-artifact PARTIAL"
+grep -qF '.gaspol/design/<TICKET>/app.json' "$LIVE_APP_CHECK" \
+    && note "live-app-check.md pins the literal app snapshot path" \
+    || bad "live-app-check.md does not pin the app snapshot path"
 
 # The mobile lane must be excluded AND the reason must be there -- a silent
 # absence reads as an oversight, not a scoping decision.

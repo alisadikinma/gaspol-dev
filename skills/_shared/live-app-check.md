@@ -63,10 +63,13 @@ gaspol can satisfy this lane's precondition itself: it starts the app.
    ```
 
    Pass the printed JavaScript to `browser_evaluate`, once against the canvas file and once
-   against the live app you already have open, and save both results as JSON snapshots. Then:
+   against the live app you already have open, and save both results as JSON snapshots at
+   `.gaspol/design/<TICKET>/canvas.json` and `.gaspol/design/<TICKET>/app.json` — gitignored
+   scratch, the same as every other `.gaspol/` working-tree file. Then:
 
    ```bash
-   python3 skills/gaspol-verify/scripts/geometry-diff <canvas.json> <app.json>
+   python3 skills/gaspol-verify/scripts/geometry-diff \
+       .gaspol/design/<TICKET>/canvas.json .gaspol/design/<TICKET>/app.json
    ```
 
    `geometry-diff` is invoked as `python3 <path>`, same as its sibling `design_audit.py` — it is

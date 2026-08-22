@@ -96,16 +96,33 @@ resolve_ledger() {
 # leading whitespace already stripped. Prints the verdict word (satisfied /
 # blocking) on stdout; the caller decides exit code and message.
 classify() {
-    local body="$1"
-    case "$body" in
-        N/A*|"not run"*)
+    local body="$1" body_lc
+    # Matched against a LOWERCASED copy, not $body itself. A plain `case`
+    # glob is case-sensitive, and "Not Run" / "n/a" / "N/A" spelled with any
+    # casing other than the two exact literals used to fall through to the
+    # "satisfied" default with no reason required — silently bypassing the
+    # whole point of this branch (gaspol-review Tier 1, CONFIRMED 75/100). A
+    # human hand-writing a ledger line is likely to use natural
+    # capitalisation, so this is a real bypass, not a theoretical one.
+    # `tr`, not `${body,,}` — the latter needs bash 4+, and macOS ships 3.2.
+    body_lc="$(printf '%s' "$body" | tr '[:upper:]' '[:lower:]')"
+    case "$body_lc" in
+        n/a*|"not run"*)
             # N/A and "not run" both require an actual reason after the dash.
             # A bare label with nothing after it is (if possible) wearing a
             # new name — this is the whole point of Part A1: a decision with
             # a name on it, not a default nobody has to defend.
-            local reason
-            reason="$(printf '%s' "$body" | sed -E 's/^(N\/A|not run)[[:space:]]*[—-]+[[:space:]]*//')"
-            if [ -z "$reason" ] || [ "$reason" = "$body" ]; then
+            #
+            # The label is sliced off the ORIGINAL (not lowercased) body by
+            # character count, so casing inside the REASON text itself is
+            # preserved — only the label match is case-insensitive.
+            local label_len reason
+            case "$body_lc" in
+                n/a*) label_len=3 ;;
+                *)    label_len=7 ;;   # "not run"
+            esac
+            reason="$(printf '%s' "${body:$label_len}" | sed -E 's/^[[:space:]]*[—-]+[[:space:]]*//')"
+            if [ -z "$reason" ]; then
                 echo "blocking"
             else
                 echo "satisfied"
@@ -162,6 +179,19 @@ self_test() {
     printf 'regression-test: N/A\n' > "$tmp/.gaspol/progress/PROGRESS-X.md"
     rc=0; out="$(cd "$tmp" && "$self" "$base")" || rc=$?
     [ "$rc" = 1 ] || { echo "self-test: case6 (bare N/A) expected exit 1, got $rc ($out)" >&2; return 1; }
+
+    # Case 6b: the same bug in different casing must ALSO be caught -- a
+    # case-sensitive match let "Not Run" / "n/a" fall through to the
+    # "satisfied" default, silently bypassing the whole point of case 6
+    # (gaspol-review Tier 1, CONFIRMED 75/100). A human hand-writing a
+    # ledger line is likely to use natural capitalisation.
+    printf 'regression-test: Not Run\n' > "$tmp/.gaspol/progress/PROGRESS-X.md"
+    rc=0; out="$(cd "$tmp" && "$self" "$base")" || rc=$?
+    [ "$rc" = 1 ] || { echo "self-test: case6b (bare 'Not Run', mixed case) expected exit 1, got $rc ($out)" >&2; return 1; }
+
+    printf 'regression-test: n/a\n' > "$tmp/.gaspol/progress/PROGRESS-X.md"
+    rc=0; out="$(cd "$tmp" && "$self" "$base")" || rc=$?
+    [ "$rc" = 1 ] || { echo "self-test: case6c (bare 'n/a', lowercase) expected exit 1, got $rc ($out)" >&2; return 1; }
 
     # Case 7: ambiguous ledgers, no explicit path -> exit 3.
     printf 'regression-test: N/A — one\n' > "$tmp/.gaspol/progress/PROGRESS-X.md"
