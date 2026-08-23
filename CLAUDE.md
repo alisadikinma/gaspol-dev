@@ -29,6 +29,8 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/_shared/live-app-check.md` | **UPDATED (v1.24)**, NEW (v1.23) — the only check that answers *does it actually run*. Two lanes with different preconditions: **web** starts the app, waits by condition, and drives the changed surface through the **Playwright MCP**; **mobile** needs a device over USB debugging or a booted emulator, which gaspol cannot provide — so it probes, offers, and asks. A lane that could not run is recorded as **not run**, never as passed. v1.24 adds a `geometry-diff` step to the web lane's screenshot capture (mobile stays excluded — adb `screencap` carries no DOM to extract from) |
 | `skills/_shared/visual-contract.md` | **NEW (v1.24)** — the canvas format `geometry-diff` reads, stated once: `data-vv="<screen>.<element>"` marker naming, markup written in the target stack so the implementer copies rather than translates, realistic worst-case content, the canvas file path (`docs/plans/YYYY-MM-DD-<TICKET>-<topic>-canvas.html`, on the branch), and an explicit list of what IDS-6 Part B still leaves open |
 | `skills/gaspol-verify/scripts/geometry-diff` | **NEW (v1.24)** — stdlib-only DOM geometry diff between a canvas and the live app, per `data-vv` marker. Colour normalises across hex/`rgb()`-comma/`rgb()`-space to one value; structural/decorative severity reused from `design_audit.py`'s own role split so the two scripts cannot disagree; missing marker BLOCKS, extra marker WARNs; width/horizontal-position get a ratio-of-viewport fallback (smaller deviation wins) so a fluid layout doesn't false-positive. `--emit-extractor` prints a fixed JS literal, never constructed from any argument — checked first in `main()`. Three states: parses (0/1) / UNKNOWN — malformed (3) / no canvas contract (4, not a failure) |
+| `skills/gaspol-verify/scripts/spec-pointer` | **NEW (v1.27)** — resolves the `**Spec:** <path>` line in a plan header, which `gaspol-plan` had been writing since IDS-1 with **zero** readers. Three states on `kb-root`'s own exit contract (0 resolved / 3 UNKNOWN / 4 none). Exit 3 deliberately covers a spec that exists but carries **no parseable requirement** — zero items must not read as *satisfied*, which is `design_audit.py`'s defect one layer down. Resolves against `git rev-parse --show-toplevel`, never `$PWD` |
+| `skills/gaspol-verify/scripts/blast-radius-diff` | **NEW (v1.27)** — the plan's declared file list vs `git diff --name-only <BASE>..HEAD`. Reads the list from the **plan**, not the artifact: the artifact is a URL, and a gate needing the network spends its life recorded as `not run`. Exit 1 is **WARN and does not block** — collateral edits are legitimate, a per-file BLOCK fires on most branches, and a gate that cries wolf gets switched off. Built-in ignore list (`.gaspol/`, `docs/plans/`, `CLAUDE.md`, lockfiles) is what makes it survivable |
 | `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
 | `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
@@ -426,6 +428,73 @@ discipline `visual-contract.md` states inline): the rest of IDS-6 Part B —
 and `gaspol-plan`, the pixel-diff trigger, and the `§ Execution`/`§ Mapping` canvas sections. The
 machine had to exist before the process depending on it was worth changing — the same order
 IDS-13 used for Live App Check (`detect-app-target` before the protocol before the wiring).
+
+### Spec Fidelity + Blast Radius (NEW in v1.27) — the first link of the chain was never read
+
+Canonical sources: `skills/gaspol-verify/scripts/spec-pointer`,
+`skills/gaspol-verify/scripts/blast-radius-diff`, `agents/plan-verifier.md` Steps 1b and 3b.
+
+The delivery chain is `spec → plan → code`, and only the **second** link was guarded. Verified by
+command, not inferred:
+
+```
+grep -rn -- "-spec.md" skills/ agents/
+```
+
+Five hits, all in `gaspol-plan` (a glob that *finds* a spec) and `gaspol-worktree` (a filename in
+prose). **Zero** in `gaspol-execute`, `gaspol-auto`, `gaspol-verify`, or `agents/plan-verifier.md`.
+Sharper still: `gaspol-plan` **writes** `**Spec:** <path>` into every plan header
+(`skills/gaspol-plan/SKILL.md:126`) and nothing read it — IDS-7's `--design-system` shape one layer
+up, parsed into documentation and consumed by nothing. `agents/spec-reviewer.md` exists and its
+description is exactly this job; it is invoked only by `gaspol-parallel`, and there against a task
+brief, never against a `-spec.md`.
+
+**This is the sixth fix for the same defect shape: a rule exists in prose, and no machine enforces
+it.** IDS-7 (a design gate never wired up), IDS-8 (a setting nothing read), IDS-12 (`gaspol-execute`
+only read code, never ran it), IDS-13 (a Live App Check with no detector), IDS-14 (a regression test
+nobody had to defend skipping).
+
+**The new verdict: `DROPPED`, and it BLOCKS.** A requirement present in the spec and absent from the
+plan is not "missing from the code" — the planner dropped it, and no amount of reading the code
+reveals it, because the code matches its plan perfectly. `MISSING` names an implementer gap;
+`DROPPED` names a planner gap. The consequence is stated rather than discovered later: **a
+deliberate scope reduction must be written back into the spec.** Narrowing the work in conversation,
+or in the plan alone, now BLOCKS. That is what turns the spec from an opening note into a contract.
+
+**The seam — deterministic resolution, judgement left to the agent** — is the one `kb-root` and
+`regression-gate` already use. Whether the pointer resolves is a script; whether the code satisfies
+the requirement is prose in `agents/plan-verifier.md`. Both scripts are invoked through
+`"$CLAUDE_PLUGIN_ROOT/skills/..."`, and `tests/ticket-scripts/test-kb-no-hardcoded-path.sh` was
+**widened from `kb-root` alone** to gate all three — IDS-8 recorded that anchoring one call site is
+not what closes that surface; widening the gate is. Its positive control now checks each script
+individually, because a combined count stays healthy on `kb-root`'s eight while both new patterns
+match nothing.
+
+**Two real bugs the tests caught, not assumed.** BSD `sed` rejects `\|` alternation in basic regex,
+so `blast-radius-diff`'s parser silently found **zero** paths and reported *"the plan declares no
+files"* on a plan full of them — a parser that silently finds nothing is worse than one that errors.
+And Phase A's files were committed `100644` because `chmod` ran after `git add`; the existing
+`test-scripts-executable` gate caught it, which is what that gate is for.
+
+**Why the blast-radius half is deliberately weaker, stated rather than glossed.** Exit 1 is WARN and
+does **not** block. Every individual finding it can produce is legitimately explainable — collateral
+edits happen — so a per-file BLOCK would fire on most branches, and a gate that cries wolf is one
+somebody switches off. Accountability moves to the recorded `blast-radius:` line in `gaspol-verify`
+Layer 2. What is given up: nothing forces anyone to read that line. It is not equivalent to
+`DROPPED` and must not be described as if it were.
+
+**What this does NOT close, named so the deferral cannot be mistaken for completion:**
+
+- **The artifact's other four sections stay unverified** — before/after behaviour, the mermaid flow,
+  the data-flow table, the edge-case matrix. Only blast radius is compared to anything.
+- **Recall is model-bounded, not deterministic.** A requirement the agent does not recognise as a
+  requirement will never be reported `DROPPED`. A spec is prose, and prose is not machine-parseable.
+  This is a judgement gate; calling it a guarantee would overclaim.
+- **Spec quality is not graded.** The question answered is *was it dropped*, never *was the
+  requirement correct*. `gaspol-brainstorm` Phase 6's spec self-review still grades itself.
+- **A bug fix still passes no spec point at all** — bug reports route to `gaspol-debug`, which
+  produces no spec. Unchanged here, and deliberately not ticketed: a number pointing at no spec is
+  the promise-with-no-implementation shape this repository keeps having to undo.
 
 ### Live App Check (NEW in v1.23) — the gate that had no machine
 
@@ -1376,5 +1445,5 @@ Last ticket: IDS-18
 
 ---
 
-**Version:** 1.26.0
+**Version:** 1.27.0
 **Last Updated:** August 2026

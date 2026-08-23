@@ -127,4 +127,26 @@ grep -qiE 'spec-fidelity:[^\n]*none|spec: none' "$VERIFY" \
 grep -qiE 'blast-radius:[^\n]*none' "$VERIFY" \
     || fail "the no-file-list state is not documented for blast-radius"
 
+# ---------------------------------------------------------------- Phase F ----
+echo "test-plan-verifier-spec: CLAUDE.md documents both new scripts..."
+CL="$REPO_ROOT/CLAUDE.md"
+for s in spec-pointer blast-radius-diff; do
+    grep -q "$s" "$CL" || fail "CLAUDE.md does not document $s"
+done
+
+echo "test-plan-verifier-spec: CLAUDE.md names what the ticket does NOT close..."
+# A deferral that is not written down is indistinguishable from completion, and
+# this repository has had to undo that shape more than once.
+grep -qiE 'DROPPED' "$CL" \
+    || fail "CLAUDE.md never mentions the DROPPED verdict — the gate is undocumented where every session reads"
+
+echo "test-plan-verifier-spec: the version is consistent between plugin.json and CLAUDE.md..."
+PJ="$REPO_ROOT/.claude-plugin/plugin.json"
+V_JSON="$(sed -nE 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$PJ" | head -1)"
+V_MD="$(sed -nE 's/^\*\*Version:\*\*[[:space:]]*(.+)$/\1/p' "$CL" | head -1)"
+[ -n "$V_JSON" ] || fail "no version found in .claude-plugin/plugin.json"
+[ -n "$V_MD" ] || fail "no **Version:** line found in CLAUDE.md"
+[ "$V_JSON" = "$V_MD" ] \
+    || fail "version mismatch: plugin.json says '$V_JSON', CLAUDE.md says '$V_MD' — a reader cannot tell which is real"
+
 echo "PASS: test-plan-verifier-spec"
