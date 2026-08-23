@@ -141,6 +141,35 @@ exists in `<BASE>..HEAD` with no `regression-test:` line in the ledger, or only 
 and ask, never treat this as satisfied. Exit 4 — not applicable, no fix commits in range, **never
 counted as a pass**, the same reason `live-app-check: no app surface` is not one either.
 
+### Ledger Gate
+
+Does this branch's ticket have a progress ledger at all, and is it structurally sound? The
+ledger had exactly ONE creator — `gaspol-plan` step 7 — and no reader anywhere that checked it
+existed. Measured across all 18 IDS tickets in this repository, the ledger was present if and
+only if a plan file was: IDS-3, IDS-5, IDS-9 and IDS-15 had neither. Every path that reaches
+code without passing through `gaspol-plan` produced no ledger, and nothing noticed. This is the
+machine:
+
+```bash
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+script the target project happens to ship at a matching relative path}"
+"$CLAUDE_PLUGIN_ROOT/skills/gaspol-verify/scripts/ledger-gate" <BASE>
+```
+
+Record the verdict as `ledger:` beside `live-app-check:`.
+
+| Exit | Meaning | What you must do |
+|---|---|---|
+| **0** | a ledger exists for this branch's ticket and its structure is sound | proceed |
+| **1** | **BLOCKING** — a ticket resolved, the branch changed code, and no ledger exists | create the ledger before claiming anything is verified. Do not tick a checklist retroactively from memory: write what you can actually evidence, and record the rest as unknown |
+| **3** | **UNKNOWN — STOP and ask.** The ledger exists but is empty, has no `## Checklist`, carries a block below `## Log`, or cannot be read; or BASE is not a valid ref; or two plans in the diff name different tickets | never treat this as satisfied. A ledger with a block below `## Log` still exists, so `scan-active-ledgers` reads the wrong last line and reports this ticket's state **wrongly** — worse than an absent file, which at least reports nothing |
+| **4** | not applicable — no ticket on this branch, or nothing but ignored paths changed. **Never counted as a pass**, the same reason `live-app-check: no app surface` is not one either | record the line with its reason: `ledger: N/A — no ticket on this branch` or `ledger: N/A — docs-only branch, no code commits`. A bare `N/A` with nothing after the dash is refused |
+
+**What this gate does NOT do, so nobody reads it as more.** It checks that a ledger EXISTS and
+has the right SHAPE. It never checks whether its content is honest — a checklist ticked without
+the work being done passes with exit 0. This closes the silent-skip hole, not the
+recorded-but-false hole.
+
 ### Evidence Format
 ```
 TECHNICAL VERIFICATION (detect-stack: node):
@@ -148,6 +177,9 @@ TECHNICAL VERIFICATION (detect-stack: node):
   lint:   PASS (npm run lint, 0 errors, 1 warning)
   unit:   PASS (npm test, 14 suites, 47 tests, 0 failures, 2 skipped)
   build:  PASS (npm run build, exit 0, 0 errors, 3 warnings)
+  live-app-check: PASS (web lane, screenshot attached)
+  regression-test: tests/auth.spec.ts::rejects expired token — RED at 4f2a1c9, GREEN after fix
+  ledger: ok — IDS-19 has a valid ledger at .gaspol/progress/PROGRESS-IDS-19.md
 ```
 
 Or, when no stack markers exist:

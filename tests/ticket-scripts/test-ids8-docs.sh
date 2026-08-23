@@ -88,4 +88,39 @@ if bad:
 PYEOF
 done
 
+echo "test-ids8-docs: CLAUDE.md documents the ledger gate (IDS-19)..."
+grep -qiE 'ledger-gate' "$CM" \
+    || fail "CLAUDE.md: expected a ledger-gate section, found none"
+
+# The three new files must each earn a row in the Architecture table, or the
+# table stops being the map it claims to be.
+for f in "skills/gaspol-verify/scripts/ledger-gate" \
+         "tests/ticket-scripts/test-ledger-gate.sh" \
+         "tests/ticket-scripts/test-ledger-template.sh"; do
+    grep -qF "$f" "$CM" || fail "CLAUDE.md has no Architecture row for $f"
+    [ -s "$REPO_ROOT/$f" ] || fail "$f is documented but missing or empty"
+done
+
+# The boundary must be stated, not implied. A gate described without its limit
+# gets read as a completeness guarantee by the next person, which is how a
+# partial gate becomes a false one.
+python3 - "$CM" <<'PYEOF2' || fail "CLAUDE.md describes the ledger gate without saying what it does NOT close — a gate stated without its limit reads as a guarantee"
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+sec = re.search(r"\n### [^\n]*Ledger[^\n]*\n(.*?)(?=\n### |\n## )", text, re.S)
+if not sec:
+    print("  no '### ... Ledger ...' section found", file=sys.stderr)
+    sys.exit(1)
+body = sec.group(1)
+if not re.search(r"does NOT close|never checks whether|not honesty|honest", body):
+    print("  the section never states the boundary", file=sys.stderr)
+    sys.exit(1)
+PYEOF2
+
+echo "test-ids8-docs: plugin version and CLAUDE.md footer agree..."
+PJ="$REPO_ROOT/.claude-plugin/plugin.json"
+PJ_VER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$PJ")"
+grep -qF "**Version:** $PJ_VER" "$CM" \
+    || fail "plugin.json says $PJ_VER but CLAUDE.md's footer does not — the two must agree or nobody knows what shipped"
+
 echo "PASS: test-ids8-docs"

@@ -56,4 +56,14 @@ done
 # The per-phase ledger gate is blocking; the trim must not soften it.
 has "$SKILL" "BLOCKING\|blocking" "the ledger/verification gate lost its BLOCKING status"
 
+# IDS-19: the ledger's SHAPE changed (a sub-block per phase, copied from the
+# plan's Steps and Verification blocks). Ledgers written before that are still
+# READ unchanged -- only new ones use the new shape. If Step 3's fallback stops
+# saying so, an executor meeting an older flat ledger has no instruction and will
+# either rewrite it or stall.
+has "$SKILL" "older flat" \
+    "gaspol-execute: expected the old flat ledger form to be named as still-readable, found no mention"
+has "$SKILL" "Steps" \
+    "gaspol-execute Step 3 no longer names the plan's Steps block as the ledger checklist's source"
+
 echo "PASS: test-execute-trim"
