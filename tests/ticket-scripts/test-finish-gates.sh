@@ -145,15 +145,35 @@ if grep -qi 'security-review.*ALWAYS\|ALWAYS.*security-review\|every branch' ski
 else
   fail "/security-review is still unconditional on every branch"
 fi
-if grep -qi 'security-review' skills/gaspol-finish/SKILL.md && \
-   ! grep -qiE 'skip .{0,40}security-review|security-review .{0,20}(is )?(optional|conditional)' skills/gaspol-finish/SKILL.md; then
-  pass "no rule anywhere makes /security-review skippable"
+# REMOVED in IDS-17: the assertion that no rule makes /security-review skippable.
+#
+# It was added in IDS-3 and reinforced by the knowledge note
+# `narrow-and-record-conditional-audit-gates`, whose reason was sound on its own
+# terms: in a skills repository markdown IS the executed surface, so a
+# boring-looking diff can still carry a hole.
+#
+# The owner overrode it deliberately: not every ticket changes anything related
+# to security, so running the review unconditionally on every branch spends time
+# on branches where there is nothing to find. /security-review is now OFFERED
+# from gaspol-finish -- still present, still blocking when it IS run and reports
+# a finding. gaspol-execute Step 3.6 still runs it unconditionally on its own
+# security-sensitive triggers, so the auth/secrets/endpoint/payment path is
+# untouched.
+#
+# This comment is the record. Deleting an assertion with no explanation is how
+# the next person restores it by accident, believing it was lost rather than
+# retired. test-finish-fix-loop.sh asserts /security-review is still NAMED in
+# gaspol-finish -- an offer nobody is shown would be a deletion wearing a
+# different word.
+if grep -qi 'security-review' skills/gaspol-finish/SKILL.md; then
+  pass "/security-review is still named in gaspol-finish (offered, not deleted)"
 else
-  fail "no rule anywhere makes /security-review skippable"
+  fail "/security-review is still named in gaspol-finish (offered, not deleted)"
 fi
 
-# The other four chain steps stay unconditional too.
-for step in gaspol-verify gaspol-review gaspol-sync-docs gaspol-learn; do
+# The four MANDATORY chain steps stay unconditional. gaspol-learn left this list
+# in IDS-17 -- it is offered now, and an offer is by definition conditional.
+for step in gaspol-verify gaspol-review gaspol-sync-docs; do
   if grep -q "$step" skills/gaspol-finish/SKILL.md; then
     pass "chain step $step still present"
   else
