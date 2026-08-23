@@ -170,6 +170,33 @@ has the right SHAPE. It never checks whether its content is honest — a checkli
 the work being done passes with exit 0. This closes the silent-skip hole, not the
 recorded-but-false hole.
 
+### Model Tier Gate
+
+Does every model declaration sit on the tier the rule assigns it? The rule is two tiers — **Opus
+judges, Sonnet works** — and until IDS-20 it was an "auto-rubric to choose from" that had drifted
+in ten places, including four reviewer prompt files and a sentence instructing an override to a
+tier nobody had chosen deliberately in months. This is the machine:
+
+```bash
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+script the target project happens to ship at a matching relative path}"
+"$CLAUDE_PLUGIN_ROOT/skills/gaspol-verify/scripts/model-gate"
+```
+
+Record the verdict as `model-tier:` beside `ledger:`.
+
+| Exit | Meaning | What you must do |
+|---|---|---|
+| **0** | every declaration is on its tier | proceed. Unrecognised values are listed and not blocked |
+| **1** | **BLOCKING** — a declaration names the wrong tier, or the deleted third tier appears anywhere in markdown | fix the declaration. Where a reason accompanied the old model, rewrite the reason too: a justification for the old tier left standing under the new one documents the opposite of what the file does |
+| **3** | **UNKNOWN — STOP and ask.** A declaration whose tier cannot be determined, or an agent with no `model:` field | do not guess a tier — guessing is what the rule exists to stop. Either the path/line makes the role clear, or the file declares its own tier with a `model-tier: judge` / `model-tier: exec` line |
+| **4** | not applicable — nothing declares a model. **Never counted as a pass** | record `model-tier: N/A — <reason>` |
+
+**What this gate does NOT do.** It reads **declarations**, never the model a dispatched subagent
+was actually served. If the harness ignores the field, this still passes. It closes the drift
+hole, not the execution hole. The full rule, and what each of its choices gives up, is in
+[docs/rubric-model-switching.md](../../docs/rubric-model-switching.md).
+
 ### Evidence Format
 ```
 TECHNICAL VERIFICATION (detect-stack: node):
@@ -180,6 +207,7 @@ TECHNICAL VERIFICATION (detect-stack: node):
   live-app-check: PASS (web lane, screenshot attached)
   regression-test: tests/auth.spec.ts::rejects expired token — RED at 4f2a1c9, GREEN after fix
   ledger: ok — IDS-19 has a valid ledger at .gaspol/progress/PROGRESS-IDS-19.md
+  model-tier: ok — 19 declaration(s) on the correct tier; 2 unrecognised value(s) reported
 ```
 
 Or, when no stack markers exist:
