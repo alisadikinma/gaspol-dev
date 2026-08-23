@@ -174,8 +174,10 @@ VERIFY_SKILL="$REPO_ROOT/skills/gaspol-verify/SKILL.md"
 # ONLY wiring left. That makes them load-bearing in a way they were not before:
 # if they weaken, regression-gate is wired into nothing at all.
 FINISH_SKILL="$REPO_ROOT/skills/gaspol-finish/SKILL.md"
-grep -q "Step 0" "$FINISH_SKILL" \
-    && bad "gaspol-finish still carries a Step 0 preamble — IDS-17 deleted it; if it came back, the duplicate invocation needs its own assertion again"
+# The HEADING, not the words: gaspol-finish deliberately keeps a paragraph
+# recording why Step 0 was removed, and that record must not trip this check.
+grep -q "^### Step 0" "$FINISH_SKILL" \
+    && bad "gaspol-finish still carries a Step 0 section — IDS-17 deleted it; if it came back, the duplicate invocation needs its own assertion again"
 
 # Anchored, not relative -- a relative call site executes whatever script a
 # repo carrying that path happens to ship, since gaspol-verify runs with the

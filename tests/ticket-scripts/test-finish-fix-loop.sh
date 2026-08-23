@@ -73,8 +73,11 @@ echo "test-finish-fix-loop: the Step 0 preamble is GONE, and its reason is recor
 # is now chain step 1 -- so cheap-checks-first is preserved by POSITION rather
 # than by repetition. Deleting a gate is only safe when something else still
 # holds it; test-regression-gate.sh asserts the gaspol-verify half still stands.
-grep -q "Step 0" "$FIN" \
-    && fail "gaspol-finish still carries a Step 0 preamble — IDS-17 deleted it as a duplicate of gaspol-verify Layer 1"
+# The HEADING, not the words. The assertion below requires the file to explain
+# WHY Step 0 went, so a check for any mention of the phrase would forbid the very
+# record the next assertion demands.
+grep -q "^### Step 0" "$FIN" \
+    && fail "gaspol-finish still carries a Step 0 section — IDS-17 deleted it as a duplicate of gaspol-verify Layer 1"
 claim "$FIN" "finish" "preserved by position" || exit 1
 # The deletion must not silently take the ordering rule with it: the Fix Loop
 # used to point at Step 0's checks, and a pointer to a deleted section is worse

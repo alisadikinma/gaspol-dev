@@ -186,10 +186,16 @@ test_security_delegation() {
   assert_grep "gaspol-execute invokes the built-in /security-review" \
     "/security-review" skills/gaspol-execute/SKILL.md
 
-  # The three properties of the gate, asserted individually so a reword that
-  # quietly drops one cannot pass.
-  assert_grep "gaspol-finish Step 4 still ALWAYS runs from the chain" \
-    "ALWAYS runs" skills/gaspol-finish/SKILL.md
+  # The properties of the gate, asserted individually so a reword that quietly
+  # drops one cannot pass.
+  #
+  # CHANGED in IDS-17: /security-review is no longer a mandatory chain step in
+  # gaspol-finish -- it is OFFERED after step 4, because not every ticket changes
+  # anything security-related. What did NOT change is what happens when it runs,
+  # and that is what the remaining assertions pin. gaspol-execute Step 3.6 still
+  # runs it unconditionally on its own triggers, asserted below.
+  assert_grep "gaspol-finish offers /security-review rather than dropping it" \
+    "Offered" skills/gaspol-finish/SKILL.md
 
   assert_grep "gaspol-finish Step 4 still blocks merge options on a finding" \
     "Never present merge options with an unresolved security" skills/gaspol-finish/SKILL.md
