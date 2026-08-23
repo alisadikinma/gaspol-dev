@@ -191,4 +191,22 @@ Once the worktree is live, IDS-1's naming conventions apply inside it exactly as
 | `gaspol-parallel` | Call gaspol-worktree BEFORE concurrent dispatch — each domain/phase that touches overlapping files gets isolation |
 | `gaspol-execute` / `gaspol-auto` | Optional pre-step to protect the current branch on large plans |
 | `gaspol-finish` | Owns teardown — `git worktree remove` happens there after the merge/PR decision, never before |
+
+### Copy the ledger out BEFORE `git worktree remove`, never after
+
+`.gaspol/` is gitignored, so the progress ledger lives **only** in the worktree's own directory
+and is destroyed with it. `git worktree remove` deletes the one record of what was observed
+during the run — the baseline, the mid-run decisions, the debt left open — and nothing warns you,
+because a gitignored file is invisible to `git status`.
+
+```bash
+cp .claude/worktrees/<slug>/.gaspol/progress/PROGRESS-<TICKET>.md \
+   <main checkout>/.gaspol/progress/PROGRESS-<TICKET>.md
+git worktree remove .claude/worktrees/<slug>
+git worktree prune
+```
+
+The order is the whole instruction. IND-98's ledger had to be reconstructed from session context
+because the copy was attempted after the removal, and a reconstruction is not a record — it is
+what somebody remembers, which is exactly what a ledger exists to replace.
 | `gaspol-brainstorm` | Phase 0 CLAUDE.md read informs Step 2 setup commands |

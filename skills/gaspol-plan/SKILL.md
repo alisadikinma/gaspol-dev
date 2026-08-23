@@ -227,6 +227,17 @@ post-run gates, deploy steps, leftovers found after close. Mandating all nine wo
 ledgers with "N/A", and an empty label reads as *checked and clear*, which is worse than a section
 that is simply absent.
 
+**Backward compatibility — READ the old shape, WRITE the new one.** An **older flat** ledger —
+one `## Checklist` line per phase, no sub-blocks, none of the four sections — is still read
+exactly as it is: tick its line, append to its `## Log`, and leave its shape alone. Rewriting a
+ledger mid-ticket destroys the record of what was actually observed and replaces it with what
+somebody infers now, which is the opposite of what a ledger is for. Only a ledger you CREATE uses
+the new shape. `scan-active-ledgers` reads both, because both end with `## Log`.
+
+The state markers apply to a **phase heading** and to an individual **checkbox** alike: a single
+step that was genuinely not done gets `[~]` with its reason on the line, rather than a tick it
+did not earn or a blank that reads as forgotten.
+
 Four checklist states:
 
 | Marker | Meaning | Condition |

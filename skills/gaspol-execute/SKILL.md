@@ -99,11 +99,11 @@ from the first unfinished phase. TodoWrite is in-memory and dies on compaction; 
 the source of truth for "where were we?".
 
 **Initialize only as a fallback.** `gaspol-plan` creates the ledger at plan-write time, so this
-is normally a no-op. For an older plan without one, create it in the format in
-`skills/gaspol-plan/SKILL.md` "Progress Ledger Format" — a `## Checklist` line per phase (all
-`[ ]`; states are `[ ]` todo / `[>]` doing / `[x]` done / `[~]` cancelled with a mandatory
-reason) above a `## Log`. **`## Log` is always the last block** — `scan-active-ledgers` reads
-the file's last non-empty line, so nothing may be appended below it.
+is normally a no-op. For an older plan without one, use the format in
+`skills/gaspol-plan/SKILL.md` "Progress Ledger Format" — four mandatory sections, a per-phase
+`## Checklist` sub-block, then `## Log`, which is **always the last block** because
+`scan-active-ledgers` reads the last non-empty line. **Older flat** ledgers (one line per
+phase) are read as-is and never reshaped; that section states why.
 
 TodoWrite maps **1:1** with the plan's phases — six phases, six items. Do not combine phases,
 do not invent phases the plan does not have.
