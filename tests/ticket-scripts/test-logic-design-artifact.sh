@@ -139,11 +139,25 @@ grep -qiE '\[No, pure backend/logic\]' "$BRAIN" \
 has "$BRAIN" "logic design artifact" \
     "brainstorm Phase 2.5's non-UI branch must route to the logic design artifact, not to nothing"
 
-echo "test-logic-design-artifact: gaspol-execute refuses a plan without an approved artifact..."
+echo "test-logic-design-artifact: gaspol-execute reads four artifact states (IDS-16)..."
 
 has "$EXEC" "design-artifact" \
     "gaspol-execute has no pre-execution check for the design artifact"
 has "$EXEC" "STOP and ask" \
     "gaspol-execute must STOP and ask on a pending artifact rather than proceeding"
+has "$EXEC" "design-artifact: skipped" \
+    "gaspol-execute does not define the 'skipped' artifact state"
+has "$EXEC" "no offer was made" \
+    "gaspol-execute must define what a MISSING line means, and record it rather than stopping"
+
+echo "test-logic-design-artifact: gaspol-execute never presents the offer itself..."
+
+has "$EXEC" "never present\|does not present\|never offers" \
+    "gaspol-execute must state that it never presents the artifact offer -- the offer lives only in gaspol-plan"
+
+echo "test-logic-design-artifact: an empty skip reason is not a decision..."
+
+has "$EXEC" "empty reason\|reason is empty\|blank reason" \
+    "a skipped line with no reason must be treated as pending (STOP), not silently accepted"
 
 echo "PASS: test-logic-design-artifact — every ticket owes one reviewable artifact before code"
