@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.28.0] - 2026-08-24
+
+### Added — the progress ledger had one writer and no reader (IDS-19)
+
+Measured across all 18 IDS tickets in this repository, the ledger existed **if and only if** a
+plan file did: IDS-3, IDS-5, IDS-9 and IDS-15 had neither. The cause is exact — the ledger had one
+creator, `gaspol-plan` step 7, and nothing anywhere checked it existed. Every path reaching code
+without passing through `gaspol-plan` produced none: `gaspol-debug`, `gaspol-brainstorm`'s bounded
+path, a direct edit. Seventh instance of one defect shape — a rule in prose with nothing reading
+the record it produces (IDS-7, IDS-8, IDS-12, IDS-13, IDS-14, IDS-18 were the first six).
+
+- **`skills/gaspol-verify/scripts/ledger-gate`** — four exit states on the contract `spec-pointer`
+  established: 0 found and structurally valid / 1 BLOCKING / 3 UNKNOWN / 4 not applicable with a
+  **mandatory** reason. Exit 3 is deliberately not merged into exit 1: a ledger carrying a block
+  below `## Log` still exists, so `scan-active-ledgers` reads the wrong last line and reports the
+  ticket's state **wrongly** — worse than an absent file, which at least reports nothing. Wired
+  into `gaspol-verify` Layer 1, anchored through `$CLAUDE_PLUGIN_ROOT`.
+- **The ledger template's checklist is COPIED from the plan**, not summarised: each phase becomes
+  a `### [ ] Phase <N>: <name>` sub-block holding that phase's `**Steps:**` as checkboxes plus its
+  `**Verification:**` block verbatim — already `- [ ]`. Nothing is authored twice, so the ledger
+  cannot drift from its plan. Accepted consequence, stated in the skill: ledger quality is now
+  bound to plan quality.
+- **Four mandatory sections** above `## Log` — `## Pre-flight`, `## Keputusan saat jalan`,
+  `## Phase log` with real SHAs, `## Utang terbuka`. The other five sections IND-117's ledger grew
+  are added when they have content: mandating nine fills most ledgers with "N/A", and an empty
+  label reads as *checked and clear*.
+- **`gaspol-debug` Phase 1 creates the ledger** when none exists, minting the ticket through the
+  anchored `next-ticket` **once per batch**. This closes a live bug: Phase 4 step 1 wrote a
+  `regression-test:` line into a ledger that path never created, so `regression-gate` returned
+  exit 3 as its *normal* outcome on the path it was built for.
+- **`gaspol-worktree`** gains the copy-before-remove order. `.gaspol/` is gitignored, so the
+  ledger dies with the worktree and `git status` never warns.
+
+**Three real bugs the tests caught, none assumed.** `test-kb-no-hardcoded-path.sh`'s per-script
+positive control also scanned `docs/`, so it **passed for a script with zero real invocations** —
+satisfied entirely by this ticket's own plan document quoting the anchored path in prose. Both of
+its counting pipelines then aborted **silently**: `grep` returns 1 on no match, `pipefail` makes
+that the assignment's status, and `set -e` kills the script before `fail` can speak — exit 1 with
+an empty stderr, hit a third time in `test-regression-gate.sh` the same day. And `ledger-gate` was
+committed `100644` despite `chmod +x`, because this repo sets `core.fileMode = false`: `chmod`
+never reaches the index regardless of ordering.
+
+**Not closed, and said so:** the gate checks that a ledger EXISTS and has the right SHAPE, never
+whether its content is honest — a checklist ticked without the work being done passes with exit 0.
+The bounded brainstorm path still creates no ledger and lands on exit 4. `.gaspol/` stays
+gitignored. No back-fill for IDS-3/5/9/15: a ledger written months later is fiction, and fiction in
+the record is worse than an admitted gap.
+
 ## [1.27.0] - 2026-08-23
 
 ### Added — the spec link of the chain finally has a reader (IDS-18)

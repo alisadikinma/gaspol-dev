@@ -31,6 +31,9 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-verify/scripts/geometry-diff` | **NEW (v1.24)** — stdlib-only DOM geometry diff between a canvas and the live app, per `data-vv` marker. Colour normalises across hex/`rgb()`-comma/`rgb()`-space to one value; structural/decorative severity reused from `design_audit.py`'s own role split so the two scripts cannot disagree; missing marker BLOCKS, extra marker WARNs; width/horizontal-position get a ratio-of-viewport fallback (smaller deviation wins) so a fluid layout doesn't false-positive. `--emit-extractor` prints a fixed JS literal, never constructed from any argument — checked first in `main()`. Three states: parses (0/1) / UNKNOWN — malformed (3) / no canvas contract (4, not a failure) |
 | `skills/gaspol-verify/scripts/spec-pointer` | **NEW (v1.27)** — resolves the `**Spec:** <path>` line in a plan header, which `gaspol-plan` had been writing since IDS-1 with **zero** readers. Three states on `kb-root`'s own exit contract (0 resolved / 3 UNKNOWN / 4 none). Exit 3 deliberately covers a spec that exists but carries **no parseable requirement** — zero items must not read as *satisfied*, which is `design_audit.py`'s defect one layer down. Resolves against `git rev-parse --show-toplevel`, never `$PWD` |
 | `skills/gaspol-verify/scripts/blast-radius-diff` | **NEW (v1.27)** — the plan's declared file list vs `git diff --name-only <BASE>..HEAD`. Reads the list from the **plan**, not the artifact: the artifact is a URL, and a gate needing the network spends its life recorded as `not run`. Exit 1 is **WARN and does not block** — collateral edits are legitimate, a per-file BLOCK fires on most branches, and a gate that cries wolf gets switched off. Built-in ignore list (`.gaspol/`, `docs/plans/`, `CLAUDE.md`, lockfiles) is what makes it survivable |
+| `skills/gaspol-verify/scripts/ledger-gate` | **NEW (v1.28)** — the reader the progress ledger never had. Four exit states on the contract `spec-pointer` established (0 found and structurally valid / 1 BLOCKING / 3 UNKNOWN / 4 not applicable). Exit 3 is deliberately **not** merged into exit 1: a ledger carrying a block below `## Log` still exists, so `scan-active-ledgers` reads the wrong last line and reports the ticket's state **wrongly** — worse than an absent file, which at least reports nothing. Markdown is deliberately absent from the ignore list, because in a skills repository `skills/*.md` IS the executed surface |
+| `tests/ticket-scripts/test-ledger-gate.sh` | **NEW (v1.28)** — 19 cases over all four exit states, both legacy ledger paths, a lowercase branch that must resolve **no** ticket, and invocation from a subdirectory. Also home to the BSD-`sed` portability guard, which could not live in the script's own `--self-test`: a guard that searches its own source for a pattern must quote that pattern, so it always finds one. Two attempts inside the script both failed against themselves |
+| `tests/ticket-scripts/test-ledger-template.sh` | **NEW (v1.28)** — 8 assertions over `gaspol-plan`'s ledger template, which it **extracts** rather than duplicates: a copy inside the test would keep passing after the real one drifted. Carries a positive control asserting the extractor read a real template, not an empty file |
 | `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
 | `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
@@ -495,6 +498,97 @@ Layer 2. What is given up: nothing forces anyone to read that line. It is not eq
 - **A bug fix still passes no spec point at all** — bug reports route to `gaspol-debug`, which
   produces no spec. Unchanged here, and deliberately not ticketed: a number pointing at no spec is
   the promise-with-no-implementation shape this repository keeps having to undo.
+
+### Ledger Standard + Ledger Gate (NEW in v1.28) — the record had one writer and no reader
+
+Canonical sources: `skills/gaspol-verify/scripts/ledger-gate`, `skills/gaspol-plan/SKILL.md`
+"Progress Ledger Format", `skills/gaspol-debug/SKILL.md` Phase 1.
+
+Two complaints, ruled **one ticket** by the Batch Gate — same subsystem, one plan under the phase
+threshold. The ledger written by hand during a consumer project's IND-117 was the shape the owner
+wanted as standard: a checkbox per *step* rather than per *phase*, plus narrative sections
+recording the baseline, the mid-run decisions, the real commit SHAs and the debt left open. And
+ledger creation "sering ke-skip".
+
+**The evidence, measured rather than assumed.** Across all 18 IDS tickets in this repository:
+
+| Tickets | plan file | ledger file |
+|---|---|---|
+| IDS-3, IDS-5, IDS-9, IDS-15 | absent | **absent** |
+| the other 14 | present | present |
+
+The correlation is exact, and it names the cause: **the ledger had exactly one creator** —
+`gaspol-plan` step 7 — and **no reader that checked it existed**. Every path reaching code without
+passing through `gaspol-plan` produced nothing: `gaspol-debug` (where bug reports route),
+`gaspol-brainstorm`'s bounded path, a direct edit.
+
+**A live bug followed directly.** `gaspol-debug` Phase 4 step 1 instructed the agent to write a
+`regression-test:` line **into the ledger**, and `regression-gate` reads that line. On the
+debug-only path there was no ledger to write it into, so `regression-gate` returned exit 3
+(UNKNOWN — ledger unresolved) as its *normal* outcome on the very path it was built for.
+
+**This is the seventh instance of the same defect shape**: a rule stated in prose with nothing
+reading the record the rule produces. IDS-7 (a design gate never wired up), IDS-8 (a setting
+nothing read), IDS-12 (`gaspol-execute` only read code, never ran it), IDS-13 (a Live App Check
+with no detector), IDS-14 (a regression test nobody had to defend skipping), IDS-18 (a spec
+pointer with zero readers).
+
+**Part A — the template's content is COPIED from the plan, never summarised.** Each phase becomes
+a `### [ ] Phase <N>: <name>` sub-block whose body is that phase's `**Steps:**` rendered as
+checkboxes followed by its `**Verification:**` block verbatim — the latter is *already* `- [ ]`.
+Nothing is authored twice, so the ledger cannot drift from the plan it came from. **The accepted
+consequence is stated rather than discovered later:** ledger quality is now bound to plan quality;
+a plan whose Steps are lazy produces a lazy ledger. That coupling is the point, because a fixed
+generic checkbox set can never produce a box like *"RED seen: `'   '` plus a signature stores
+`''`, expected `null`"* — and boxes like that are the entire reason the format was worth copying.
+
+**Four sections become mandatory**, all above `## Log`: `## Pre-flight` (a red baseline nobody
+recorded gets blamed on the new phase), `## Keputusan saat jalan` (the only record of what is
+neither in the plan nor in the code), `## Phase log` with real SHAs (a SHA can be re-checked; the
+word "DONE" cannot), and `## Utang terbuka` (what is not written down becomes a *"nanti"* that
+never arrives). The other five sections IND-117's ledger grew are added **when they have
+content** — mandating nine would fill most ledgers with "N/A", and an empty label reads as
+*checked and clear*, which is worse than a section that is simply absent.
+
+**Part B — two halves, because neither works alone.** A script cannot create a ledger, and a
+second creator cannot see the paths it does not own. `gaspol-debug` Phase 1 now creates one when
+none exists (minting the ticket through the anchored `next-ticket`, **once per batch**, asking for
+a prefix on exit 2 rather than guessing). `ledger-gate` reads it from `gaspol-verify` Layer 1.
+
+**Exit 4 is what keeps the gate alive.** Without it every typo fix on an unticketed branch gets
+blocked, the gate cries wolf, and somebody switches it off — the reasoning that already made
+`blast-radius-diff` a WARN. It covers two situations told apart by a **mandatory** reason:
+`N/A — no ticket on this branch` and `N/A — docs-only branch, no code commits`.
+
+**Three real bugs the tests caught, none assumed.** `test-kb-no-hardcoded-path.sh`'s per-script
+positive control also scanned `docs/`, so it **passed for a script with zero real invocations** —
+satisfied entirely by this ticket's own plan document quoting the anchored path in prose. A
+control a sentence can satisfy proves nothing about whether anything is wired. Both of its
+counting pipelines then aborted **silently** rather than failing by name: `grep` returns 1 when it
+matches nothing, `pipefail` makes that the assignment's status, and `set -e` kills the script
+before the `fail` message runs — observed as exit 1 with an empty stderr, and hit a third time in
+`test-regression-gate.sh` the same day. And `ledger-gate` was committed `100644` despite
+`chmod +x`, because this repo sets `core.fileMode = false`: `chmod` never reaches the index
+regardless of ordering. `test-scripts-executable.sh` passed anyway, because its `DIRECT` list is
+hardcoded and did not yet name the new script.
+
+**What this does NOT close, named so the deferral cannot be mistaken for completion:**
+
+- **The gate checks existence and shape, never honesty.** A checklist ticked without the work
+  being done passes with exit 0. This closes the silent-skip hole, not the recorded-but-false one
+  — the boundary `machine-checkable-escape-hatch-closure` states explicitly.
+- **The bounded brainstorm path still creates no ledger.** It creates no ticket either, so it
+  lands on exit 4 and is recorded as `N/A` rather than blocked. Making bounded work mint a ticket
+  would change that path's whole purpose.
+- **`.gaspol/` stays gitignored.** The ledger is still invisible to `git status` and still dies
+  with a worktree; `gaspol-worktree` now carries the copy-before-remove order, which is a
+  reminder, not a mechanism.
+- **No back-fill.** IDS-3, IDS-5, IDS-9 and IDS-15 stay ledger-less. A ledger written months after
+  the fact is fiction, and fiction in the record is worse than an admitted gap.
+- **Found in passing, deliberately out of scope:** `skills/gaspol-verify/scripts/geometry-diff` is
+  committed `100644` and is absent from `test-scripts-executable.sh`'s `DIRECT` list — the same
+  shape just fixed for `ledger-gate`. No ticket id is minted: a number pointing at no spec is the
+  promise-with-no-implementation shape this repository keeps having to undo.
 
 ### Live App Check (NEW in v1.23) — the gate that had no machine
 
@@ -1445,5 +1539,5 @@ Last ticket: IDS-19
 
 ---
 
-**Version:** 1.27.0
+**Version:** 1.28.0
 **Last Updated:** August 2026
