@@ -8,37 +8,67 @@
 # `if` read the empty result as a mismatch, not as "never checked".
 #
 # Resolution order (same shape as skills/_shared/kb-root):
-#   1. $GASPOL_MARKETPLACE_MANIFEST
-#   2. <repo>/../gaspol-one/.claude-plugin/marketplace.json   (sibling checkout)
+#   1. $GASPOL_MARKETPLACE_MANIFEST  (the literal `none` opts out explicitly)
+#   2. <main worktree>/../gaspol-one/.claude-plugin/marketplace.json
+#
+# Step 2 resolves the MAIN worktree via `git rev-parse --git-common-dir`, not
+# this script's own directory. A linked worktree at <repo>/.claude/worktrees/<slug>
+# is two levels below the sibling checkout, so location-relative resolution
+# looked for `.claude/worktrees/gaspol-one` and reported `none` — every
+# worktree-based ticket lost the cross-repo version gate, honestly reported as
+# NOT checked but for a reason nobody could see. (IDS-14 Phase A0.)
 #
 # Output: the resolved path on stdout.
 # Exit:   0  available — path printed
-#         3  UNKNOWN  — configured but unreadable or not valid JSON-ish
+#         3  UNKNOWN  — configured but unreadable or not a manifest
 #         4  none     — nothing configured, nothing to check
 #
-# Callers MUST distinguish 3 from 4. Exit 4 is not a pass: a version gate that
-# did not run is reported as not run, never as agreed.
+# Callers MUST distinguish 3 from 4, and MUST call this as
+#     rc=0; path="$(marketplace-manifest)" || rc=$?
+# NOT as `path="$(marketplace-manifest)"; rc=$?`. Under `set -e` the second form
+# terminates the caller at the assignment, making its own `case "$rc"` block
+# unreachable — which is exactly how the three states below sat documented and
+# unreachable until a worktree run finally asked for one of them.
+#
+# Exit 4 is not a pass: a version gate that did not run is reported as not run,
+# never as agreed.
 set -uo pipefail
-
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 candidate=""
 configured=0
 
 if [ -n "${GASPOL_MARKETPLACE_MANIFEST:-}" ]; then
+    # Explicit opt-out, for a machine that does not keep the marketplace repo
+    # locally. Honest "not checked" beats a probe whose failure looks like a
+    # finding — the same reason `"kb_mode": "off"` exists.
+    if [ "$GASPOL_MARKETPLACE_MANIFEST" = "none" ]; then
+        exit 4
+    fi
     candidate="$GASPOL_MARKETPLACE_MANIFEST"
     configured=1
-elif [ -e "$repo_root/../gaspol-one/.claude-plugin/marketplace.json" ]; then
-    candidate="$(cd "$repo_root/.." && pwd)/gaspol-one/.claude-plugin/marketplace.json"
-    configured=1
+else
+    # `--git-common-dir` points at the MAIN repo's .git even from a linked
+    # worktree; its parent is the main working tree. Falls back to this
+    # script's location when git is unavailable or this is not a repo.
+    common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [ -n "$common_dir" ] && [ -d "$common_dir" ]; then
+        main_root="$(cd "$common_dir/.." && pwd)"
+    else
+        main_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    fi
+    sibling="$main_root/../gaspol-one/.claude-plugin/marketplace.json"
+    if [ -e "$sibling" ]; then
+        candidate="$(cd "$(dirname "$sibling")" && pwd)/$(basename "$sibling")"
+        configured=1
+    fi
 fi
 
 if [ "$configured" -eq 0 ]; then
     exit 4
 fi
 
-if [ ! -r "$candidate" ]; then
-    echo "marketplace-manifest: configured path is not readable: $candidate" >&2
+if [ ! -r "$candidate" ] || [ -d "$candidate" ]; then
+    echo "marketplace-manifest: configured path is not a readable file: $candidate" >&2
     exit 3
 fi
 

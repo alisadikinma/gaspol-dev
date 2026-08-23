@@ -26,7 +26,9 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/_shared/completeness-ladder.md` | **NEW (v1.20)** — the default coding stance: happy path → every error path → every edge case → the tests that prove them → observability → the comment explaining why, walked DOWN in full. Carries the Reuse Rule (stdlib → native → installed dep) and the scope-cut Red Flags. **Replaced `laziness-ladder.md`**, whose first rung asked whether the work needed to exist at all. Single source referenced by plan/execute/parallel + the session-start hook |
 | `skills/_shared/batch-gate.md` | **NEW (v1.20)** — one report, one ticket. States the default, the three split reasons, the never-split list, and the hard ceiling of two. Read by `gaspol-brainstorm` and `gaspol-debug`; the threshold is deliberately not repeated in either, for the reason `fix-loop.md` was extracted |
 | `skills/gaspol-plan/logic-design-artifact.md` | **NEW (v1.20)** — the five-section contract for the reviewable artifact logic-only work now owes: before/after behaviour (current path quoted from real code), mermaid flow, data-flow table reusing the Data Integration Map columns, edge-case matrix (empty = failed gate), and the blast-radius statement |
-| `skills/_shared/live-app-check.md` | **NEW (v1.23)** — the only check that answers *does it actually run*. Two lanes with different preconditions: **web** starts the app, waits by condition, and drives the changed surface through the **Playwright MCP**; **mobile** needs a device over USB debugging or a booted emulator, which gaspol cannot provide — so it probes, offers, and asks. A lane that could not run is recorded as **not run**, never as passed |
+| `skills/_shared/live-app-check.md` | **UPDATED (v1.24)**, NEW (v1.23) — the only check that answers *does it actually run*. Two lanes with different preconditions: **web** starts the app, waits by condition, and drives the changed surface through the **Playwright MCP**; **mobile** needs a device over USB debugging or a booted emulator, which gaspol cannot provide — so it probes, offers, and asks. A lane that could not run is recorded as **not run**, never as passed. v1.24 adds a `geometry-diff` step to the web lane's screenshot capture (mobile stays excluded — adb `screencap` carries no DOM to extract from) |
+| `skills/_shared/visual-contract.md` | **NEW (v1.24)** — the canvas format `geometry-diff` reads, stated once: `data-vv="<screen>.<element>"` marker naming, markup written in the target stack so the implementer copies rather than translates, realistic worst-case content, the canvas file path (`docs/plans/YYYY-MM-DD-<TICKET>-<topic>-canvas.html`, on the branch), and an explicit list of what IDS-6 Part B still leaves open |
+| `skills/gaspol-verify/scripts/geometry-diff` | **NEW (v1.24)** — stdlib-only DOM geometry diff between a canvas and the live app, per `data-vv` marker. Colour normalises across hex/`rgb()`-comma/`rgb()`-space to one value; structural/decorative severity reused from `design_audit.py`'s own role split so the two scripts cannot disagree; missing marker BLOCKS, extra marker WARNs; width/horizontal-position get a ratio-of-viewport fallback (smaller deviation wins) so a fluid layout doesn't false-positive. `--emit-extractor` prints a fixed JS literal, never constructed from any argument — checked first in `main()`. Three states: parses (0/1) / UNKNOWN — malformed (3) / no canvas contract (4, not a failure) |
 | `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
 | `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
@@ -61,6 +63,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-tdd/SKILL.md` | RED-GREEN-REFACTOR cycle enforcement |
 | `skills/gaspol-tdd/testing-anti-patterns.md` | Testing anti-pattern reference |
 | `skills/gaspol-debug/SKILL.md` | Systematic root cause debugging — no guessing |
+| `skills/gaspol-debug/scripts/regression-gate` | **NEW (v1.24)** — the machine behind Phase 4 step 1's three-state contract (written / N/A — reason / not run — reason). Reads commit subjects over `<BASE>..HEAD` for a fix-commit signal (same keyword set `git-history-reviewer.md` already uses) and the ledger's `regression-test:` line; four exit states (0 satisfied / 1 BLOCKING / 3 UNKNOWN — ledger unresolved / 4 not applicable — no fix commits, never counted as a pass). Wired into `gaspol-verify` Layer 1 and `gaspol-finish` Step 0 |
 | `skills/gaspol-debug/root-cause-tracing.md` | Backward tracing technique reference |
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
@@ -337,6 +340,81 @@ for — that is scope creep, flagged as separate scope like any unrelated work.
 absorbed in v1.9 and is **no longer the gaspol stance**; what remains of it here is the Reuse Rule.
 caveman (global) governs prose voice — a different axis, deliberately not absorbed. RTK /
 context-mode compress tool OUTPUT at runtime — a different layer, nothing to absorb.
+
+### Regression Gate + Visual Geometry Diff (NEW in v1.24) — two gates that advised, nobody enforced
+
+Canonical sources: `skills/gaspol-debug/scripts/regression-gate`,
+`skills/gaspol-verify/scripts/geometry-diff`, `skills/_shared/visual-contract.md`. Two items
+recorded as open at the end of IDS-13, restated by the owner: *"Belum ada yang membandingkan
+screenshot dengan mockup"* (no automatic screenshot-vs-mockup comparison) and *"Perbaikan bug
+belum wajib meninggalkan test regresi"* (bug fixes aren't required to leave a regression test).
+Batch Gate split this from the eval harness (IDS-15) on record: disjoint subsystems — these two
+enforce rules **inside** `skills/`, the eval harness measures the plugin from `tests/` — and the
+combined plan exceeded the phase threshold.
+
+**Both items are the same defect shape this plugin has now shipped four fixes for: a rule exists,
+and no machine enforces it.** IDS-7 (a design gate never wired up), IDS-8 (a setting nothing
+read), IDS-12 (`gaspol-execute` only read code, never ran it), IDS-13 (a Live App Check with no
+detector). Evidence, by command: `grep -rn regression skills/gaspol-verify skills/gaspol-finish`
+→ **0 hits** before this ticket; `grep -rn "data-vv" skills/` → **0 hits**, every occurrence sat
+in `docs/plans/` prose.
+
+**Part A — the regression gate.** `gaspol-debug` Phase 4 step 1 said *"Create a failing test case
+(if possible)"* — a default nobody had to defend, with nothing checking whether the possibility
+was real. Three states, no silent default: `regression-test: <path>::<name> — RED at <sha>, GREEN
+after fix` (written — RED-before-GREEN is not optional; a test added after the fix, never
+observed failing, proves only that it passes now), `regression-test: N/A — <reason>` (genuinely
+not testable), `regression-test: not run — <reason>` (not written, but a decision with a name on
+it). `regression-gate` checks it deterministically: reads commit subjects over `<BASE>..HEAD` for
+a fix-commit signal (the exact keyword set `skills/gaspol-review/git-history-reviewer.md` already
+uses — fix/revert/bug/regression/hotfix — reused so the two cannot disagree), reads the ledger's
+`regression-test:` line, and requires N/A and "not run" to carry an actual reason after the dash
+— a bare label with nothing after it is `(if possible)` wearing a new name. Four exit states: 0
+satisfied / 1 BLOCKING (fix commit, no line — or a bare label with no reason) / 3 UNKNOWN (ledger
+unresolved or unreadable — STOP and ask) / 4 not applicable (no fix commits, **never** counted as
+a pass, the same reason `marketplace-manifest`'s exit 4 is not). Wired into `gaspol-verify` Layer
+1 and `gaspol-finish` Step 0, anchored via `$CLAUDE_PLUGIN_ROOT` per the IDS-8 form.
+
+**Part B — the visual diff machine.** "Compare the screenshot to the mockup" turned out to have a
+missing left-hand side: there was nothing to compare against. IDS-6 Part B specified a canvas
+carrying `data-vv="<screen>.<element>"` markers as that reference; the format existed nowhere in
+this repository. `geometry-diff` takes two geometry snapshots as JSON (produced by its own
+`--emit-extractor`, a fixed JS literal executed via the Playwright MCP's `browser_evaluate`, once
+against the canvas and once against the live app) and diffs them per marker. Colour normalises
+across three spellings (`#3B82F6`, `rgb(59, 130, 246)`, `rgb(59 130 246)`) to one value.
+Structural/decorative severity reuses `design_audit.py`'s own role split — same property names,
+so the two scripts cannot disagree about the same colour. A marker present in the canvas but
+absent in the app BLOCKS (markup was rewritten, not copied); the reverse only WARNs (may be a
+legitimate addition). Width and horizontal position get a ratio-of-viewport fallback on top of
+the 2px absolute tolerance — the *smaller* deviation wins, so an element at ~44% of two different
+viewport widths passes despite a 30px absolute gap, while the same element at 44% vs 61% at *one*
+viewport still BLOCKS on both tests. Three states, matching `design_audit.py`'s own contract
+vocabulary: both snapshots parse (0/1), a snapshot present but unparseable (**3** UNKNOWN — STOP
+and ask, never degrade to an empty diff), no canvas file at all (**4** none — not a failure, most
+branches have no canvas). Wired into `live-app-check.md`'s web lane only, right after the
+screenshot capture; the mobile lane is explicitly excluded with its reason (`adb exec-out
+screencap` produces a PNG with no DOM behind it — there is no geometry to extract). `gaspol-verify`
+Layer 4 carries a `visual-diff:` line beside `design-contract:` — the wrong-colour/font and
+wrong-layout halves of the same complaint, recorded together.
+
+**A real bug, found chasing an intermittent suite failure rather than assumed to be test
+flakiness.** `regression-gate`'s `has_fix_commit()` piped `git log --format=%s ... | grep -qiE
+...` directly. Under `set -o pipefail`, `grep -q` exiting the instant it finds a match can
+`SIGPIPE` `git log` before it finishes writing its output, and pipefail then reports the
+*pipeline's* exit status as `git log`'s non-zero SIGPIPE code rather than `grep`'s successful
+match — turning a real fix commit into a false "not applicable" roughly one run in six. Isolated
+to plain shell with a 30-iteration standalone reproduction (no test harness involved) before the
+fix touched a line of the actual script. Fixed by capturing `git log`'s output into a variable
+before `grep` ever sees it, which removes the race outright rather than papering over the
+symptom — 60/60 clean afterward, and the script's own `--self-test` gained a 25-iteration
+regression guard for exactly this race, because a single passing run cannot prove a race is gone.
+
+**What this does NOT close, named so the deferral cannot be mistaken for completion** (the same
+discipline `visual-contract.md` states inline): the rest of IDS-6 Part B —
+`gaspol-visual-verify` as a dedicated skill, the two-fidelity restructure of `gaspol-brainstorm`
+and `gaspol-plan`, the pixel-diff trigger, and the `§ Execution`/`§ Mapping` canvas sections. The
+machine had to exist before the process depending on it was worth changing — the same order
+IDS-13 used for Live App Check (`detect-app-target` before the protocol before the wiring).
 
 ### Live App Check (NEW in v1.23) — the gate that had no machine
 
@@ -1191,9 +1269,9 @@ Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated repor
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-13
+Last ticket: IDS-14
 
 ---
 
-**Version:** 1.23.0
+**Version:** 1.24.0
 **Last Updated:** August 2026

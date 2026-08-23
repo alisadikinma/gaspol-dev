@@ -221,7 +221,8 @@ fi
 # The marketplace manifest lives in the gaspol-one repo since 50fbbb1. Three
 # states, kept apart: agreed / UNKNOWN / not checked. "Not checked" is printed,
 # never counted as a pass — a dead gate reporting green is what this repairs.
-mm_path="$(tests/ticket-scripts/marketplace-manifest)"; mm_rc=$?
+mm_rc=0
+mm_path="$("$REPO_ROOT/tests/ticket-scripts/marketplace-manifest")" || mm_rc=$?
 case "$mm_rc" in
   0)
     marketplace_version="$(grep -m1 '"version"' "$mm_path" | sed -E 's/.*"version": *"([^"]+)".*/\1/')"

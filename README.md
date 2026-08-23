@@ -4,7 +4,7 @@
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.23.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-35-brightgreen)](#testing)
+[![Version](https://img.shields.io/badge/version-1.24.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-38-brightgreen)](#testing)
 
 ---
 
@@ -87,11 +87,11 @@ Three of these gates exist because their absence caused a real, observed failure
 
 ---
 
-## What 1.20 – 1.23 changed, and why
+## What 1.20 – 1.24 changed, and why
 
-Four releases in one day, each one repairing something that had been quietly broken. They are worth
-reading together because they form a single argument: **instructions are the weakest lever, and
-gaspol had been pulling it.**
+Five releases in one stretch, each one repairing something that had been quietly broken. They are
+worth reading together because they form a single argument: **instructions are the weakest lever,
+and gaspol had been pulling it.**
 
 ### The default stance told the agent to do less (1.20.0)
 
@@ -194,6 +194,49 @@ This confirms the app runs, the screen appears, the console is clean and request
 **not** confirm that what appeared matches the design — the screenshot is captured and attached for
 a human; nothing compares it automatically. And there is still no eval harness proving these
 changes make the *output* better. Both gaps are named here rather than papered over.
+
+### Two gates that advised, and nobody enforced (1.24.0)
+
+The previous release's closing note named the next two items in order of leverage. Both close here:
+
+```
+grep -rn regression skills/gaspol-verify skills/gaspol-finish   →  0 hits
+```
+
+`gaspol-debug` Phase 4 step 1 said *"Create a failing test case **(if possible)**"* — a default
+nobody had to defend, and nothing downstream checked whether the possibility was real. It's now a
+three-state contract with no silent default: `regression-test: <path>::<name> — RED at <sha>, GREEN
+after fix` (written), `N/A — <reason>` (genuinely not testable), or `not run — <reason>` (a decision
+with a name on it, not an excuse). `skills/gaspol-debug/scripts/regression-gate` checks it
+deterministically — fix-commit detection reuses `git-history-reviewer.md`'s exact keyword set, so
+the two cannot disagree — and is wired into both `gaspol-verify` Layer 1 and `gaspol-finish` Step 0,
+before any agent is dispatched.
+
+The second gap was the wrong-**layout** half of "the screenshot doesn't match the mockup" —
+`design_audit.py` already covers wrong-colour and wrong-font. `skills/gaspol-verify/scripts/
+geometry-diff` diffs two DOM geometry snapshots per `data-vv` marker: colour normalises across
+hex/`rgb()`-comma/`rgb()`-space to one value, a missing marker BLOCKS while an extra one only WARNs,
+and width/horizontal-position get a **ratio-of-viewport fallback** — an element at ~44% of two
+different browser widths passes despite a 30px absolute gap, while the same element at 44% vs 61%
+at *one* viewport still BLOCKS. The extractor (`--emit-extractor`) is a fixed JS literal, never
+constructed from an argument — checked first in `main()`, before anything else is read, so a
+hostile flag cannot reach what the caller executes. `skills/_shared/visual-contract.md` states the
+canvas format once (`data-vv="<screen>.<element>"`, markup in the target stack, realistic
+worst-case content, the file's path convention) and names precisely what IDS-6 Part B still leaves
+open — the machine had to exist before the process depending on it was worth changing.
+
+A genuine, reproducible bug turned up while chasing an *intermittent* suite failure, not a flaky
+test: `has_fix_commit()` piped `git log | grep -qiE` directly. Under `set -o pipefail`, `grep -q`
+exiting the instant it matches can `SIGPIPE` `git log` before it finishes writing, and pipefail then
+reports the *pipeline's* exit status as `git log`'s non-zero SIGPIPE code — turning a real fix
+commit into a false "not applicable" roughly one run in six. A 30-iteration standalone repro
+isolated it to plain shell before the fix touched a line of the script; capturing `git log`'s output
+into a variable before `grep` ever sees it removed the race outright (60/60 clean after).
+
+Still open: the rest of IDS-6 Part B (`gaspol-visual-verify` as a skill, the two-fidelity
+brainstorm/plan restructure, the pixel-diff trigger), and the eval harness — now its own ticket
+(IDS-15), scoped separately because it measures the plugin from `tests/` and returns a score rather
+than a pass/fail verdict.
 
 ---
 
@@ -372,7 +415,8 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.23.0** (current) | **Live App Check gets a machine** — web via the Playwright MCP, mobile via `adb`/`simctl` with a resolution order that survives Android Studio not touching PATH; `adb devices` treated as four outcomes, not two; a check that did not run is never recorded as passed |
+| **1.24.0** (current) | **Regression gate + visual geometry diff** — bug fixes now leave a checked, three-state ledger record instead of an unenforced "(if possible)"; a `data-vv`-marker geometry diff closes the wrong-layout half of the mockup-mismatch complaint (`design_audit.py` already covered wrong-colour/font), wired into `live-app-check`'s web lane; a real `git log \| grep -q` / `pipefail` SIGPIPE race found and fixed along the way |
+| 1.23.0 | **Live App Check gets a machine** — web via the Playwright MCP, mobile via `adb`/`simctl` with a resolution order that survives Android Studio not touching PATH; `adb devices` treated as four outcomes, not two; a check that did not run is never recorded as passed |
 | 1.22.0 | **Per-phase verification loop** — `gaspol-execute` ran *nothing* until now. Baseline before Phase A, fail-fast L1→L3 before every checkpoint, failing output fed back verbatim, and a phase that never ran its ladder cannot be ticked |
 | 1.21.0 | **Three skills deleted** (20 → 17), the rules inside them rescued: Prior-Art Gate to `_shared/`, KB promotion repointed at a promoter that exists, the eval rule kept inline |
 | 1.20.0 | **Completeness Ladder** replaces the scope-cutting Laziness Ladder; **Batch Gate** (one report, one ticket); **Design Artifact gate** BLOCKING for logic-only work; 12 files stripped of another project's hardcoded identity; the deterministic suite, silently red since the marketplace split, repaired |
@@ -388,9 +432,9 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 | 1.2.0 | Cross-project KB, tiered review, hard gates, research grounding, step-level closure |
 | 1.0.0 | Core skills, anti-placeholder enforcement, per-phase checkpoints |
 
-Next, in order of leverage: an **eval harness** so a plugin change can be proven rather than argued;
-**bug fixes must leave a regression test** (advised today by `gaspol-debug`, checked by nobody);
-layout-geometry comparison against the mockup; then multi-IDE support (Cursor, Codex, Gemini).
+Next, in order of leverage: an **eval harness** (IDS-15) so a plugin change can be proven rather
+than argued; then multi-IDE support (Cursor, Codex, Gemini). The regression gate and the
+layout-geometry comparison that used to head this list shipped in 1.24.0.
 
 ---
 

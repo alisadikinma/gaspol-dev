@@ -123,6 +123,24 @@ because now somebody believes it was checked.
 `live-app-check: N/A — no UI or user-visible surface (<reason>)`. An unusable gate gets switched
 off, which costs more than the false alarms it prevents.
 
+### Regression Gate
+
+Does this branch fix a bug, and if so did it leave a regression test? Prose could not enforce
+prose — `gaspol-debug` Phase 4 used to say "(if possible)", with nothing checking whether it was
+possible or whether one was written. This is the machine:
+
+```bash
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+script the target project happens to ship at a matching relative path}"
+"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate" <BASE>
+```
+
+Record the verdict beside `live-app-check:`. Exit 0 satisfied. Exit 1 BLOCKING — a fix commit
+exists in `<BASE>..HEAD` with no `regression-test:` line in the ledger, or only a bare
+`N/A`/`not run` with no reason. Exit 3 UNKNOWN — the ledger could not be resolved or read; STOP
+and ask, never treat this as satisfied. Exit 4 — not applicable, no fix commits in range, **never
+counted as a pass**, the same reason `live-app-check: no app surface` is not one either.
+
 ### Evidence Format
 ```
 TECHNICAL VERIFICATION (detect-stack: node):
@@ -316,12 +334,17 @@ INTEGRATION VERIFICATION:
 For a UI changeset, the design sub-check and the WIG lane get their OWN records. Every line
 below is mandatory — including the ones that say a gate did not run. An omitted line is
 indistinguishable from a gate that ran and passed, which is the failure this whole layer was
-rewritten to remove:
+rewritten to remove. `visual-diff:` is captured during Live App Check's web lane (Layer 1,
+`skills/_shared/live-app-check.md`) and recorded here beside `design-contract:` — the two
+gates answer the wrong-colour and wrong-layout halves of the same "doesn't match the mockup"
+complaint, so their verdicts belong next to each other:
 
 ```
 DESIGN COMPLIANCE (design_audit.py --changed-files <BASE> --json):
   design-contract:  loaded (7 colors, 2 fonts)     [or: none — token gate not run
                                                     | UNKNOWN — <reason>, STOPPED]
+  visual-diff:      2 blocking, 1 warnings         [or: none — no canvas contract
+                                                    | UNKNOWN — <reason>]
   font-gate:        active (2 declared families)   [or: not run — <reason>]
   contrast-gate:    active — 2 pair(s) graded, 0 below AA 4.5:1
   files scanned:    4 (diff-scoped)

@@ -140,10 +140,26 @@ Before you try to fix broken code, find similar code that DOES work. This is the
 
 **Steps:**
 
-1. **Create a failing test case** (if possible)
-   - Write a test that reproduces the bug
-   - Confirm it fails before implementing the fix
-   - This becomes a regression test
+1. **Regression test — three states, no silent default**
+
+   `(if possible)` is gone. It was a default nobody had to defend; every fix now records
+   ONE of three states in the ledger's `regression-test:` line, checked by
+   `skills/gaspol-debug/scripts/regression-gate`:
+
+   | State | Ledger line |
+   |---|---|
+   | written | `regression-test: <path>::<name> — RED at <sha>, GREEN after fix` |
+   | genuinely not testable | `regression-test: N/A — <reason>` |
+   | not written | `regression-test: not run — <reason>` |
+
+   **RED before GREEN is not optional inside the written state.** A test added after the
+   fix, never observed failing, proves only that it passes now. Confirm the test fails for
+   the expected reason BEFORE implementing the fix, and record the SHA it was red at — a
+   fact that can be checked, not a claim.
+
+   `N/A` and `not run` both require an actual reason after the dash. A bare label with
+   nothing after it is `(if possible)` wearing a new name, and `regression-gate` treats it
+   as BLOCKING for exactly that reason.
 
 2. **Implement the single fix**
    - Change the minimum amount of code to fix the root cause

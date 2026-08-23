@@ -40,6 +40,22 @@ The chain's cheapest gate runs first, always. Derive the command with
 `"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/detect-stack" <project-root>` and run what
 it prints.
 
+Also run the regression gate here, among the deterministic checks, before any agent is
+dispatched — a missing regression test is exactly the finding that must not cost an Opus audit
+to discover:
+
+```bash
+: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+script the target project happens to ship at a matching relative path}"
+"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate" "$(git merge-base main HEAD)"
+```
+
+Exit 0 satisfied, no action. Exit **1 BLOCKING** stops here like any other Step 0 finding — fix
+before dispatching anything. Exit **3 UNKNOWN** (ledger unresolved or unreadable) STOPs and
+asks — never treat it as satisfied. Exit **4** (not applicable — no fix commits in range) is
+recorded, **never** treated as a pass, the same reason an unavailable `/security-review` is
+recorded as not run rather than as passed.
+
 **Two rails on that line, both learned the hard way.** The script is reached through
 `$CLAUDE_PLUGIN_ROOT`, never relatively: this skill runs with the **target project** as its
 working directory, so a relative path executes whatever a repo carrying that path happens to

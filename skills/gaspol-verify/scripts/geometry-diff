@@ -1,0 +1,611 @@
+#!/usr/bin/env python3
+"""
+geometry-diff -- offline, pre-merge diff between two DOM geometry snapshots,
+per data-vv marker. Sibling of design_audit.py, same constraints: stdlib
+only, no network, no dependency.
+
+Answers the wrong-LAYOUT half of "the screenshot doesn't match the mockup" --
+design_audit.py's DESIGN.md token contract already answers the wrong-COLOUR
+half. Neither script may absorb the other's job: geometry-diff never reads
+DESIGN.md, and its colour severity split mirrors design_audit's
+structural/decorative role split -- same property names, same verdict per
+property, kept in sync by hand as a parallel independent set rather than a
+shared imported constant -- so the two scripts read as agreeing about one
+property.
+
+Snapshot shape, produced by the extractor this script emits
+(--emit-extractor) and by nothing else:
+
+    {"source": "canvas", "viewport": {"w": 1440, "h": 900},
+     "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 160, "h": 44},
+                                "style": {"font-size": "16px",
+                                          "color": "rgb(59, 130, 246)"}}}}
+
+Usage:
+    geometry-diff <canvas.json> <app.json>
+    geometry-diff --self-test
+
+Exit codes (IDS-14 Phase B1/B3 -- three states, never blurred):
+    0   both snapshots parse; diff ran; no BLOCKING finding stands
+    1   both snapshots parse; diff ran; at least one BLOCKING finding stands
+    3   UNKNOWN -- a snapshot is present but is not a readable geometry
+        snapshot (malformed JSON, or missing the "elements" key). STOP and
+        ask; never degrade to an empty diff -- an empty diff reads as
+        "nothing differs", the exact false claim this gate exists to
+        prevent.
+    4   none -- the canvas snapshot (first argument) does not exist. Not a
+        failure: most projects have no canvas contract, and a gate that
+        fails every one of them is a gate that gets switched off. The same
+        reason marketplace-manifest's exit 4 is not a failure either.
+"""
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+# Absolute-pixel tolerance for any numeric box/style property.
+PIXEL_TOLERANCE = 2.0
+
+# Ratio-of-viewport tolerance, checked ADDITIONALLY for width and horizontal
+# position. An element that keeps the same proportion of its viewport across
+# two different browser widths is not drift -- it is a fluid layout doing
+# its job. Fixed at IDS-6's "compare as ratios" mitigation, made concrete
+# enough to implement: 640/1440 and 610/1366 are both ~44.4% and must pass
+# even though the pixel gap (30px) exceeds PIXEL_TOLERANCE.
+RATIO_TOLERANCE = 0.02
+
+# Box properties eligible for the ratio fallback -- horizontal only. Vertical
+# stacking changes discretely when content wraps, so a vertical ratio
+# comparison would not describe what actually happens in a fluid layout.
+RATIO_ELIGIBLE_BOX_PROPS = {"x", "w"}
+PIXEL_ONLY_BOX_PROPS = {"y", "h"}
+
+# Same role split design_audit.py already uses for colours -- same property
+# names and the same structural/decorative verdict for each, kept in sync
+# by hand (a parallel, independent set here, not a shared imported constant
+# -- gaspol-review Tier 0, Minor: the header comment previously said
+# "reused", which overstated a code-sharing relationship that doesn't
+# exist) -- so the two scripts read as agreeing about one property.
+STRUCTURAL_COLOR_PROPS = {"color", "background-color", "border-color"}
+DECORATIVE_COLOR_PROPS = {"outline-color"}
+# Style properties compared as a plain pixel length (after stripping "px").
+PIXEL_STYLE_PROPS = {"font-size", "padding", "margin", "gap"}
+# Purely decorative, non-colour properties. box-shadow is compared as a raw
+# string -- parsing its multi-value shorthand numerically is not worth the
+# code for a property that only ever WARNs.
+DECORATIVE_STRING_PROPS = {"box-shadow"}
+DECORATIVE_NUMERIC_PROPS = {"opacity": 0.02}
+
+
+# The extractor -- PRINTED, NEVER CONSTRUCTED. This is a fixed string
+# literal, full stop. No f-string, no .format(), no CLI argument of any
+# kind is ever substituted into it. The caller (live-app-check.md, web
+# lane) passes this exact text to the Playwright MCP's browser_evaluate,
+# first against the canvas, then against the running app, and saves both
+# results as the two snapshot files this script diffs.
+#
+# SECURITY INVARIANT, same one detect-stack and detect-app-target carry:
+# the caller EXECUTES what this prints. If any value read out of a
+# scanned project file, or any CLI argument such as --tolerance, ever
+# reached this string, that becomes arbitrary JavaScript execution in
+# whatever browser context the Playwright MCP is driving. --self-test
+# and the bash suite both assert byte-identical output regardless of
+# --tolerance.
+#
+# Key names in the emitted "style" object are chosen to match EXACTLY
+# what diff_style() above classifies (STRUCTURAL_COLOR_PROPS,
+# DECORATIVE_COLOR_PROPS, PIXEL_STYLE_PROPS, DECORATIVE_STRING_PROPS,
+# DECORATIVE_NUMERIC_PROPS) -- the round-trip self-test below asserts
+# this stays true rather than the two lists silently drifting apart.
+EXTRACTOR_JS = """(() => {
+  const out = { viewport: { w: window.innerWidth, h: window.innerHeight }, elements: {} };
+  document.querySelectorAll('[data-vv]').forEach((el) => {
+    const marker = el.getAttribute('data-vv');
+    const rect = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    out.elements[marker] = {
+      box: {
+        x: Math.round(rect.x), y: Math.round(rect.y),
+        w: Math.round(rect.width), h: Math.round(rect.height),
+      },
+      style: {
+        'font-size': cs.fontSize,
+        color: cs.color,
+        'background-color': cs.backgroundColor,
+        'border-color': cs.borderColor,
+        'box-shadow': cs.boxShadow,
+        'outline-color': cs.outlineColor,
+        opacity: cs.opacity,
+        padding: cs.paddingTop,
+        margin: cs.marginTop,
+        gap: cs.gap,
+      },
+    };
+  });
+  return out;
+})()"""
+
+
+class SnapshotError(Exception):
+    """A snapshot file exists but is not a readable geometry snapshot.
+
+    Deliberately distinct from "file does not exist" (exit 4) -- a present
+    but broken file proves someone INTENDED a snapshot, so continuing as if
+    none existed would silently drop a comparison. Callers must stop and
+    ask, never treat this as an empty diff.
+    """
+
+
+RGB_CALL = re.compile(
+    r"rgba?\(\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*(?:[,/]\s*([\d.]+%?)\s*)?\)",
+    re.I,
+)
+HEX_COLOR = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+
+
+def normalise_colour(value):
+    """Normalise a colour literal to an (r, g, b, a) tuple, a in [0, 1].
+
+    Accepts hex (#3B82F6, #3bf, #3B82F6ff) and rgb()/rgba() in both
+    comma-separated and space-separated (CSS Color 4) form -- #3B82F6,
+    rgb(59, 130, 246) and rgb(59 130 246) must normalise to the SAME tuple.
+    Without this the diff reports drift between two spellings of the same
+    colour, which is the fastest way to make a gate untrusted.
+
+    Returns None when `value` is not a colour literal at all (font names,
+    "0 1px 2px" shorthand) -- callers fall back to a raw string comparison.
+    """
+    if not isinstance(value, str):
+        return None
+    v = value.strip()
+
+    m = HEX_COLOR.match(v)
+    if m:
+        h = m.group(1)
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 1.0)
+        if len(h) == 6:
+            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 1.0)
+        if len(h) == 8:
+            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), int(h[6:8], 16) / 255)
+
+    m = RGB_CALL.match(v)
+    if m:
+        r, g, b, a = m.groups()
+        alpha = 1.0
+        if a is not None:
+            alpha = float(a.rstrip("%")) / 100 if a.endswith("%") else float(a)
+        return (int(r), int(g), int(b), alpha)
+
+    return None
+
+
+def has_alpha(tup):
+    """True when a normalised colour carries transparency.
+
+    A colour with alpha is decorative BY CONSTRUCTION, matching
+    design_audit.py's TRANSPARENT_COLOR reasoning -- a structural token map
+    holds opaque brand colours, so alpha can only ever appear on a
+    decorative carrier.
+    """
+    return tup is not None and tup[3] < 1.0
+
+
+def _px(value):
+    """Parse a CSS pixel length ("16px", 16, "16") to a float, or None."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        m = re.fullmatch(r"\s*(-?[\d.]+)px\s*", value)
+        if m:
+            return float(m.group(1))
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _pixel_ok(a, b, tolerance=None):
+    # `tolerance=PIXEL_TOLERANCE` as a default would bind the CURRENT value
+    # at function-definition time, not at call time -- run()'s temporary
+    # override of the module global would then silently do nothing. Reading
+    # the global inside the body is what makes the override real.
+    if tolerance is None:
+        tolerance = PIXEL_TOLERANCE
+    return abs(a - b) <= tolerance
+
+
+def diff_box(marker, canvas_box, app_box, canvas_vp, app_vp):
+    """Diff one marker's box (x/y/w/h). Returns a list of finding dicts."""
+    findings = []
+    for prop in ("x", "y", "w", "h"):
+        a, b = canvas_box.get(prop), app_box.get(prop)
+        if a is None or b is None:
+            continue
+        a, b = float(a), float(b)
+        pixel_pass = _pixel_ok(a, b)
+
+        ratio_pass = None
+        if prop in RATIO_ELIGIBLE_BOX_PROPS:
+            vp_a, vp_b = canvas_vp.get("w"), app_vp.get("w")
+            # A zero-width viewport makes the ratio meaningless (division by
+            # zero) -- fall back to the pixel test alone rather than crash.
+            if vp_a and vp_b:
+                ratio_a, ratio_b = a / vp_a, b / vp_b
+                ratio_pass = abs(ratio_a - ratio_b) <= RATIO_TOLERANCE
+
+        # "The smaller of the two deviations wins": either test passing is
+        # enough. Only fail when NEITHER applicable test passes.
+        applicable_results = [r for r in (pixel_pass, ratio_pass) if r is not None]
+        if any(applicable_results):
+            continue
+
+        detail = f"{a:g}px (canvas) vs {b:g}px (app)"
+        if ratio_pass is not None:
+            detail += f" -- ratio {a / canvas_vp['w']:.1%} vs {b / app_vp['w']:.1%}"
+        findings.append({
+            "marker": marker, "property": prop, "severity": "BLOCKING",
+            "message": f"{marker}.{prop} differs beyond tolerance: {detail}",
+        })
+    return findings
+
+
+def _classify_colour_property(prop):
+    if prop in STRUCTURAL_COLOR_PROPS:
+        return "BLOCKING"
+    if prop in DECORATIVE_COLOR_PROPS:
+        return "WARN"
+    return None
+
+
+def diff_style(marker, canvas_style, app_style):
+    """Diff one marker's style dict. Returns a list of finding dicts."""
+    findings = []
+    for prop in sorted(set(canvas_style) | set(app_style)):
+        a, b = canvas_style.get(prop), app_style.get(prop)
+        if a == b:
+            continue  # identical strings -- nothing to normalise or compare
+
+        colour_role = _classify_colour_property(prop)
+        if colour_role is not None or (a is not None and b is not None and
+                                        normalise_colour(a) is not None and
+                                        normalise_colour(b) is not None):
+            na, nb = normalise_colour(a), normalise_colour(b)
+            if na is not None and nb is not None:
+                if na == nb:
+                    continue
+                # Alpha present on EITHER side makes this a decorative
+                # carrier by construction, whatever the property name --
+                # matches design_audit.py's TRANSPARENT_COLOR override.
+                severity = "WARN" if (has_alpha(na) or has_alpha(nb)) else (colour_role or "WARN")
+                findings.append({
+                    "marker": marker, "property": prop, "severity": severity,
+                    "message": f"{marker}.style.{prop} colour differs: {a!r} (canvas) vs {b!r} (app)",
+                })
+                continue
+            # One side isn't a parseable colour at all -- fall through to a
+            # raw comparison below rather than silently dropping the finding.
+
+        if prop in PIXEL_STYLE_PROPS:
+            pa, pb = _px(a), _px(b)
+            if pa is not None and pb is not None:
+                if not _pixel_ok(pa, pb):
+                    findings.append({
+                        "marker": marker, "property": prop, "severity": "BLOCKING",
+                        "message": f"{marker}.style.{prop} differs beyond tolerance: {pa:g}px (canvas) vs {pb:g}px (app)",
+                    })
+                continue
+
+        if prop in DECORATIVE_NUMERIC_PROPS:
+            tol = DECORATIVE_NUMERIC_PROPS[prop]
+            try:
+                fa, fb = float(a), float(b)
+                if abs(fa - fb) > tol:
+                    findings.append({
+                        "marker": marker, "property": prop, "severity": "WARN",
+                        "message": f"{marker}.style.{prop} differs: {fa:g} (canvas) vs {fb:g} (app)",
+                    })
+                continue
+            except (TypeError, ValueError):
+                pass
+
+        if prop in DECORATIVE_STRING_PROPS or colour_role == "WARN":
+            findings.append({
+                "marker": marker, "property": prop, "severity": "WARN",
+                "message": f"{marker}.style.{prop} differs: {a!r} (canvas) vs {b!r} (app)",
+            })
+            continue
+
+        # An unrecognised property is out of this ticket's classification
+        # table. WARN rather than BLOCK -- an unknown property should never
+        # be the reason a branch is blocked, and WARN keeps it visible
+        # rather than silently dropped.
+        findings.append({
+            "marker": marker, "property": prop, "severity": "WARN",
+            "message": f"{marker}.style.{prop} (unclassified property) differs: {a!r} (canvas) vs {b!r} (app)",
+        })
+    return findings
+
+
+def diff_elements(canvas, app):
+    """Diff every marker across two snapshots. Returns (findings, counts)."""
+    findings = []
+    canvas_elems = canvas.get("elements", {})
+    app_elems = app.get("elements", {})
+    canvas_vp = canvas.get("viewport", {})
+    app_vp = app.get("viewport", {})
+
+    for marker in sorted(set(canvas_elems) - set(app_elems)):
+        findings.append({
+            "marker": marker, "property": None, "severity": "BLOCKING",
+            "message": f"{marker}: marker present in canvas, absent in app -- markup was rewritten rather than copied",
+        })
+    for marker in sorted(set(app_elems) - set(canvas_elems)):
+        findings.append({
+            "marker": marker, "property": None, "severity": "WARN",
+            "message": f"{marker}: marker present in app, absent in canvas -- may be a legitimate addition",
+        })
+
+    for marker in sorted(set(canvas_elems) & set(app_elems)):
+        c, a = canvas_elems[marker], app_elems[marker]
+        findings.extend(diff_box(marker, c.get("box", {}), a.get("box", {}), canvas_vp, app_vp))
+        findings.extend(diff_style(marker, c.get("style", {}), a.get("style", {})))
+
+    return findings
+
+
+def load_snapshot(path: Path) -> dict:
+    """Read and validate one geometry snapshot. Raises SnapshotError.
+
+    Three-state contract lives one layer up in main(): this function only
+    distinguishes "not a snapshot" (raises) from "is a snapshot" (returns).
+    Whether the FILE exists at all is the caller's job (exit 4 vs exit 3).
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SnapshotError(f"{path}: unreadable ({exc})") from exc
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SnapshotError(f"{path}: not valid JSON ({exc})") from exc
+    if not isinstance(data, dict) or "elements" not in data:
+        raise SnapshotError(f"{path}: not a geometry snapshot (missing 'elements' key)")
+    if not isinstance(data.get("viewport"), dict):
+        raise SnapshotError(f"{path}: not a geometry snapshot (missing 'viewport' object)")
+
+    # Box values must be numeric, matching EXACTLY what the real extractor
+    # emits (Math.round() -- always a plain number, never a string). Without
+    # this check, a hand-edited or buggy-extractor snapshot with e.g. a
+    # string box.x sailed through this function's structural check and
+    # reached diff_box()'s float() conversion unguarded, crashing with an
+    # unhandled traceback at exit 1 -- the SAME exit code the contract uses
+    # for "diff ran, a BLOCKING finding stands". A caller checking only the
+    # exit code could not tell a crash from a real verdict (gaspol-review
+    # Tier 0, CONFIRMED 90/100). Caught HERE, at the one place this file
+    # already raises SnapshotError, so the three-state contract stays whole
+    # rather than growing an unhandled fourth state.
+    elements = data.get("elements")
+    if isinstance(elements, dict):
+        for marker, el in elements.items():
+            box = el.get("box", {}) if isinstance(el, dict) else {}
+            if not isinstance(box, dict):
+                continue
+            for prop, value in box.items():
+                if prop in ("x", "y", "w", "h") and not isinstance(value, (int, float)):
+                    raise SnapshotError(
+                        f"{path}: not a geometry snapshot "
+                        f"(element {marker!r} has a non-numeric box.{prop}: {value!r})"
+                    )
+    return data
+
+
+def run(canvas_path: Path, app_path: Path, tolerance_px: float = None):
+    """Returns (exit_code, summary_line, finding_lines).
+
+    `tolerance_px` overrides the module-level PIXEL_TOLERANCE for this run
+    only -- never read by --emit-extractor, which prints a fixed literal
+    regardless of any argument.
+    """
+    if not canvas_path.is_file():
+        return 4, "visual-diff: none -- no canvas contract", []
+
+    try:
+        canvas = load_snapshot(canvas_path)
+        app = load_snapshot(app_path)
+    except SnapshotError as exc:
+        return 3, f"visual-diff: UNKNOWN -- {exc}", []
+
+    global PIXEL_TOLERANCE
+    original = PIXEL_TOLERANCE
+    if tolerance_px is not None:
+        PIXEL_TOLERANCE = tolerance_px
+    try:
+        findings = diff_elements(canvas, app)
+    finally:
+        PIXEL_TOLERANCE = original
+    blocking = sum(1 for f in findings if f["severity"] == "BLOCKING")
+    warn = sum(1 for f in findings if f["severity"] == "WARN")
+    lines = [f"  {f['severity']}: {f['message']}" for f in findings]
+    summary = f"visual-diff: {blocking} blocking, {warn} warnings"
+    return (1 if blocking else 0), summary, lines
+
+
+# ---------------------------------------------------------------------------
+def _self_test():
+    # PIXEL_ONLY_BOX_PROPS was declared and never referenced anywhere --
+    # diff_box() only ever consults RATIO_ELIGIBLE_BOX_PROPS, so y/h fell
+    # into pixel-only comparison implicitly rather than by the constant
+    # actually being read. Dead code that could silently drift out of sync
+    # with RATIO_ELIGIBLE_BOX_PROPS if a box property were ever added
+    # (gaspol-review Tier 0, Minor). This assertion is what makes the
+    # constant load-bearing: if the two sets ever stop partitioning the
+    # box's four coordinates exactly, this fails loudly instead of a third
+    # property silently falling through unhandled.
+    assert RATIO_ELIGIBLE_BOX_PROPS | PIXEL_ONLY_BOX_PROPS == {"x", "y", "w", "h"}, \
+        "self-test: RATIO_ELIGIBLE_BOX_PROPS + PIXEL_ONLY_BOX_PROPS must partition all four box coordinates"
+
+    tmp_ok = {"source": "canvas", "viewport": {"w": 1440, "h": 900},
+              "elements": {"hero.cta": {"box": {"x": 100, "y": 200, "w": 160, "h": 44},
+                                         "style": {"font-size": "16px", "color": "#3B82F6"}}}}
+
+    # Case 1: identical -> zero findings, all three colour spellings equal.
+    for spelling in ("#3B82F6", "rgb(59, 130, 246)", "rgb(59 130 246)"):
+        assert normalise_colour(spelling) == (59, 130, 246, 1.0), \
+            f"self-test: {spelling!r} did not normalise to (59,130,246,1.0)"
+
+    # Case 2: identical snapshots -> no findings.
+    findings = diff_elements(tmp_ok, json.loads(json.dumps(tmp_ok)))
+    assert findings == [], f"self-test: identical snapshots produced findings: {findings}"
+
+    # Case 3: structural colour differs -> BLOCKING.
+    app_bad = json.loads(json.dumps(tmp_ok))
+    app_bad["elements"]["hero.cta"]["style"]["color"] = "rgb(220, 38, 38)"
+    findings = diff_elements(tmp_ok, app_bad)
+    assert any(f["severity"] == "BLOCKING" and f["property"] == "color" for f in findings), \
+        f"self-test: structural colour drift did not BLOCK: {findings}"
+
+    # Case 4: decorative (alpha) colour differs -> WARN, not BLOCKING.
+    canvas_a = json.loads(json.dumps(tmp_ok))
+    canvas_a["elements"]["hero.cta"]["style"]["background-color"] = "rgba(0,0,0,0.05)"
+    app_a = json.loads(json.dumps(canvas_a))
+    app_a["elements"]["hero.cta"]["style"]["background-color"] = "rgba(0,0,0,0.10)"
+    findings = diff_elements(canvas_a, app_a)
+    bg = [f for f in findings if f["property"] == "background-color"]
+    assert bg and bg[0]["severity"] == "WARN", \
+        f"self-test: translucent background-color did not WARN: {findings}"
+
+    # Case 5: missing marker (canvas has it, app doesn't) -> BLOCKING.
+    app_missing = {"source": "app", "viewport": {"w": 1440, "h": 900}, "elements": {}}
+    findings = diff_elements(tmp_ok, app_missing)
+    assert any(f["severity"] == "BLOCKING" and f["marker"] == "hero.cta" for f in findings), \
+        f"self-test: missing marker did not BLOCK: {findings}"
+
+    # Case 6: extra marker (app has it, canvas doesn't) -> WARN.
+    canvas_missing = {"source": "canvas", "viewport": {"w": 1440, "h": 900}, "elements": {}}
+    findings = diff_elements(canvas_missing, tmp_ok)
+    assert any(f["severity"] == "WARN" and f["marker"] == "hero.cta" for f in findings), \
+        f"self-test: extra marker did not WARN: {findings}"
+
+    # Case 7: fluid width -- ratio wins over a failing pixel test.
+    canvas_fluid = {"viewport": {"w": 1440}, "elements": {"m": {"box": {"w": 640}, "style": {}}}}
+    app_fluid = {"viewport": {"w": 1366}, "elements": {"m": {"box": {"w": 610}, "style": {}}}}
+    findings = diff_box("m", canvas_fluid["elements"]["m"]["box"], app_fluid["elements"]["m"]["box"],
+                         canvas_fluid["viewport"], app_fluid["viewport"])
+    assert findings == [], f"self-test: fluid width should pass on ratio, got: {findings}"
+
+    # Case 8: zero-width viewport must not crash the ratio comparison.
+    findings = diff_box("m", {"w": 100}, {"w": 200}, {"w": 0}, {"w": 1000})
+    assert any(f["property"] == "w" for f in findings), \
+        "self-test: zero-width viewport should still run the pixel test and find 100px drift"
+
+    # Case 8b: a non-numeric box value must raise SnapshotError from
+    # load_snapshot(), not crash diff_box()'s float() unguarded further
+    # down the call chain (gaspol-review Tier 0, CONFIRMED 90/100).
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        bad_path = Path(td) / "badbox.json"
+        bad_path.write_text(json.dumps({
+            "viewport": {"w": 1440, "h": 900},
+            "elements": {"hero.cta": {"box": {"x": "abc", "y": 200, "w": 160, "h": 44}, "style": {}}},
+        }))
+        try:
+            load_snapshot(bad_path)
+            raise AssertionError("self-test: a non-numeric box.x should have raised SnapshotError")
+        except SnapshotError:
+            pass
+
+    # Case 9: the round trip. EXTRACTOR_JS's declared style keys must match
+    # EXACTLY what diff_style() classifies -- if the two lists silently
+    # drifted apart, some property the extractor emits would fall through
+    # to the "unclassified" WARN branch forever. Checked by parsing the
+    # quoted/bare keys inside the JS object literal itself, so a renamed
+    # key in either place fails this test rather than surviving invisibly.
+    declared_keys = set(re.findall(r"^\s*(?:'([\w-]+)'|(\w[\w-]*)):\s", EXTRACTOR_JS, re.M))
+    declared_keys = {a or b for a, b in declared_keys} - {"box", "style", "x", "y", "w", "h", "viewport", "elements"}
+    classified_keys = (STRUCTURAL_COLOR_PROPS | DECORATIVE_COLOR_PROPS | PIXEL_STYLE_PROPS
+                        | DECORATIVE_STRING_PROPS | set(DECORATIVE_NUMERIC_PROPS))
+    unclassified = declared_keys - classified_keys
+    assert not unclassified, \
+        f"self-test: extractor declares style keys diff_style does not classify: {unclassified}"
+
+    # Feed the extractor's DOCUMENTED output shape straight back into the
+    # diff -- exactly what live-app-check.md's caller does with the real
+    # (browser-produced) output, minus the browser.
+    extractor_shaped = {
+        "viewport": {"w": 1440, "h": 900},
+        "elements": {"hero.cta": {
+            "box": {"x": 100, "y": 200, "w": 160, "h": 44},
+            "style": {"font-size": "16px", "color": "rgb(59, 130, 246)",
+                      "background-color": "rgba(0, 0, 0, 0)", "border-color": "rgb(0, 0, 0)",
+                      "box-shadow": "none", "outline-color": "rgb(0, 0, 0)",
+                      "opacity": "1", "padding": "8px", "margin": "0px", "gap": "0px"},
+        }},
+    }
+    findings = diff_elements(extractor_shaped, json.loads(json.dumps(extractor_shaped)))
+    assert findings == [], f"self-test: round-tripped identical extractor output produced findings: {findings}"
+
+    print("geometry-diff: self-test OK")
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="geometry-diff", add_help=False)
+    p.add_argument("--self-test", action="store_true")
+    p.add_argument("--emit-extractor", action="store_true")
+    # type=str, not float: a hostile or malformed value must not crash
+    # argument PARSING before the --emit-extractor branch (checked first,
+    # regardless of what --tolerance holds) ever runs. Converted to float
+    # only where it is actually used, inside run().
+    p.add_argument("--tolerance", type=str, default=None, metavar="PX")
+    p.add_argument("canvas", nargs="?")
+    p.add_argument("app", nargs="?")
+    return p
+
+
+def main(argv):
+    args = build_parser().parse_args(argv[1:])
+
+    # SECURITY INVARIANT enforced here, not just in the constant's own
+    # comment: --emit-extractor is checked and returns FIRST, before
+    # --tolerance or any other argument is ever read for any purpose. No
+    # code path between "argparse produced `args`" and "EXTRACTOR_JS is
+    # printed" touches args.tolerance.
+    if args.emit_extractor:
+        print(EXTRACTOR_JS)
+        return 0
+
+    if args.self_test:
+        try:
+            _self_test()
+        except AssertionError as exc:
+            print(f"self-test FAIL: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    if not args.canvas or not args.app:
+        print("usage: geometry-diff <canvas.json> <app.json>", file=sys.stderr)
+        print("       geometry-diff --emit-extractor", file=sys.stderr)
+        print("       geometry-diff --self-test", file=sys.stderr)
+        return 2
+
+    tolerance_px = None
+    if args.tolerance is not None:
+        try:
+            tolerance_px = float(args.tolerance)
+        except ValueError:
+            print(f"geometry-diff: --tolerance must be a number, got {args.tolerance!r}", file=sys.stderr)
+            return 2
+
+    exit_code, summary, lines = run(Path(args.canvas), Path(args.app), tolerance_px)
+    print(summary)
+    for line in lines:
+        print(line)
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
