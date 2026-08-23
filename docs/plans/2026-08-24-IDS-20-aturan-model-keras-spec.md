@@ -15,14 +15,22 @@ Two tiers, no third: **Opus for judgement, Sonnet for work.**
 
 `docs/rubric-model-switching.md` opens with *"Auto-rubric untuk pilih model berdasarkan task
 type"* and is referenced everywhere as advice. Nothing enforces it, nothing reads it, and it has
-drifted from what the owner wants in four separate places. Verified by reading the files, not
-inferred:
+drifted from what the owner wants in **ten** separate places. The first survey found four; a
+second pass over `skills/**` found six more, and the count is recorded at its true size because an
+undercounted defect is how a known hazard becomes an unknown one. Verified by reading the files,
+not inferred:
 
 | Location | Today | Under the rule |
 |---|---|---|
 | `agents/code-reviewer.md` frontmatter | `model: sonnet` | **`opus`** |
 | `agents/code-simplifier.md` frontmatter | `model: sonnet` | **`opus`** |
 | `skills/gaspol-parallel/SKILL.md:318` code-quality dispatch | `model: "sonnet"` | **`"opus"`** |
+| `skills/gaspol-parallel/code-quality-reviewer-prompt.md:17` | `model: "sonnet"` | **`"opus"`** |
+| `skills/gaspol-review/git-history-reviewer.md:4` | `model: sonnet` | **`opus`** |
+| `skills/gaspol-review/plan-artifact-reviewer.md:4` | `model: sonnet` | **`opus`** |
+| `skills/gaspol-review/pr-comments-reviewer.md:4` | `model: sonnet` | **`opus`** |
+| `skills/gaspol-review/code-comment-reviewer.md:4` | `model: sonnet` | **`opus`** |
+| `skills/gaspol-execute/implementer-prompt.md:10` | *"Override to `haiku` when: mechanical rename/format/docs-only changes"* | the sentence goes — `haiku` is a deleted tier, not an override |
 | `skills/gaspol-review/SKILL.md:102` refuter | `model: Sonnet` | **Opus** |
 | rubric row "Code review (code-reviewer agent)" | `sonnet` | **`opus`** |
 | rubric rows for docs sync / rename / fact lookup | `haiku` | **`sonnet`** — Haiku is removed |
@@ -101,12 +109,39 @@ to `ledger-gate` / `spec-pointer` so callers do not have to learn a third vocabu
 
 What it reads — two surfaces, because a rule enforced on one is a rule with a hole:
 
-1. **Agent frontmatter** — every `agents/*.md` `model:` field, checked against the tier its
-   filename implies. `*-reviewer`, `*-verifier`, `*-simplifier` are judging agents and MUST be
-   `opus`; anything else MUST be `sonnet`.
-2. **Dispatch call sites in skills** — every `model: "<value>"` and `model: <value>` inside
-   `skills/**/*.md`, checked against the surrounding dispatch's `subagent_type` where one is
-   present on the same or an adjacent line.
+**Tier is read from the FILE PATH, not from a nearby `subagent_type`.** The first design keyed
+off `subagent_type` on an adjacent line; the survey killed it. Six of the ten violations sit in
+frontmatter or in a prompt template where no `subagent_type` appears at all, and a rule that can
+only see half its violations is not a rule. The path is the honest signal: a file named
+`code-quality-reviewer-prompt.md` is a reviewer's prompt no matter how it is dispatched.
+
+1. **Anything under `agents/` or `skills/` whose path contains `reviewer`, `verifier` or
+   `simplifier`** — a JUDGING surface. Every `model:` declaration in it MUST be `opus`.
+2. **Anything whose path contains `implementer`** — an EXECUTION surface. Every `model:`
+   declaration MUST be `sonnet`.
+3. **`model: haiku` anywhere at all**, including inside prose, is exit 1. See below.
+4. **A `model:` whose value is not `opus`, `sonnet` or `haiku`** — e.g. `model: selectedModel` in
+   `skills/gaspol-debug/defense-in-depth.md:178`, which is illustrative code in another language,
+   not a gaspol dispatch. **Not flagged**, counted and reported. Treating it as UNKNOWN would fire
+   on documentation, and a gate that fires on documentation gets switched off.
+5. **A `model:` on a path matching no tier pattern** — the tier is taken from the **same line**,
+   which is where a dispatch names its `subagent_type`. `skills/gaspol-parallel/SKILL.md:318`
+   reads `subagent_type: "gaspol-dev:code-reviewer", model: "sonnet"` on one line, so the tier is
+   knowable and the violation is catchable. Neither path nor line yields a tier → exit 3 UNKNOWN.
+
+**Two checks, deliberately different in breadth**, because the violations are of two shapes:
+
+| Check | Scans | Why this breadth |
+|---|---|---|
+| **tier** | only assignment-shaped lines, `^\s*model:\s*"?<value>` | that shape is what actually configures a dispatch. Matching mid-sentence prose would flag `skills/gaspol-auto/SKILL.md:81`'s *"(model: sonnet per rubric)"*, which is a correct sentence about the rule |
+| **haiku** | the bare word, anywhere under `agents/` and `skills/`, case-insensitive | the tier is DELETED, and it survives in prose: `skills/gaspol-execute/implementer-prompt.md:10` says *"Override to `haiku` when: mechanical rename/format/docs-only changes"*. An instruction to use a deleted tier is the tier still being available. `docs/` is not scanned, so the rubric can explain the removal |
+
+**Named limitation, not a gap that was missed:** a tier violation written as prose rather than an
+assignment is invisible to the tier check. `skills/gaspol-review/SKILL.md:102` — *"dispatch a
+refuter (model: Sonnet — judgment, not mechanical)"* — is exactly that, and it is fixed by hand in
+this ticket while the gate cannot defend it afterwards. Widening the tier check to prose would
+flag every correct sentence about the rule, and a gate that fires on its own documentation is one
+somebody switches off.
 
 | Exit | State | Treatment |
 |---|---|---|
@@ -154,10 +189,10 @@ No placeholder is needed anywhere: every file above exists today.
 | Case | Behaviour |
 |---|---|
 | An `agents/*.md` with no `model:` field | exit 3 UNKNOWN — the tier is undeclared, and inheriting from the parent silently is what the rule forbids |
-| A `model:` value that is neither `opus`, `sonnet` nor `haiku` (a pinned full id) | exit 3 UNKNOWN, with the value quoted — a pinned id may be deliberate, and the gate must not guess its tier |
+| A `model:` value that is neither `opus`, `sonnet` nor `haiku` | **not flagged**, counted and reported. Covers both a deliberately pinned id and illustrative code such as `model: selectedModel`. Flagging documentation is how a gate gets switched off |
 | `model: haiku` anywhere | exit 1 BLOCKING, never exit 3 |
 | A `model:` mention inside prose or a fenced example, not a real dispatch | must NOT be flagged. The gate matches an assignment shape, the way `test-kb-no-hardcoded-path.sh` distinguishes a line that RUNS from prose in backticks |
-| A dispatch whose `subagent_type` is on a line far from its `model:` | exit 3 UNKNOWN rather than a guessed pairing |
+| A dispatch whose `subagent_type` is far from its `model:` | irrelevant — tier comes from the file path, never from a nearby `subagent_type`. That first design could see only four of the ten real violations |
 | A new agent file added later whose name matches no tier pattern | exit 3 UNKNOWN — the naming convention is the tier signal, and an unrecognised name is a decision nobody made |
 | No `model:` reference anywhere (a stripped-down checkout) | exit 4, reason recorded |
 | Case: `Model:`, `MODEL:` | matched case-insensitively for the key; the VALUE is compared lowercased |
@@ -171,7 +206,8 @@ No placeholder is needed anywhere: every file above exists today.
   nothing detects it. The dated record in the rubric is what a human checks; it is not a check.
 - **The main session's own model is not enforced.** A user can run the orchestrator on any model,
   and gaspol has no way to read or change that. The rule states the expectation and stops there.
-- **Tier is inferred from a filename pattern.** A judging agent named without `-reviewer`,
-  `-verifier` or `-simplifier` reaches exit 3, which is honest but is not the same as knowing what
-  the agent does. Reading intent out of a description is a judgement call, and this gate makes
-  none.
+- **Tier is inferred from a file path.** A judging surface named without `reviewer`, `verifier`
+  or `simplifier` reaches exit 3, which is honest but is not the same as knowing what the file
+  does. Reading intent out of a description is a judgement call, and this gate makes none.
+- **A `model:` value the gate does not recognise is reported, never blocked.** A pinned full id
+  and a foreign-language example are indistinguishable to it.
