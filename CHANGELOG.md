@@ -1,5 +1,84 @@
 # Changelog
 
+## [1.26.0] - 2026-08-23
+
+### Changed — the finish chain drops to four mandatory steps, and finishing itself becomes an offer (IDS-17)
+
+Two complaints, one subsystem, one ticket. `gaspol-finish` ran a six-step chain plus a Step 0
+preamble, all mandatory; and it read as obligatory at the end of every ticket — `gaspol-parallel`
+Phase 3 said *"Run `gaspol-finish` to finalize"*, `gaspol-execute` listed it as downstream with no
+choice attached.
+
+- **Four mandatory steps:** `gaspol-verify` → `plan-verifier` (BLOCKING) → `gaspol-review` Tier 1
+  (BLOCKING) → `gaspol-sync-docs`.
+- **Step 0 deleted.** It ran `detect-stack` + `regression-gate` before any agent was dispatched —
+  exactly what `gaspol-verify` Layer 1 already runs, and `gaspol-verify` is now step 1, so
+  cheap-checks-first is **preserved by position** rather than by repetition. The reason is kept in
+  the file: if a future edit makes step 1 conditional, the ordering is lost and Step 0 has to come
+  back.
+- **`gaspol-verify`'s skip permission revoked.** "Already run this session, you may skip" plus a
+  deleted Step 0 collapses into nothing running the suite at all. It is also the cheapest step, so
+  re-running it costs the chain almost nothing while a stale pass costs it everything.
+- **`/security-review` and `gaspol-learn` became recordless offers**, presented after step 4 in
+  **one** `AskUserQuestion`, not two consecutive modals.
+
+**`/security-review` is an explicit override of recorded precedent, and it is not free.** The
+owner's reason: not every ticket changes anything security-related, so running it on every branch
+spends time where there is nothing to find. It overrides the knowledge note
+`narrow-and-record-conditional-audit-gates`, whose own argument was sound — in a skills repository
+markdown IS the executed surface, so a boring-looking diff can still carry a hole. That note is
+**not** superseded; a divergence note was written beside it. `test-finish-gates.sh` carried an
+assertion written specifically to block this change; it was removed and replaced with a comment
+naming the ticket and the note, because a deleted assertion with no explanation is how the next
+person restores it by accident. **The cost, stated rather than glossed: a declined review leaves no
+trace anywhere.** Both offers are recordless for symmetry — two optional steps under two different
+accountability rules is a distinction nobody remembers a month later.
+
+**`gaspol-execute` Step 3.6 is untouched** and still runs `/security-review` automatically on its
+own triggers (auth, secrets, user input, new endpoint, payment, sensitive data). When the finish
+offer IS taken, a finding still BLOCKS every merge option until resolved.
+
+### Added — `skills/_shared/finish-offer.md`
+
+One file, three callers, zero restatements — the treatment `fix-loop.md` got, for the same reason:
+a modal copied into three skills is three modals that will disagree. `gaspol-execute` (Step 8),
+`gaspol-parallel` (Phase 3) and `gaspol-auto` (post-run) all present:
+
+```text
+[Finish sekarang]  [Nanti — branch dibiarkan]  [Cuma verify dulu]
+```
+
+"Nanti" appends `— NEXT: gaspol-finish — deferred: <reason>` to the ledger's `## Log`, and the
+reason **may not be empty** (`ledger-states-require-non-empty-reasons`: a bare label is
+`(if possible)` wearing a new name). The reminder needs **zero new code** —
+`scan-active-ledgers` already prints every ledger whose last `NEXT:` marker is not `DONE`, which
+is why the cursor is spelled literally in the shared file rather than paraphrased.
+
+Two error paths are named rather than assumed: a branch with **no ledger** (no plan) records
+nothing and never gets a progress file invented for it, and a failed `gaspol-verify` under
+"Cuma verify dulu" does **not** re-present the offer — work that fails its own suite is not work
+you ask someone how to finish. In `gaspol-auto` the offer is explicitly **post-run**, so
+autonomous mode's no-pause-between-phases guarantee is untouched.
+
+### Tests
+
+- **New** `tests/ticket-scripts/test-finish-offer.sh` — the offer text lives in exactly one file,
+  all three callers reference it, the deferral cursor is spelled the way `scan-active-ledgers`
+  matches, both error paths are documented, and `CLAUDE.md` matches the shipped chain.
+- `test-finish-fix-loop.sh` — six-step assertion split into four mandatory plus two offered, so a
+  future trim of the mandatory four still fails and an offer that disappears entirely still fails.
+- `test-regression-gate.sh` — the two `gaspol-finish` Step 0 assertions removed; the
+  `gaspol-verify` ones are now the **only** wiring for `regression-gate` and are load-bearing in a
+  way they were not before.
+- `test-skill-delegation.sh` — the "ALWAYS runs" assertion replaced by one that `/security-review`
+  is still offered rather than dropped.
+- `test-execute-trim.sh` — limit raised 29000 → 29400 for `gaspol-execute` Step 8, following that
+  test's own rule: raise only when an obligation is ADDED, and say which one.
+
+Both Step 0 assertions check the `### Step 0` **heading**, not the words — `gaspol-finish`
+deliberately keeps a paragraph recording why Step 0 was removed, and a blunter check would have
+forbidden the very record the neighbouring assertion demands.
+
 ## [1.25.0] - 2026-08-23
 
 ### Changed — the design artifact became an offer, and the skip costs a reason (IDS-16)

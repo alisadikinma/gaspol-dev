@@ -79,6 +79,25 @@ COPIES=$(grep -rl "Cuma verify dulu" "$REPO_ROOT/skills" 2>/dev/null | wc -l | t
 echo "test-finish-offer: gaspol-auto's offer is post-run, not a mid-run checkpoint..."
 claim "$REPO_ROOT/skills/gaspol-auto/SKILL.md" "gaspol-auto" "not a mid-run checkpoint" || exit 1
 
+echo "test-finish-offer: CLAUDE.md matches the shipped chain..."
+CM="$REPO_ROOT/CLAUDE.md"
+# The old text said /security-review runs "ALWAYS, on every branch" from the
+# finish chain. IDS-17 made it an offer; documentation that still asserts the old
+# rule is worse than none, because it reads as authoritative.
+if python3 - "$CM" <<'PYEOF'
+import sys
+text = " ".join(open(sys.argv[1], encoding="utf-8").read().split())
+sys.exit(0 if "ALWAYS**, on every branch" in text else 1)
+PYEOF
+then
+    fail "CLAUDE.md still claims /security-review ALWAYS runs from the finish chain — IDS-17 made it an offer"
+fi
+claim "$CM" "CLAUDE.md" "four mandatory steps" || exit 1
+# The one call site IDS-17 deliberately did not touch. Saying so is what keeps
+# "we made it optional" from being read as "we turned it off".
+claim "$CM" "CLAUDE.md" "Step 3.6 still runs" || exit 1
+claim "$CM" "CLAUDE.md" "_shared/finish-offer.md" || exit 1
+
 # Positive control: the claim() helper must be able to FAIL, or every check above
 # is theatre.
 if claim "$OFFER" "control" "a phrase that is certainly not in this file zzqq" 2>/dev/null; then
