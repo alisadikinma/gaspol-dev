@@ -46,7 +46,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
 | `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 17 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
-| `docs/rubric-model-switching.md` | Auto-rubric reference (Opus/Sonnet/Haiku per task type) |
+| `docs/rubric-model-switching.md` | **UPDATED (v1.29)** — the model RULE, no longer an auto-rubric to choose from. Two tiers: Opus judges, Sonnet works. Records which concrete ids the aliases mean, with a date, and states what the alias choice gives up |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
 | `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
@@ -970,18 +970,43 @@ vault holds WHY, graphify holds HOW, and they stay separate stores with separate
 
 ### Model Switching Rubric (NEW in v1.2)
 
-Orchestrator (main session) always Opus 4.7. Subagent dispatch chooses model by task type — see [docs/rubric-model-switching.md](docs/rubric-model-switching.md).
+**This is a rule, not a preference (IDS-20).** Two tiers, and a machine that reads them — see
+[docs/rubric-model-switching.md](docs/rubric-model-switching.md), enforced by
+`skills/gaspol-verify/scripts/model-gate` from `gaspol-verify` Layer 1.
 
-Quick reference:
-- **Opus 4.7**: architecture planning, spec review, complex debug, research synthesis, autonomous orchestration
-- **Sonnet 4.6**: feature implementation, code review, test writing, research gathering, ADR capture, learn capture, design reasoning
-- **Haiku 4.5**: docs sync, simple refactor, rename/format, simple fact lookup
+```text
+Opus   MUST be used for brainstorm, plan, verify, review, and anything that JUDGES finished work.
+Sonnet MUST be used for execution: implement, test, refactor, sync docs, rename, capture, gather.
+```
+
+The orchestrator (main session) stays on Opus: it decides what runs and when to stop.
+
+- **Opus**: brainstorm, planning, verification, **all review and refutation**, spec review, plan
+  fidelity audit, code review, refactor-for-clarity, complex debug, research synthesis,
+  autonomous orchestration
+- **Sonnet**: feature implementation, test writing, research gathering, ADR capture, learn
+  capture, design reasoning, docs sync, rename/format, simple lookup
+
+**The third tier is deleted.** Docs sync, rename/format and simple lookup ran on a smaller model
+until IDS-20. What that costs is real — those three are now more expensive than they strictly need
+to be. What it buys is a boundary nobody has to guess at, and no exception list inside the gate.
+`model-gate` treats the deleted tier's name as **BLOCKING**, never "unknown": reporting it as
+unknown invites a case-by-case exemption, which is how a deleted tier returns one row at a time.
 
 Applied via:
-- Agent frontmatter `model:` field (4 agents: code-reviewer=sonnet, code-simplifier=sonnet, plan-verifier=opus, spec-reviewer=opus)
-- Agent tool dispatch with `model` param per call
+- Agent frontmatter `model:` field — **all four agents are `opus`** since IDS-20, because all four
+  judge: `code-reviewer`, `code-simplifier`, `plan-verifier`, `spec-reviewer`
+- Agent tool dispatch with a `model` param per call
+- A file the gate cannot classify by name declares its own tier with a `model-tier:` line;
+  `gaspol-learn` and `gaspol-research` both carry one
 
-Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
+**An override that drops a judging task below Opus, or raises an execution task above Sonnet,
+MUST carry a written reason at the call site.** A silent override is how a rule becomes advice
+again — which is the state this rubric was in for ten call sites before IDS-20.
+
+No target cost mix is stated any more. The old one (~15/60/25 across three tiers) described a
+distribution nobody measured, and a number nobody checks is the shape this repository keeps
+having to undo.
 
 ### Per-Phase Checkpoints (Tiered Auto-Review in v1.2)
 
