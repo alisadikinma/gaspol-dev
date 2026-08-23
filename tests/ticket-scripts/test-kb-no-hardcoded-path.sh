@@ -64,7 +64,10 @@ echo "test-kb-no-hardcoded-path: every resolver invocation goes through the plug
 # whose stdout is likewise read back and acted on -- were outside it. IDS-8
 # recorded that anchoring one call site is not what closes the surface; widening
 # the gate is. spec-pointer's stdout becomes a path plan-verifier then reads.
-ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff))'
+# WIDENED AGAIN in IDS-19 to four. ledger-gate's exit code decides whether a
+# branch may be verified at all, so a substituted script both runs and answers
+# the question -- the same hazard class, not a lesser one.
+ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff|ledger-gate))'
 UNANCHORED="$(grep -rnE "^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*=\"[\$][(]\"?$ANCHORED_SCRIPTS" \
         "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)"
 [ -z "$UNANCHORED" ] || { echo "$UNANCHORED" >&2; fail "a resolver invocation uses a relative path — prefix it with \"\$CLAUDE_PLUGIN_ROOT/\", the same anchor hooks/hooks.json already uses"; }
@@ -74,15 +77,27 @@ UNANCHORED="$(grep -rnE "^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*=\"[\$][(]\"?$ANCHOR
 # UNANCHORED regex above; a control that still watched only kb-root would keep
 # passing while the newly added half of that regex was broken, which is exactly
 # the vacuous green this control exists to prevent. 17 present at IDS-18.
-ANCHORED=$(grep -rhoE 'CLAUDE_PLUGIN_ROOT[^"]*/'"$ANCHORED_SCRIPTS" \
-        "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null | wc -l | tr -d ' ')
+# `|| true` INSIDE the braces, not after the assignment. grep returns 1 when it
+# matches nothing; under `set -o pipefail` that becomes the pipeline's status,
+# which becomes the ASSIGNMENT's status, and `set -e` then kills the script
+# silently -- before the `fail` below can name what went wrong. Observed for
+# real in IDS-19: this test exited 1 with an EMPTY stderr. Same trap
+# test-spec-pointer-branches-run.sh was written to document, one layer over.
+ANCHORED=$({ grep -rhoE 'CLAUDE_PLUGIN_ROOT[^"]*/'"$ANCHORED_SCRIPTS" \
+        "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null || true; } | wc -l | tr -d ' ')
 [ "${ANCHORED:-0}" -ge 15 ] \
     || fail "the scan found only ${ANCHORED:-0} anchored invocation(s), expected at least 15 — it is broken, so a clean result proves nothing"
 # And each script must be seen individually: a combined count stays healthy on
-# kb-root's eight alone while both new patterns match nothing.
-for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff; do
-    n=$(grep -rhoE "CLAUDE_PLUGIN_ROOT[^\"]*/skills/$s" \
-            "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null | wc -l | tr -d ' ')
+# kb-root's eight alone while a newly added pattern matches nothing.
+for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff gaspol-verify/scripts/ledger-gate; do
+    # skills/ and agents/ ONLY -- deliberately NOT docs/ or README.md, unlike the
+    # combined count above. IDS-19 found this control passing for a script with
+    # ZERO real invocations, satisfied entirely by a plan document in docs/plans
+    # that quoted the anchored path in prose. A control that a sentence can
+    # satisfy proves nothing about whether anything is wired. An invocation
+    # lives in a skill or an agent; prose about one does not.
+    n=$({ grep -rhoE "CLAUDE_PLUGIN_ROOT[^\"]*/skills/$s" \
+            "$REPO_ROOT"/skills "$REPO_ROOT/agents" 2>/dev/null || true; } | wc -l | tr -d ' ')
     [ "${n:-0}" -ge 1 ] \
         || fail "the scan sees zero anchored invocations of $s — that half of the widened gate is dead, so its clean result proves nothing"
 done
