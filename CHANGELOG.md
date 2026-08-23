@@ -75,6 +75,13 @@ autonomous mode's no-pause-between-phases guarantee is untouched.
 - `test-execute-trim.sh` — limit raised 29000 → 29400 for `gaspol-execute` Step 8, following that
   test's own rule: raise only when an obligation is ADDED, and say which one.
 
+**One assertion in `test-finish-gates.sh` was found green for the worst possible reason** and
+deleted: it claimed `/security-review` was unconditional, and its unanchored substring
+`every branch` matched the very sentence explaining why it no longer is. A pure prose reword of
+that sentence turned the suite red — the unanchored-substring failure `test-gate-mutations.sh`
+exists to catch, found by the plan-fidelity audit rather than by the harness, whose two target
+files do not include `gaspol-finish`.
+
 Both Step 0 assertions check the `### Step 0` **heading**, not the words — `gaspol-finish`
 deliberately keeps a paragraph recording why Step 0 was removed, and a blunter check would have
 forbidden the very record the neighbouring assertion demands.

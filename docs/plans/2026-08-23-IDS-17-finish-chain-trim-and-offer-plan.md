@@ -326,5 +326,9 @@ here.
 ## Out of scope
 
 - `gaspol-execute` Step 3.6's own `/security-review` trigger — the request named `gaspol-finish`.
-- The marketplace manifest in the separate `gaspol-one` repository — updated when this release is
-  published, not by this plan.
+- ~~The marketplace manifest in the separate `gaspol-one` repository — updated when this release
+  is published, not by this plan.~~ **This was wrong and is corrected here rather than quietly
+  fixed.** Four tests in this repository (`test-ids8-docs`, `test-naming-convention`,
+  `test-prior-art-gate`, `test-skill-delegation`) assert that `plugin.json` and
+  `gaspol-one/.claude-plugin/marketplace.json` agree on the version, so bumping one without the
+  other ships a red suite. The manifest is updated and committed as part of Phase F.

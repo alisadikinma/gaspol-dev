@@ -140,11 +140,14 @@ fi
 # The trim must NOT weaken /security-review. Security defects hide in boring
 # diffs, and in a skills repository markdown IS the executed surface — "docs
 # only" does not mean "cannot introduce a vulnerability".
-if grep -qi 'security-review.*ALWAYS\|ALWAYS.*security-review\|every branch' skills/gaspol-finish/SKILL.md; then
-  pass "/security-review is still unconditional on every branch"
-else
-  fail "/security-review is still unconditional on every branch"
-fi
+# REMOVED in IDS-17 alongside its twin below. This one asserted /security-review
+# was unconditional, and by the end of IDS-17 it passed for the worst possible
+# reason: its unanchored substring 'every branch' matched the sentence in
+# gaspol-finish/SKILL.md that explains why the review is NO LONGER unconditional
+# ("running it on every branch spends time on branches where there is nothing to
+# find"). A green assertion whose claim the file actively contradicts is the
+# unanchored-substring failure test-gate-mutations.sh exists to catch. Its attack
+# row lives there now.
 # REMOVED in IDS-17: the assertion that no rule makes /security-review skippable.
 #
 # It was added in IDS-3 and reinforced by the knowledge note

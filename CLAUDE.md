@@ -170,7 +170,7 @@ When multiple skills apply:
 
 ## Key Concepts
 
-### Workflow Chains (skills chain automatically)
+### Workflow Chains (skills chain automatically — up to the finish offer)
 
 ```text
 brainstorm (Phase 0.5 KB + 1.5 novelty + 2.5 design gate + 3 design)
@@ -187,10 +187,19 @@ sync-docs (CLAUDE.md update)
     ↓
 review (code quality)
     ↓
-finish (plan-verifier BLOCKING + merge/PR/cleanup)
-    ↓
-learn (quality-gated pattern capture → KB)
+FINISH OFFER — skills/_shared/finish-offer.md — the chain STOPS being automatic here
+    [Finish sekarang] ────→ finish (4 mandatory steps, plan-verifier BLOCKING, merge/PR/cleanup)
+    [Nanti]           ────→ ledger cursor `— NEXT: gaspol-finish — deferred: <reason>`,
+                            resurfaced later by scan-active-ledgers. Nothing else runs.
+    [Cuma verify dulu]────→ gaspol-verify only, then ask again
+                                  ↓ (only on the finish path)
+                            learn — OFFERED, declining records nothing
 ```
+
+**The last arrow is a choice, not a step.** Everything above the finish offer chains
+automatically; nothing below it happens unless the user picks it. `gaspol-learn` is offered
+inside `gaspol-finish` rather than chained after it, so a branch that is never finished never
+reaches it.
 
 Parallel branches:
 - `gaspol-worktree` — Phase 0 isolation invoked BEFORE concurrent dispatch (required for independent-domains, recommended for overlapping plan-phases); teardown owned by `gaspol-finish`

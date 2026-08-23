@@ -68,22 +68,30 @@ design intelligence. Missing it degrades design quality; nothing breaks.
 
 ---
 
-## The finish chain: six steps, three of them block
+## The finish chain: four steps, two of them block
 
-This is the part most plugins don't have. When you say "I'm done", `gaspol-finish` runs six steps **in order**, and none of them is conditional on how the diff looks:
+This is the part most plugins don't have. First, **finishing is offered, not assumed** — at the end of a plan, a parallel run, or an autonomous run you get one modal:
+
+```text
+[Finish sekarang]  [Nanti — branch dibiarkan]  [Cuma verify dulu]
+```
+
+Deferring writes `— NEXT: gaspol-finish — deferred: <reason>` to the ticket ledger, and the reason may not be empty. That single line is the whole reminder mechanism: `scan-active-ledgers` already prints every ledger whose cursor isn't `DONE`, so a deferred branch resurfaces on its own instead of quietly never merging.
+
+When you do pick "finish", `gaspol-finish` runs four steps **in order**, none conditional on how the diff looks:
 
 | # | Step | Blocking? |
 |---|---|---|
 | 1 | `gaspol-verify` — 4 layers (technical, plan fidelity, placeholder scan, integration) | — |
 | 2 | `plan-verifier` agent — step-level, evidence-based, 3 random FOUND items spot-checked | **BLOCKS** |
 | 3 | `gaspol-review` at Tier 1 — findings must survive adversarial refutation to count | **BLOCKS** on Critical |
-| 4 | `/security-review` — the CLI built-in, on **every** branch | **BLOCKS** on any finding |
-| 5 | `gaspol-sync-docs` — CLAUDE.md must appear in the branch diff, not just be claimed | — |
-| 6 | `gaspol-learn` — quality-gated pattern capture to the KB | — |
+| 4 | `gaspol-sync-docs` — CLAUDE.md must appear in the branch diff, not just be claimed | — |
 
-Then the ledger is closed with a truthful cursor, other open ledgers are surfaced, and — because **merging is not publishing** — you're told to push, and for a plugin repo to run `claude plugin update <plugin>@<marketplace>` and restart.
+Then two more are **offered** in a single modal — `/security-review` (the CLI built-in) and `gaspol-learn` (pattern capture to the KB). Declining either records nothing. When `/security-review` is taken and reports anything, it still blocks every merge option until resolved, and `gaspol-execute` still runs it **unconditionally** mid-build on any phase touching auth, secrets, user input, a new endpoint, payment, or sensitive data.
 
-Three of these gates exist because their absence caused a real, observed failure. Step 4 always runs because "this diff doesn't look security-sensitive" is a judgement call nobody should make under deadline. Step 5 demands evidence because a self-reported checkbox once shipped a release whose changelog never mentioned half of what was in it.
+Finally the ledger is closed with a truthful cursor, other open ledgers are surfaced, and — because **merging is not publishing** — you're told to push, and for a plugin repo to run `claude plugin update <plugin>@<marketplace>` and restart.
+
+Every one of these gates exists because its absence caused a real, observed failure. Step 1 can no longer be skipped on the grounds that it already ran this session, because it is the only step that runs the suite. Step 4 demands evidence because a self-reported checkbox once shipped a release whose changelog never mentioned half of what was in it. And the honest note on the security offer: making it optional trades a guarantee for time, the argument against is written down rather than deleted, and a declined review leaves no trace.
 
 ---
 
@@ -267,7 +275,7 @@ than a pass/fail verdict.
 - **gaspol-verify** — 4-layer verification; commands are **derived** from the project's stack markers, never hardcoded to npm
 - **gaspol-review** — Tiered review lanes + adversarial refutation + 0–100 confidence rubric with an 80 threshold and an explicit false-positive catalogue
 - **gaspol-receive-review** — Verify feedback before implementing it; no performative agreement, and push back when the reviewer is wrong
-- **gaspol-finish** — The six-step chain above, plus ledger close and the publication gate
+- **gaspol-finish** — The four-step chain above plus two offers, ledger close, and the publication gate — and reaching it at all is the user's choice
 
 ### Learning & Maintenance
 - **gaspol-learn** — Quality-gated auto-capture post-finish (6 validation checks, user confirms)

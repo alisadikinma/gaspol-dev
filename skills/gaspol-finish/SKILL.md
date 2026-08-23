@@ -69,9 +69,12 @@ touched by the diff. Provably absent, not "looks like it doesn't need one".
 When you skip it, record `plan-verifier: skipped — no plan referenced by this branch` in the
 ledger and continue. A silent omission is indistinguishable from a gate that ran and passed.
 
-Every other step in this chain is unconditional, `/security-review` above all: security
-defects hide in diffs that look boring, and in a skills repository markdown **is** the
-executed surface, so "docs only" never means "cannot introduce a vulnerability".
+Every other **mandatory** step in this chain is unconditional. `/security-review` is no longer
+one of them — it is offered after step 4 (IDS-17). The argument for keeping it unconditional was
+real and is preserved rather than deleted: security defects hide in diffs that look boring, and
+in a skills repository markdown **is** the executed surface, so "docs only" never means "cannot
+introduce a vulnerability". It now lives as a divergence note in the knowledge store, and
+`gaspol-execute` Step 3.6 still runs the review unconditionally on its own triggers.
 
 In every other case, dispatch the upgraded `plan-verifier` agent (step-level, evidence-based)
 to audit the implementation against the plan. See `agents/plan-verifier.md`.
