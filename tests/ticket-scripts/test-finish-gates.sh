@@ -146,8 +146,12 @@ fi
 # gaspol-finish/SKILL.md that explains why the review is NO LONGER unconditional
 # ("running it on every branch spends time on branches where there is nothing to
 # find"). A green assertion whose claim the file actively contradicts is the
-# unanchored-substring failure test-gate-mutations.sh exists to catch. Its attack
-# row lives there now.
+# unanchored-substring failure test-gate-mutations.sh exists to catch, and that
+# harness did NOT catch it: its two plant targets are gaspol-research/SKILL.md
+# and docs/kb-setup.md, neither of which mentions gaspol-finish. No attack row
+# was added, because deleting the assertion removed the exposure -- there is
+# nothing left to plant against. Extending that harness to a finish-gate lane
+# would be new scope for a harness deliberately scoped to the KB subsystem.
 # REMOVED in IDS-17: the assertion that no rule makes /security-review skippable.
 #
 # It was added in IDS-3 and reinforced by the knowledge note

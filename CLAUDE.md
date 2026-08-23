@@ -135,7 +135,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
 | Research external library/API/pattern | `gaspol-research` |
 | Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
-| Capture patterns after shipping | `gaspol-learn` (auto-triggered by finish) |
+| Capture patterns after shipping | `gaspol-learn` (**offered** by finish since v1.26, not automatic) |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
@@ -269,7 +269,7 @@ Default query filter: `proposed` **and** `accepted` — filtering to `accepted` 
 every gaspol capture from the query built to find it. Freshness tiers for research: 🟢 FRESH <90d /
 🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
 
-Compounding effect: every shipped feature → `gaspol-learn` captures patterns → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs.
+Compounding effect: a shipped feature → `gaspol-learn` captures patterns **when the finish offer is accepted** (v1.26 — it is no longer automatic) → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs. The compounding is real but now depends on the user saying yes, which is a weaker guarantee than the automatic capture it replaced.
 
 ### Anti-Placeholder Enforcement
 

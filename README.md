@@ -278,7 +278,7 @@ than a pass/fail verdict.
 - **gaspol-finish** — The four-step chain above plus two offers, ledger close, and the publication gate — and reaching it at all is the user's choice
 
 ### Learning & Maintenance
-- **gaspol-learn** — Quality-gated auto-capture post-finish (6 validation checks, user confirms)
+- **gaspol-learn** — Quality-gated pattern capture, **offered** at the end of finish rather than fired automatically (6 validation checks, user confirms each entry)
 - **gaspol-sync-docs** — CLAUDE.md sync (3 modes: post-implementation / audit / session learning)
 
 ### Bootstrap

@@ -75,6 +75,13 @@ autonomous mode's no-pause-between-phases guarantee is untouched.
 - `test-execute-trim.sh` — limit raised 29000 → 29400 for `gaspol-execute` Step 8, following that
   test's own rule: raise only when an obligation is ADDED, and say which one.
 
+**`gaspol-learn`'s own files were the last thing to catch up, and that gap was itself a finding.**
+The ticket moved two steps to offers but only documented one of them outside `gaspol-finish`. The
+skill's frontmatter `description` still read *"auto-triggered from gaspol-finish"* — and a
+description is a triggering contract that loads into every session, so an agent finishing a branch
+would have fired the skill without ever presenting the offer. Fixed there plus its Integration
+table, its overview, `CLAUDE.md`'s routing row and compounding-effect paragraph, and `README.md`.
+
 **One assertion in `test-finish-gates.sh` was found green for the worst possible reason** and
 deleted: it claimed `/security-review` was unconditional, and its unanchored substring
 `every branch` matched the very sentence explaining why it no longer is. A pure prose reword of
