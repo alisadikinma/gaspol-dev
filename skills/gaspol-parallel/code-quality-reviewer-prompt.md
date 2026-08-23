@@ -4,17 +4,17 @@ Use this template when dispatching the code quality reviewer subagent. This is t
 
 ## Model Selection (see `docs/rubric-model-switching.md`)
 
-Dispatch with `subagent_type: "gaspol-dev:code-reviewer"` and `model: "sonnet"` — pattern
-matching / style check (rubric: "Code review = sonnet"). The agent's own frontmatter
-(`agents/code-reviewer.md`) already defaults to sonnet; pass `model` explicitly anyway so the
-call is correct even if dispatched via `general-purpose`.
+Dispatch with `subagent_type: "gaspol-dev:code-reviewer"` and `model: "opus"` — a code review
+JUDGES finished work, and the rule is that judging runs on Opus (rubric: "Opus judges, Sonnet
+works"). The agent's own frontmatter (`agents/code-reviewer.md`) already defaults to opus; pass
+`model` explicitly anyway so the call is correct even if dispatched via `general-purpose`.
 
 ```
 Agent({
   subagent_type: "gaspol-dev:code-reviewer",
   description: "Code quality review",
   prompt: "<filled template>",
-  model: "sonnet"
+  model: "opus"
 })
 ```
 

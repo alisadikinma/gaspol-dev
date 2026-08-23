@@ -1,7 +1,7 @@
 ---
 name: plan-artifact-reviewer
 description: "Audit implementation against the plan file's phases, Data Integration Map, and (if present) the approved design artifact. Tier 1 lane of gaspol-review."
-model: sonnet
+model: opus
 ---
 
 # Plan Artifact Reviewer Agent

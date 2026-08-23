@@ -315,7 +315,7 @@ Model Selection section), using `spec-reviewer-prompt.md` (pass the review-packa
 
 #### Step 6: Code Quality Review
 
-Dispatch with `subagent_type: "gaspol-dev:code-reviewer"`, `model: "sonnet"` (see the template's
+Dispatch with `subagent_type: "gaspol-dev:code-reviewer"`, `model: "opus"` (see the template's
 own Model Selection section), using `code-quality-reviewer-prompt.md` (pass the same
 review-package path):
 - Uses the `gaspol-review` skill's code-reviewer template

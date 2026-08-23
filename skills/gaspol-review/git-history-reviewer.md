@@ -1,7 +1,7 @@
 ---
 name: git-history-reviewer
 description: "Check git log/blame on changed files for reintroduced-bug and contradicts-prior-fix patterns. Tier 2 (opt-in) lane of gaspol-review."
-model: sonnet
+model: opus
 ---
 
 # Git History Reviewer Agent

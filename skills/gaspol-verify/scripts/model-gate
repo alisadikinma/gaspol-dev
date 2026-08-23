@@ -24,7 +24,9 @@
 #   exit 0   every model declaration matches its tier.
 #   exit 1   BLOCKING -- a declaration names the wrong tier, or `haiku` appears.
 #   exit 3   UNKNOWN -- STOP and ask. A declaration whose tier cannot be
-#            determined, or an agent file with no `model:` field at all.
+#            determined, or an agent file with no `model:` field at all. A file
+#            the heuristics cannot classify can declare its own tier with a
+#            `model-tier: judge` or `model-tier: exec` line.
 #   exit 4   not applicable -- nothing declares a model. NOT a failure and never
 #            counted as a pass.
 #
@@ -66,12 +68,26 @@ EXEC_PAT='implementer'
 report() { echo "model-gate: $*"; }
 detail() { echo "    $*" >&2; }
 
-# tier_of <path> <line> -- prints "judge", "exec", or nothing.
+# tier_of <path> <line> [file] -- prints "judge", "exec", or nothing.
+#
+# Order: path, then the same line, then a tier the FILE declares about itself.
+# The third exists because the first real run reported UNKNOWN for
+# gaspol-learn and gaspol-research -- both correct, both merely unlabelled. The
+# alternatives were worse: growing EXEC_PAT with "gather", "capture", "analyze"
+# and so on is a keyword list that drifts, and defaulting the unmatched case to
+# exec would silently demand sonnet of a judging surface whose name nobody
+# thought about. An explicit marker is a decision somebody made, in the file the
+# decision is about, and it greps.
 tier_of() {
     if printf '%s' "$1" | grep -qiE "$JUDGE_PAT"; then echo judge; return 0; fi
     if printf '%s' "$1" | grep -qiE "$EXEC_PAT";  then echo exec;  return 0; fi
     if printf '%s' "$2" | grep -qiE "$JUDGE_PAT"; then echo judge; return 0; fi
     if printf '%s' "$2" | grep -qiE "$EXEC_PAT";  then echo exec;  return 0; fi
+    if [ -n "${3:-}" ] && [ -f "$3" ]; then
+        declared="$(grep -oiE 'model-tier:[[:space:]]*(judge|exec)' "$3" 2>/dev/null \
+            | head -1 | grep -oiE '(judge|exec)$' | tr '[:upper:]' '[:lower:]' || true)"
+        if [ -n "$declared" ]; then echo "$declared"; return 0; fi
+    fi
     return 0
 }
 
@@ -148,7 +164,7 @@ main() {
             | grep -oiE '(opus|sonnet)$' \
             | tr '[:upper:]' '[:lower:]' || true)"
         [ -n "$value" ] || continue
-        tier="$(tier_of "$file" "$line")"
+        tier="$(tier_of "$file" "$line" "$file")"
         case "$tier" in
             judge)
                 if [ "$value" = "opus" ]; then n_ok=$((n_ok + 1)); else

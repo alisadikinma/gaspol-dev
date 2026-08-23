@@ -66,7 +66,7 @@ expect() {
     echo "  ok — $label (exit $want)"
 }
 
-echo "test-model-gate: 16 cases"
+echo "test-model-gate: 18 cases"
 
 # 1 — a judging agent on opus.
 new_repo
@@ -179,8 +179,38 @@ mkdir -p "$REPO/sub/dir"
 run_gate "$REPO/sub/dir"
 expect 1 "case 16: run from a subdirectory, resolves against the repo root"
 
+# 17 — a file the heuristics cannot classify declares its own tier. Added after
+#      the first real run reported UNKNOWN for gaspol-learn and gaspol-research,
+#      both correct and both merely unlabelled. Growing the keyword list would
+#      drift; defaulting the unmatched case to exec would silently demand sonnet
+#      of a judging surface nobody named carefully.
+new_repo
+printf '<!-- model-tier: exec — gathering is execution -->\n\nDispatch (model: sonnet) to gather.\n' \
+    > "$REPO/skills/thing/SKILL.md"
+run_gate
+expect 0 "case 17: a file may declare its own tier"
+
+# 18 — the declared tier is enforced, not merely accepted.
+new_repo
+printf '<!-- model-tier: judge -->\n\nDispatch (model: sonnet) to grade.\n' \
+    > "$REPO/skills/thing/SKILL.md"
+run_gate
+expect 1 "case 18: a declared judging tier still BLOCKS a sonnet declaration"
+
 echo "test-model-gate: running the script's own --self-test..."
 "$GATE" --self-test >/dev/null || fail "model-gate --self-test failed"
 echo "  ok — --self-test"
 
-echo "test-model-gate: PASS (16 cases)"
+# The gate must be clean against THIS repository. Kept as a live assertion
+# rather than a fixture: a gate green only on synthetic trees proves nothing
+# about the repo it ships in, which is the vacuous-green shape IDS-19 found in
+# test-kb-no-hardcoded-path.sh's own positive control.
+echo "test-model-gate: the gate is clean against this repository..."
+set +e
+REAL_OUT="$(cd "$REPO_ROOT" && "$GATE" 2>&1 | head -3)"
+REAL_RC=$?
+set -e
+[ "$REAL_RC" = 0 ] || fail "model-gate is not clean against this repo (exit $REAL_RC): $REAL_OUT"
+echo "  ok — $REAL_OUT"
+
+echo "test-model-gate: PASS (18 cases)"

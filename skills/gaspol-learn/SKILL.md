@@ -3,6 +3,8 @@ name: gaspol-learn
 description: "Use when feature implementation ships successfully. Offered by gaspol-finish after its four mandatory steps pass — the user chooses whether to run it; also invoked directly at any time."
 ---
 
+<!-- model-tier: exec — capture is execution: it extracts and files patterns, it does not judge code. Read by skills/gaspol-verify/scripts/model-gate. -->
+
 # gaspol-learn
 
 ## Iron Law
