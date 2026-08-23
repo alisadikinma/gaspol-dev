@@ -162,12 +162,22 @@ grep -qF 'regression-gate' "$DEBUG_SKILL" \
 
 echo "test-regression-gate: wiring into the two callers (A3)..."
 
-FINISH_SKILL="$REPO_ROOT/skills/gaspol-finish/SKILL.md"
 VERIFY_SKILL="$REPO_ROOT/skills/gaspol-verify/SKILL.md"
 
-grep -qF '"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate"' "$FINISH_SKILL" \
-    && note "gaspol-finish Step 0 runs regression-gate, anchored via \$CLAUDE_PLUGIN_ROOT" \
-    || bad "gaspol-finish Step 0 does not run regression-gate"
+# IDS-14 wired regression-gate into TWO callers: gaspol-verify Layer 1 and
+# gaspol-finish Step 0. IDS-17 deleted Step 0 -- it ran detect-stack and
+# regression-gate, which is exactly what gaspol-verify Layer 1 already runs, and
+# gaspol-verify became chain step 1, so the cheap-checks-first ordering Step 0
+# existed to enforce is now held by position instead of by repetition.
+#
+# So the two Step 0 assertions are gone and the gaspol-verify ones below are the
+# ONLY wiring left. That makes them load-bearing in a way they were not before:
+# if they weaken, regression-gate is wired into nothing at all.
+FINISH_SKILL="$REPO_ROOT/skills/gaspol-finish/SKILL.md"
+# The HEADING, not the words: gaspol-finish deliberately keeps a paragraph
+# recording why Step 0 was removed, and that record must not trip this check.
+grep -q "^### Step 0" "$FINISH_SKILL" \
+    && bad "gaspol-finish still carries a Step 0 section — IDS-17 deleted it; if it came back, the duplicate invocation needs its own assertion again"
 
 # Anchored, not relative -- a relative call site executes whatever script a
 # repo carrying that path happens to ship, since gaspol-verify runs with the
@@ -183,10 +193,6 @@ grep -qF '"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate"' "$V
 grep -qF '${CLAUDE_PLUGIN_ROOT:?' "$VERIFY_SKILL" \
     && note "gaspol-verify Layer 1's regression-gate call carries the \${CLAUDE_PLUGIN_ROOT:?...} guard" \
     || bad "gaspol-verify Layer 1's regression-gate call has no \${CLAUDE_PLUGIN_ROOT:?...} guard"
-
-grep -qF '${CLAUDE_PLUGIN_ROOT:?' "$FINISH_SKILL" \
-    && note "gaspol-finish Step 0's regression-gate call carries the \${CLAUDE_PLUGIN_ROOT:?...} guard" \
-    || bad "gaspol-finish Step 0's regression-gate call has no \${CLAUDE_PLUGIN_ROOT:?...} guard"
 
 grep -qF 'live-app-check' "$VERIFY_SKILL" && grep -qF 'regression-gate' "$VERIFY_SKILL" \
     && note "gaspol-verify Layer 1 still carries live-app-check alongside regression-gate" \

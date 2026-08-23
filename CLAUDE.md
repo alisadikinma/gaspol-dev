@@ -32,6 +32,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
 | `skills/_shared/verification-loop.md` | **NEW (v1.22)** — the ladder the hot path actually runs: derive commands with `detect-stack` (three states), capture a **baseline before Phase A**, then per phase run L1 static → L2 unit → L3 build → L4 integration → L5 edge, fail-fast, cheapest first. Proportionality for docs/config/rename phases; explicit skips only; the failing command's output feeds the fix **verbatim**. Extracted so `gaspol-execute` and the dispatch templates share one ladder |
 | `skills/_shared/fix-loop.md` | **NEW (v1.19)** — the bound on any review→fix→re-review loop, stated **once** and read by both `gaspol-parallel` (per task) and `gaspol-finish` (per gate): round cap, scoped `FIX_BASE..HEAD` re-review, cheap deterministic gates before expensive agents, and a final round that **adjudicates** rather than escalating. It exists because IDS-8's finish chain ran ~11 agent dispatches, five of them on the same finding class, while the machinery to prevent exactly that already sat in `gaspol-parallel` and `gaspol-finish` referenced it zero times |
+| `skills/_shared/finish-offer.md` | **NEW (v1.26)** — the three-option modal presented at the end of every ticket (`[Finish sekarang]` / `[Nanti]` / `[Cuma verify dulu]`), stated **once** and read by `gaspol-execute`, `gaspol-parallel` and `gaspol-auto`. Carries the deferral cursor `— NEXT: gaspol-finish — deferred: <reason>` verbatim (it is what `scan-active-ledgers` matches on), the non-empty-reason rule, and the two error paths that actually happen: a branch with **no ledger** records nothing rather than getting one invented for it, and a failed verify does **not** re-present the offer |
 | `skills/_shared/kb-path.md` | **NEW (v1.18)** — the ONLY place the default KB path may be spelled. States the resolution order (`$GASPOL_KB_LOCAL` → `kb_local` in `~/.claude/gaspol-config.json` → default), the three states, and the git-ownership guard |
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
@@ -63,7 +64,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-tdd/SKILL.md` | RED-GREEN-REFACTOR cycle enforcement |
 | `skills/gaspol-tdd/testing-anti-patterns.md` | Testing anti-pattern reference |
 | `skills/gaspol-debug/SKILL.md` | Systematic root cause debugging — no guessing |
-| `skills/gaspol-debug/scripts/regression-gate` | **NEW (v1.24)** — the machine behind Phase 4 step 1's three-state contract (written / N/A — reason / not run — reason). Reads commit subjects over `<BASE>..HEAD` for a fix-commit signal (same keyword set `git-history-reviewer.md` already uses) and the ledger's `regression-test:` line; four exit states (0 satisfied / 1 BLOCKING / 3 UNKNOWN — ledger unresolved / 4 not applicable — no fix commits, never counted as a pass). Wired into `gaspol-verify` Layer 1 and `gaspol-finish` Step 0 |
+| `skills/gaspol-debug/scripts/regression-gate` | **NEW (v1.24)** — the machine behind Phase 4 step 1's three-state contract (written / N/A — reason / not run — reason). Reads commit subjects over `<BASE>..HEAD` for a fix-commit signal (same keyword set `git-history-reviewer.md` already uses) and the ledger's `regression-test:` line; four exit states (0 satisfied / 1 BLOCKING / 3 UNKNOWN — ledger unresolved / 4 not applicable — no fix commits, never counted as a pass). Wired into `gaspol-verify` Layer 1 (and, until v1.26, `gaspol-finish` Step 0 — deleted there as a duplicate) |
 | `skills/gaspol-debug/root-cause-tracing.md` | Backward tracing technique reference |
 | `skills/gaspol-debug/defense-in-depth.md` | 4-layer validation reference |
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
@@ -71,7 +72,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
-| `skills/gaspol-finish/SKILL.md` | Branch completion with BLOCKING plan-verifier + merge/PR/cleanup |
+| `skills/gaspol-finish/SKILL.md` | **UPDATED (v1.26)** — four mandatory steps (verify, plan-verifier, review Tier 1, sync-docs) plus two recordless offers (`/security-review`, `gaspol-learn`). Step 0 deleted as a duplicate of `gaspol-verify` Layer 1, with the reason kept in the file; `gaspol-verify`'s already-ran-this-session skip permission revoked, because with Step 0 gone it is the only step that runs the suite |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
@@ -127,14 +128,14 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Implement or fix anything (before writing code) | `gaspol-tdd` |
 | Bug, error, test failure, unexpected behavior | `gaspol-debug` |
 | Review code quality after completing work | `gaspol-review` |
-| Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (also auto-run by execute Step 3.6 + finish gate) |
+| Auth, secrets, user input, API endpoint, payment, sensitive data | built-in `/security-review` (auto-run by execute Step 3.6; **offered**, not automatic, at finish time since v1.26) |
 | Received code review feedback from others | `gaspol-receive-review` |
 | Claim work is done, ready to commit/merge | `gaspol-verify` |
 | Done with feature branch, merge/PR/cleanup | `gaspol-finish` |
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
 | Research external library/API/pattern | `gaspol-research` |
 | Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
-| Capture patterns after shipping | `gaspol-learn` (auto-triggered by finish) |
+| Capture patterns after shipping | `gaspol-learn` (**offered** by finish since v1.26, not automatic) |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
@@ -144,7 +145,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | "Fix this bug" | invoke `gaspol-debug` |
 | "Plan this feature" | invoke `gaspol-brainstorm` or `gaspol-plan` |
 | "Review this code" | invoke `gaspol-review` |
-| "I'm done with this branch" | invoke `gaspol-finish` (which triggers plan-verifier + sync-docs + learn) |
+| "I'm done with this branch" | present the finish offer (`skills/_shared/finish-offer.md`) — `gaspol-finish` runs only if the user picks it |
 | "Research X vs Y" | invoke `gaspol-research` (cache-aware) |
 
 ### Priority Order
@@ -169,7 +170,7 @@ When multiple skills apply:
 
 ## Key Concepts
 
-### Workflow Chains (skills chain automatically)
+### Workflow Chains (skills chain automatically — up to the finish offer)
 
 ```text
 brainstorm (Phase 0.5 KB + 1.5 novelty + 2.5 design gate + 3 design)
@@ -186,10 +187,19 @@ sync-docs (CLAUDE.md update)
     ↓
 review (code quality)
     ↓
-finish (plan-verifier BLOCKING + merge/PR/cleanup)
-    ↓
-learn (quality-gated pattern capture → KB)
+FINISH OFFER — skills/_shared/finish-offer.md — the chain STOPS being automatic here
+    [Finish sekarang] ────→ finish (4 mandatory steps, plan-verifier BLOCKING, merge/PR/cleanup)
+    [Nanti]           ────→ ledger cursor `— NEXT: gaspol-finish — deferred: <reason>`,
+                            resurfaced later by scan-active-ledgers. Nothing else runs.
+    [Cuma verify dulu]────→ gaspol-verify only, then ask again
+                                  ↓ (only on the finish path)
+                            learn — OFFERED, declining records nothing
 ```
+
+**The last arrow is a choice, not a step.** Everything above the finish offer chains
+automatically; nothing below it happens unless the user picks it. `gaspol-learn` is offered
+inside `gaspol-finish` rather than chained after it, so a branch that is never finished never
+reaches it.
 
 Parallel branches:
 - `gaspol-worktree` — Phase 0 isolation invoked BEFORE concurrent dispatch (required for independent-domains, recommended for overlapping plan-phases); teardown owned by `gaspol-finish`
@@ -259,7 +269,7 @@ Default query filter: `proposed` **and** `accepted` — filtering to `accepted` 
 every gaspol capture from the query built to find it. Freshness tiers for research: 🟢 FRESH <90d /
 🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
 
-Compounding effect: every shipped feature → `gaspol-learn` captures patterns → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs.
+Compounding effect: a shipped feature → `gaspol-learn` captures patterns **when the finish offer is accepted** (v1.26 — it is no longer automatic) → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs. The compounding is real but now depends on the user saying yes, which is a weaker guarantee than the automatic capture it replaced.
 
 ### Anti-Placeholder Enforcement
 
@@ -373,7 +383,8 @@ uses — fix/revert/bug/regression/hotfix — reused so the two cannot disagree)
 satisfied / 1 BLOCKING (fix commit, no line — or a bare label with no reason) / 3 UNKNOWN (ledger
 unresolved or unreadable — STOP and ask) / 4 not applicable (no fix commits, **never** counted as
 a pass, the same reason `marketplace-manifest`'s exit 4 is not). Wired into `gaspol-verify` Layer
-1 and `gaspol-finish` Step 0, anchored via `$CLAUDE_PLUGIN_ROOT` per the IDS-8 form.
+1 and, until v1.26, `gaspol-finish` Step 0 — anchored via `$CLAUDE_PLUGIN_ROOT` per the IDS-8 form. IDS-17
+deleted the `gaspol-finish` call as a duplicate of Layer 1; the `gaspol-verify` wiring is now the only one.
 
 **Part B — the visual diff machine.** "Compare the screenshot to the mockup" turned out to have a
 missing left-hand side: there was nothing to compare against. IDS-6 Part B specified a canvas
@@ -611,9 +622,11 @@ three of its findings changed the code:
 - `gaspol-finish` gained **one** conditional gate: `plan-verifier` is skipped when the branch
   provably references **no plan at all** — no `**Plan:**` header in a ledger,
   no `docs/plans/*-plan.md` in the diff — and the skip is recorded in the ledger as
-  `plan-verifier: skipped — no plan referenced by this branch`, never silently. `/security-review` stays unconditional on every branch, now guarded by its own
-  assertion in `test-finish-gates.sh`: security defects hide in boring diffs, and in a skills
-  repository markdown **is** the executed surface.
+  `plan-verifier: skipped — no plan referenced by this branch`, never silently. `/security-review`
+  stayed unconditional on every branch until **v1.26 (IDS-17) made it an offer** — the guarding
+  assertion in `test-finish-gates.sh` was removed by owner decision, and the argument it protected
+  (security defects hide in boring diffs; in a skills repository markdown **is** the executed
+  surface) survives in the knowledge store as a divergence note rather than as an enforced rule.
 
 ### DESIGN.md Token Contract (NEW in v1.17) — what Layer 4 finally has to check against
 
@@ -736,7 +749,7 @@ strengthens. Verified live: `TOP` resolves to the vault root, not the inbox fold
 later by the vault's own `auto-sync` timer. It prevents gaspol from authoring a commit; it does not
 give the user a review window, and must not be described as if it did.
 
-**Code index lane** (`gaspol-sync-docs`, which `gaspol-finish` already calls at Step 5 — no new
+**Code index lane** (`gaspol-sync-docs`, which `gaspol-finish` already calls at Step 4 — no new
 gate): `graphify-out/` + CLI on PATH → `graphify update .`, record `graphify: updated`; marker
 present without the CLI → `graphify: UNKNOWN — index present, CLI missing` → **STOP and ask** (a
 stale index that reports clean still answers questions); no marker → skipped, **never** recorded as
@@ -761,7 +774,7 @@ directory. `test-kb-no-hardcoded-path.sh` gates it.
 **`detect-stack` is the one to fix first when that ticket runs.** `/security-review` on IDS-9
 flagged it specifically: its stdout is **executed**, so a substituted script both runs and chooses
 the next command — the script's own header calls that out as its security invariant. IDS-9
-anchored the single call site it added (`gaspol-finish` Step 0) and gated that line, but **eight
+anchored the single call site it added (`gaspol-finish` Step 0, deleted in v1.26) and gated that line, but **eight
 other call sites across five files stay relative**, and the shared gate still matches only
 `kb-root`. Widening it is what actually closes the surface; anchoring one line is not.
 
@@ -1158,41 +1171,79 @@ Response pattern: READ → UNDERSTAND → VERIFY → EVALUATE → RESPOND → IM
 
 When feedback is unclear: STOP. Do not guess. Ask for clarification with specific interpretation options.
 
-### Finishing Work (gaspol-finish) — six-step chain, three of them BLOCKING, all of it BOUNDED (v1.19)
+### Finishing Work (gaspol-finish) — four mandatory steps + two offers, and reaching it is itself an OFFER (v1.26, IDS-17)
 
-**The bound (NEW in v1.19).** The six steps were never the problem — in IDS-8 every one of them
-found a real defect, including a skill that had silently stopped loading. The problem was that
-"fix and re-run" appeared four times with **no round cap, no scoping, and no ordering rule**, so
-the chain ran roughly eleven agent dispatches, five of them on the same class of finding. Three
-changes, no new mechanism:
+**Finishing is no longer implied.** `gaspol-execute` (after its last phase), `gaspol-parallel`
+(Phase 3) and `gaspol-auto` (post-run report) all present the same three-option modal, whose text
+lives once in **[skills/_shared/finish-offer.md](skills/_shared/finish-offer.md)** and is restated
+in none of them:
 
-- **Step 0 — deterministic checks before any agent is dispatched.** `detect-stack`'s commands plus,
-  where a repository keeps one, its gate-mutation harness. An eight-minute Opus audit over a tree
-  whose two-second suite is already red costs the time and yields a verdict nobody can rely on.
-- **[skills/_shared/fix-loop.md](skills/_shared/fix-loop.md)** is now the single source of the loop
-  rule, read by `gaspol-parallel` and `gaspol-finish` alike. The round cap's **number is
-  deliberately not repeated** in either caller: a constant copied into two skills is a constant
-  that will disagree with itself.
-- **Re-runs are scoped.** A BLOCKING gate records the SHA it audited; the re-run reads
-  `<SHA>..HEAD` — the fix diff and nothing else.
+```text
+[Finish sekarang]  [Nanti — branch dibiarkan]  [Cuma verify dulu]
+```
 
-The bound shortens **rounds**, never the **chain**. All six steps stay, and
-`tests/ticket-scripts/test-finish-fix-loop.sh` fails if any of them is dropped.
+"Nanti" appends `— NEXT: gaspol-finish — deferred: <reason>` to the ledger's `## Log`, and the
+reason **may not be empty**. That cursor is the entire reminder mechanism:
+`scan-active-ledgers` already prints every ledger whose last `NEXT:` marker is not `DONE`, so a
+deferred ticket resurfaces on its own with **zero new code**. Two error paths are named rather
+than assumed: a branch with **no ledger** (no plan) records nothing and never gets one invented
+for it, and a failed `gaspol-verify` under "Cuma verify dulu" does **not** re-present the offer —
+work that fails its own suite is not work you ask someone how to finish.
 
-Pre-finish verification chain (MANDATORY — all six, in order, none conditional on the diff):
+**The chain dropped from six steps to four mandatory ones.**
 
-1. Run `gaspol-verify` (all 4 layers)
+Pre-finish verification chain (MANDATORY — all **four mandatory steps**, in order, none
+conditional on the diff):
+
+1. Run `gaspol-verify` (all 4 layers) — **every time**, even if it already passed earlier in the
+   session. That skip permission was revoked in IDS-17: with Step 0 gone this is the only step
+   that runs the suite, and an optional step whose backstop was deleted collapses into nothing
+   running at all.
 2. Run `plan-verifier` agent **BLOCKING** (step-level, evidence-based, spot-check 3 random FOUND items).
    If BLOCKING → return to execute, fix, re-run. Do not waste a review pass on code about to change.
 3. Run `gaspol-review` at **Tier 1** — **BLOCKING** on any Critical finding that survives the
    Step 2.5 refutation pass. Fix and re-run before proceeding.
-4. Run the built-in **`/security-review`** — **ALWAYS**, on every branch, regardless of whether
-   the diff looks security-sensitive. A finding BLOCKS: resolve via AskUserQuestion
-   (`[Fix now]` / `[Accept risk with documented reason]`) before any merge option is offered.
-   If the command is unavailable, say so and walk the same ground by hand — never record it as
-   passed when it did not run.
-5. Run `gaspol-sync-docs` (update CLAUDE.md)
-6. Trigger `gaspol-learn` for pattern capture (quality-gated, user confirms)
+4. Run `gaspol-sync-docs` (update CLAUDE.md) — evidence-gated: on a structural change CLAUDE.md
+   must appear in the branch diff.
+
+Then **one** `AskUserQuestion` carrying both offers:
+
+| Offered | Declining |
+|---|---|
+| `/security-review` (built-in) | records nothing |
+| `gaspol-learn` (pattern capture) | records nothing |
+
+**Why `/security-review` became an offer, and what it cost.** Owner decision: not every ticket
+changes anything security-related, so running it on every branch spends time where there is
+nothing to find. This **overrides** the knowledge note
+`narrow-and-record-conditional-audit-gates`, whose own reason was sound — in a skills repository
+markdown IS the executed surface — and which is **not** superseded; the divergence is recorded in
+the store as its own note. `tests/ticket-scripts/test-finish-gates.sh` carried an assertion
+written specifically to block this; it was removed and replaced by a comment naming the ticket and
+the note, because a deleted assertion with no explanation is how the next person restores it by
+accident. The cost, stated rather than glossed: **a declined review leaves no trace anywhere.**
+Both offers are recordless for symmetry — two optional steps under two different accountability
+rules is a distinction nobody remembers a month later.
+
+**`gaspol-execute` Step 3.6 still runs `/security-review`** automatically on its own triggers —
+auth, secrets, user input or file uploads, a new API endpoint, payment, sensitive data. Making the
+finish-time pass an offer removed the second, unconditional run; it did not turn the check off.
+And when the offer IS taken, a finding still BLOCKS every merge option until it is resolved.
+
+**Where Step 0 went.** It ran `detect-stack` + `regression-gate` before any agent was dispatched.
+`gaspol-verify` Layer 1 runs both, and `gaspol-verify` is now step 1 — so cheap-checks-first is
+**preserved by position** rather than by repetition. The ordering rule itself is unchanged and
+still applies inside every fix round.
+
+**The bound (v1.19, unchanged).** "Fix and re-run" once appeared four times with no round cap, no
+scoping and no ordering rule, so IDS-8's chain ran roughly eleven agent dispatches, five on the
+same finding class. [skills/_shared/fix-loop.md](skills/_shared/fix-loop.md) is the single source
+of the loop rule for `gaspol-parallel` and `gaspol-finish` alike — the cap's **number is
+deliberately not repeated** in either caller. A BLOCKING gate records the SHA it audited and the
+re-run reads `<SHA>..HEAD`, the fix diff and nothing else. The bound shortens **rounds**, and
+`tests/ticket-scripts/test-finish-fix-loop.sh` fails if any of the four mandatory steps is dropped
+or if either offer disappears entirely — an offer nobody is shown is a deletion wearing a
+different word.
 
 **After the chosen option executes (IDS-3):** close the ledger. Append a final `## Log` line
 to `.gaspol/progress/PROGRESS-<TICKET>.md` ending `— NEXT: DONE`, confirm no `[ ]`/`[>]` is left
@@ -1321,9 +1372,9 @@ Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated repor
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-16
+Last ticket: IDS-17
 
 ---
 
-**Version:** 1.25.0
+**Version:** 1.26.0
 **Last Updated:** August 2026

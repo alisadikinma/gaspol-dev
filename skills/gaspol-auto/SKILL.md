@@ -139,9 +139,16 @@ After ALL phases complete (or aborted):
    - Integration: PASS
 
    ### Next Step
-   [Proceed to gaspol-finish]  [Fix remaining issues]  [Review deviations]
+   <the finish offer — see below>
    ```
 3. **Surface report to user** — autonomous doesn't mean invisible.
+4. **Present the finish offer** per [_shared/finish-offer.md](../_shared/finish-offer.md). It
+   holds the three options and their outcomes; do not restate them here. Where the run left
+   issues open, offer `[Fix remaining issues]` alongside them.
+
+   This is **not a mid-run checkpoint** — the autonomous run has already ended when the offer
+   appears, so the no-pause-between-phases guarantee above is untouched. The offer is about what
+   happens to the branch, not about whether execution continues.
 
 ### Rollback on Abort
 

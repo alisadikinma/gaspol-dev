@@ -358,7 +358,9 @@ never `HEAD~1`, which silently drops all but the last commit of a multi-commit f
 **Mode `plan-phases`:** After ALL phases complete:
 1. Run `gaspol-review` on the full changeset
 2. Run `plan-verifier` agent (BLOCKING — step-level evidence-based)
-3. Run `gaspol-finish` to finalize
+3. Present the finish offer per [_shared/finish-offer.md](../_shared/finish-offer.md) — three
+   options, the user picks. Finishing is not the automatic next step, and deferring writes a
+   ledger cursor rather than being forgotten. Do not restate the modal here.
 
 **Mode `independent-domains`:** After ALL agents complete (concurrent dispatch returned):
 1. Read each agent's summary

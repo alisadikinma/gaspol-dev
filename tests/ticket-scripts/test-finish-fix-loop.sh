@@ -67,26 +67,52 @@ echo "test-finish-fix-loop: cheap gates run before expensive ones..."
 claim "$FIN" "finish" "before dispatching any agent" || exit 1
 claim "$FIN" "finish" "test-gate-mutations.sh" || exit 1
 
-echo "test-finish-fix-loop: Step 0 anchors its script and names its checks..."
-# /security-review, IDS-9. Step 0 was the one place this diff introduced a new
-# script invocation, and it introduced it twice over: a relative path, plus an
-# instruction to DISCOVER a harness in the working repo and run it. Step 0 runs
-# before /security-review by design, so nothing would have inspected either first.
-claim "$FIN" "finish" '`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/detect-stack"' || exit 1
-claim "$FIN" "finish" "never go looking for a checker to run" || exit 1
+echo "test-finish-fix-loop: the Step 0 preamble is GONE, and its reason is recorded..."
+# IDS-17. Step 0 ran detect-stack + regression-gate before any agent was
+# dispatched. gaspol-verify Layer 1 runs both of those already, and gaspol-verify
+# is now chain step 1 -- so cheap-checks-first is preserved by POSITION rather
+# than by repetition. Deleting a gate is only safe when something else still
+# holds it; test-regression-gate.sh asserts the gaspol-verify half still stands.
+# The HEADING, not the words. The assertion below requires the file to explain
+# WHY Step 0 went, so a check for any mention of the phrase would forbid the very
+# record the next assertion demands.
+grep -q "^### Step 0" "$FIN" \
+    && fail "gaspol-finish still carries a Step 0 section — IDS-17 deleted it as a duplicate of gaspol-verify Layer 1"
+claim "$FIN" "finish" "preserved by position" || exit 1
+# The deletion must not silently take the ordering rule with it: the Fix Loop
+# used to point at Step 0's checks, and a pointer to a deleted section is worse
+# than none because it reads as if the check still runs.
+grep -q "Step 0's checks" "$FIN" \
+    && fail "gaspol-finish's Fix Loop still points at Step 0's checks — that section no longer exists"
 
 echo "test-finish-fix-loop: re-runs are scoped, not whole-branch..."
 claim "$FIN" "finish" "record the SHA that verdict saw" || exit 1
 claim "$FIN" "finish" "re-runs a gate scopes to that SHA" || exit 1
 
-echo "test-finish-fix-loop: the six steps are still all there..."
-# The chain is bounded, not shortened. Each of these found a real defect in
-# IDS-8; deleting a gate because the chain felt slow would throw away exactly the
-# thing that caught a skill which had stopped loading.
-for step in "gaspol-verify" "plan-verifier" "gaspol-review" "/security-review" "gaspol-sync-docs" "gaspol-learn"; do
+echo "test-finish-fix-loop: the four MANDATORY steps are still all there..."
+# IDS-17 cut the chain from six to four. The four below are what remains
+# mandatory, and this loop is what stops a future trim from taking one of them
+# too -- each found a real defect in IDS-8, including a skill that had silently
+# stopped loading.
+for step in "gaspol-verify" "plan-verifier" "gaspol-review" "gaspol-sync-docs"; do
     grep -qF "$step" "$FIN" \
-        || fail "gaspol-finish no longer names '$step' — the chain was bounded, not shortened"
+        || fail "gaspol-finish no longer names '$step' — these four are the mandatory chain, not candidates for the next trim"
 done
+
+echo "test-finish-fix-loop: /security-review and gaspol-learn are OFFERED, not chain steps..."
+# Owner decision (IDS-17): not every ticket touches anything security-related,
+# so running the review unconditionally on every branch spends time for nothing.
+# It stays present and offered -- an offer nobody is shown is just a deletion.
+for offered in "/security-review" "gaspol-learn"; do
+    grep -qF "$offered" "$FIN" \
+        || fail "gaspol-finish no longer names '$offered' — it became an OFFER, not a deletion"
+done
+claim "$FIN" "finish" "declining records nothing" || exit 1
+# gaspol-verify is the only step left that runs the suite. The old "already run
+# this session, you may skip" permission plus a deleted Step 0 collapses into
+# nothing running at all.
+grep -q "you may skip this step" "$FIN" \
+    && fail "gaspol-finish still lets gaspol-verify be skipped — with Step 0 gone it is the only step that runs the suite"
 
 # Positive control: the claim() helper must be able to FAIL, or every check above
 # is theatre. A helper that always exits 0 is this repo's own
@@ -95,4 +121,4 @@ if claim "$FIN" "control" "a phrase that is certainly not in this file zzqq" 2>/
     fail "the claim helper passed a phrase that cannot be present — it never fails, so every assertion above proved nothing"
 fi
 
-echo "PASS: test-finish-fix-loop (loop shared, gates ordered cheap-first, re-runs scoped, six steps intact)"
+echo "PASS: test-finish-fix-loop (loop shared, re-runs scoped, four mandatory steps intact, two offered)"

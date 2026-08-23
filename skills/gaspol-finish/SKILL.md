@@ -30,64 +30,33 @@ Finishing is not just merging. It is the final quality gate that ensures the wor
 
 ## Pre-Finish Verification Chain (MANDATORY)
 
-Before presenting any options, complete this chain **in order, all six steps**. Do not skip
-steps. None of the six is optional or conditional on the diff's contents — steps 3 and 4 run on
-every finish pass exactly like steps 1, 2, 5, and 6 always have.
+Before presenting any options, complete this chain **in order, all four steps**. Do not skip
+steps. None of the four is optional or conditional on the diff's contents.
 
-### Step 0: Run the deterministic checks first — before dispatching any agent
+Two further checks — the built-in `/security-review` and `gaspol-learn` — are **offered** after
+step 4 rather than run automatically. See *The Offers* below.
 
-The chain's cheapest gate runs first, always. Derive the command with
-`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/detect-stack" <project-root>` and run what
-it prints.
-
-Also run the regression gate here, among the deterministic checks, before any agent is
-dispatched — a missing regression test is exactly the finding that must not cost an Opus audit
-to discover:
-
-```bash
-: "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
-script the target project happens to ship at a matching relative path}"
-"$CLAUDE_PLUGIN_ROOT/skills/gaspol-debug/scripts/regression-gate" "$(git merge-base main HEAD)"
-```
-
-Exit 0 satisfied, no action. Exit **1 BLOCKING** stops here like any other Step 0 finding — fix
-before dispatching anything. Exit **3 UNKNOWN** (ledger unresolved or unreadable) STOPs and
-asks — never treat it as satisfied. Exit **4** (not applicable — no fix commits in range) is
-recorded, **never** treated as a pass, the same reason an unavailable `/security-review` is
-recorded as not run rather than as passed.
-
-**Two rails on that line, both learned the hard way.** The script is reached through
-`$CLAUDE_PLUGIN_ROOT`, never relatively: this skill runs with the **target project** as its
-working directory, so a relative path executes whatever a repo carrying that path happens to
-ship — and `detect-stack`'s stdout is then executed, so a substituted script both runs and
-chooses the next command. And **never go looking for a checker to run.** An earlier draft of this
-step said "where the repository keeps a mutation harness over its own gates, run that too", which
-instructs an agent to discover and execute an arbitrary script out of the working repository —
-Step 0 runs *before* `/security-review`, so nothing would have looked at it first. A repository's
-extra checks belong in the plan's declared verification commands, or named literally in its own
-`CLAUDE.md`, where a human wrote them down. In THIS repository that is
-`tests/ticket-scripts/test-gate-mutations.sh`.
-
-**Why this is Step 0 and not a footnote.** In IDS-8 an eight-minute Opus audit was dispatched
-over a tree whose two-second suite was already red, and three of that ticket's five gate
-regressions would have been caught in seconds. An audit of code that is about to change is
-worse than no audit: it costs the time AND produces a verdict nobody can rely on.
-
-Red here means **fix before dispatching anything**. This is not a BLOCKING gate in the
-merge-refusing sense — it is an ordering rule, and it applies again inside every fix round
-(see The Fix Loop below).
+**Where Step 0 went (IDS-17).** This chain used to open with a Step 0 that ran `detect-stack`
+and `regression-gate` before any agent was dispatched. `gaspol-verify` Layer 1 runs both of
+those already, and `gaspol-verify` is step 1 — so cheap-checks-first is **preserved by position**
+rather than by repetition. Nothing about the ordering rule changed; only the duplicate went. If a
+future edit makes step 1 conditional, that ordering is lost and Step 0 has to come back.
 
 ### Step 1: Run gaspol-verify (all 4 layers)
 
-If you haven't already run verification in this session, invoke gaspol-verify now.
+Invoke `gaspol-verify` now. **Every time, even if it already ran and passed earlier in this
+session** — the permission to skip it on a repeat was removed in IDS-17. With Step 0 gone this is
+the only step in the chain that runs the test suite, and an optional step whose backstop was
+deleted collapses into nothing running at all. It is also the cheapest step, so re-running it
+costs the chain almost nothing while a stale pass costs it everything.
 
 This ensures:
 - All tests pass
 - No lint errors or warnings
 - Build succeeds
 - No unintended changes
-
-If gaspol-verify was already run and passed in this session, you may skip this step.
+- The deterministic checks Step 0 used to duplicate: `detect-stack`'s commands and
+  `regression-gate` (Layer 1)
 
 ### Step 2: Run plan-verifier agent BLOCKING (step-level, evidence-based, spot-check 3 random FOUND items)
 
@@ -100,9 +69,12 @@ touched by the diff. Provably absent, not "looks like it doesn't need one".
 When you skip it, record `plan-verifier: skipped — no plan referenced by this branch` in the
 ledger and continue. A silent omission is indistinguishable from a gate that ran and passed.
 
-Every other step in this chain is unconditional, `/security-review` above all: security
-defects hide in diffs that look boring, and in a skills repository markdown **is** the
-executed surface, so "docs only" never means "cannot introduce a vulnerability".
+Every other **mandatory** step in this chain is unconditional. `/security-review` is no longer
+one of them — it is offered after step 4 (IDS-17). The argument for keeping it unconditional was
+real and is preserved rather than deleted: security defects hide in diffs that look boring, and
+in a skills repository markdown **is** the executed surface, so "docs only" never means "cannot
+introduce a vulnerability". It now lives as a divergence note in the knowledge store, and
+`gaspol-execute` Step 3.6 still runs the review unconditionally on its own triggers.
 
 In every other case, dispatch the upgraded `plan-verifier` agent (step-level, evidence-based)
 to audit the implementation against the plan. See `agents/plan-verifier.md`.
@@ -150,33 +122,12 @@ finding STOPS the chain here.
 - If gaspol-review (this step) is BLOCKING, fix and re-run gaspol-review before proceeding. Do
   not proceed to Step 4 until it is clean.
 
-### Step 4: Run the built-in `/security-review` -- ALWAYS runs from this chain
-
-Run the **`/security-review`** slash command. It is a Claude Code built-in — compiled into the
-CLI itself, no plugin and no install — and it reviews the pending changes on the current branch.
-gaspol used to ship its own forked checklist here; the built-in supersedes it, so the fork was
-deleted in v1.14.0 rather than left to drift.
-
-**From this finish chain it ALWAYS runs**, on every branch, regardless of whether the diff appears
-security-sensitive. It is not conditional-trigger-only here. Its result gets attached to the
-finish report.
-
-- If it reports an insecure pattern (string-concatenated SQL, JWT in `localStorage`, secrets in
-  source, missing server-side authz), treat it like a BLOCKING finding: STOP and use
-  AskUserQuestion — `[Fix now]` / `[Accept risk with documented reason]`.
-  Never present merge options with an unresolved security finding.
-- Report the result even when it is clean, e.g. "Security review: PASSED (`/security-review`, no
-  findings)."
-- If `/security-review` is unavailable in this environment, say so explicitly and walk the same
-  ground by hand — secrets in source, unparameterized queries, missing server-side authz, XSS
-  sinks, CSRF, rate limiting. **Never record the step as passed when it did not run.**
-
-### Step 5: Run gaspol-sync-docs (update CLAUDE.md) -- now evidence-gated
+### Step 4: Run gaspol-sync-docs (update CLAUDE.md) -- evidence-gated
 
 Update CLAUDE.md and any other documentation with changes from this work.
 
 **Evidence required — this step used to be a self-reported checkbox.** Nothing verified
-that CLAUDE.md had actually changed, so `[x] Step 5: COMPLETED` could be written over a
+that CLAUDE.md had actually changed, so `[x] COMPLETED` could be written over a
 branch that never touched it. That is a completion claim without evidence, which Iron
 Law 3 forbids everywhere else in this plugin.
 
@@ -188,8 +139,8 @@ or a documented command — then **CLAUDE.md must appear in the branch diff**:
 git diff --name-only <BASE>..HEAD | grep -q '^CLAUDE.md$'
 ```
 
-If that check fails on a structural change, Step 5 is NOT complete: run `gaspol-sync-docs`
-for real, then re-check. Only a branch with no structural change may record Step 5 as
+If that check fails on a structural change, Step 4 is NOT complete: run `gaspol-sync-docs`
+for real, then re-check. Only a branch with no structural change may record Step 4 as
 "no doc-visible change", and it must say which — never a bare COMPLETED.
 
 This ensures:
@@ -198,10 +149,46 @@ This ensures:
 - Removed features are cleaned up from docs
 - The next session has accurate context
 
-### Step 6: Trigger gaspol-learn (pattern capture) -- unchanged
+## The Offers — presented after step 4, in ONE AskUserQuestion
 
-Invoke `gaspol-learn` for quality-gated pattern capture into the cross-project knowledge base
-(user confirms before write).
+Two checks that used to be mandatory chain steps are now offered. Present both in a **single**
+modal, not two consecutive ones:
+
+```text
+/security-review : [Jalankan]  [Lewati]
+gaspol-learn     : [Jalankan]  [Lewati]
+```
+
+**Declining records nothing.** No ledger line, no reason demanded, for either. That is a
+deliberate, symmetric choice by the owner (IDS-17): two optional steps with two different
+accountability rules is a distinction nobody remembers a month later. It is also a real
+reduction — a skipped review leaves no trace anywhere — and it is recorded here rather than
+discovered later.
+
+### `/security-review` (built-in)
+
+**Why it is an offer.** Not every ticket changes anything security-related, so running it on
+every branch spends time on branches where there is nothing to find. This overrides the earlier
+rule that it must run unconditionally; the reason that rule existed — in a skills repository
+markdown IS the executed surface — is recorded in the ADR, not deleted.
+
+**Unchanged when it IS run:** a finding still BLOCKS. Resolve via AskUserQuestion —
+`[Fix now]` / `[Accept risk with documented reason]` — before any merge option is offered.
+Never present merge options with an unresolved security finding.
+If the command is unavailable, say so
+and walk the same ground by hand (secrets in source, unparameterized queries, missing server-side
+authz, XSS sinks, CSRF); **never record it as passed when it did not run.**
+
+**Not affected by this change:** `gaspol-execute` Step 3.6 still runs `/security-review`
+automatically on its own triggers — a phase touching auth, secrets, user input, a new endpoint,
+payment, or sensitive data. Making the finish-time pass an offer did not turn the check off; it
+removed the second, unconditional run.
+
+### `gaspol-learn` (pattern capture)
+
+Quality-gated capture into the knowledge store; the user confirms each entry before it is
+written. Offered rather than automatic for the same reason: most branches produce no pattern
+worth keeping, and a prompt that fires every time gets answered reflexively.
 
 ### The Fix Loop — every BLOCKING gate in this chain is bounded
 
@@ -222,30 +209,38 @@ What it means at each of the gates above:
   audited. Whatever re-runs a gate scopes to that SHA: the re-review reads `<SHA>..HEAD`, the
   fix diff and nothing else. Re-auditing the whole branch after every fix is how IDS-8's chain
   reached roughly eleven agent dispatches.
-- **Cheap before expensive, every round.** Step 0's checks run again before each fix round's
-  dispatch. Adding an exemption to a gate means adding its attack row to the mutation harness
+- **Cheap before expensive, every round.** `gaspol-verify` Layer 1's deterministic checks run
+  again before each fix round's dispatch — before dispatching any agent. Adding an exemption to a gate means adding its attack row to the mutation harness
   **first**, and watching it fail — five separate times in IDS-8, closing one finding loosened
   the gate beside it, and every one of those was found by an expensive audit rather than by the
-  harness that existed to catch it.
+  harness that existed to catch it. In THIS repository that harness is
+  `tests/ticket-scripts/test-gate-mutations.sh`. **Never go looking for a checker to run** — a
+  repository's extra checks belong in the plan's declared verification commands or named
+  literally in its own `CLAUDE.md`, where a human wrote them down; discovering and executing an
+  arbitrary script out of the working repository is not a check, it is running someone else's
+  code on their say-so.
 
-**The bound shortens rounds, never the chain.** All six steps stay. In IDS-8 each one found a
-real defect, including a skill that had silently stopped loading and a first capture that
-aborted on any fresh machine — a chain that feels slow argues for scoping its re-runs, not for
-trusting a diff nobody audited.
+**The bound shortens rounds, never the chain.** All four mandatory steps stay. In IDS-8 each of
+the then-six found a real defect, including a skill that had silently stopped loading and a first
+capture that aborted on any fresh machine — a chain that feels slow argues for scoping its
+re-runs, not for dropping a gate that audits the diff.
 
 ### Verify Chain Complete
 
-All six steps must be completed (or explicitly skipped with a documented reason) before
-proceeding.
+All four mandatory steps must be completed (or explicitly skipped with a documented reason)
+before proceeding. The two offers are recorded as taken or declined; declining is not a skip
+that needs justifying.
 
 ```
 Verification Chain Status:
-[x] Step 1 gaspol-verify: PASSED (or: passed earlier this session)
+[x] Step 1 gaspol-verify: PASSED (run this pass — a pass from earlier in the session does not count)
 [x] Step 2 Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
 [x] Step 3 gaspol-review (Tier 1): CLEAN (BLOCKING gate passed, 0 surviving Critical findings)
-[x] Step 4 Security review (built-in /security-review): PASSED
-[x] Step 5 gaspol-sync-docs: COMPLETED
-[x] Step 6 gaspol-learn: COMPLETED (or: user declined capture)
+[x] Step 4 gaspol-sync-docs: COMPLETED (or: no structural change, named)
+
+Offers:
+[ ] /security-review: declined  (or: RUN — PASSED / RUN — findings resolved)
+[x] gaspol-learn:     RUN — 1 pattern captured  (or: declined)
 ```
 
 **If plan-verifier (step 2) returned BLOCKING**, the chain is incomplete. Do NOT present options.
@@ -426,7 +421,7 @@ Changes:
 ## Red Flags
 
 1. **Never merge with failing tests** -- Fix the tests first. No exceptions.
-2. **Never skip the verification chain** -- verify, plan-check, review (Tier 1), security-review, sync-docs, learn. All six.
+2. **Never skip the verification chain** -- verify, plan-check, review (Tier 1), sync-docs. All four mandatory steps, and never record an offer that was declined as one that passed.
 3. **Never force-push without explicit user request** -- Force-push rewrites history and can destroy others' work.
 4. **Never merge without knowing the base branch** -- Merging into the wrong branch causes cascading problems.
 5. **Never discard without typed confirmation** -- Accidental discards destroy work permanently.
@@ -441,10 +436,10 @@ Changes:
 | `gaspol-verify` | Step 1 of verification chain |
 | `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
 | `gaspol-review` | Tier 1 dispatch, BLOCKING on surviving Critical findings (Step 3 of chain) |
-| `/security-review` (CLI built-in) | Always runs from this call site, gates on any finding (Step 4 of chain) |
-| `gaspol-sync-docs` | Step 5 of verification chain |
-| `gaspol-learn` | Step 6 of verification chain (pattern capture) |
-| `gaspol-execute` | Finish is the final step of execute workflow |
+| `/security-review` (CLI built-in) | **Offered** after step 4, not a chain step; when run, gates on any finding |
+| `gaspol-sync-docs` | Step 4 of verification chain |
+| `gaspol-learn` | Offered after step 4 (pattern capture); declining records nothing |
+| `gaspol-execute` | Presents the finish offer ([_shared/finish-offer.md](../_shared/finish-offer.md)) — reaching this skill is the user's choice, not automatic |
 | `gaspol-tdd` | Tests must pass before finishing |
 | `gaspol-worktree` | Created the isolated workspace upstream; finish owns teardown — `git worktree remove` runs here AFTER the merge/PR decision, never before |
 | `gaspol-adr` | Capture ADRs for deferred MISSING items and DIVERGED items |

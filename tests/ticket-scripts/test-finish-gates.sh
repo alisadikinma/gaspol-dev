@@ -140,20 +140,47 @@ fi
 # The trim must NOT weaken /security-review. Security defects hide in boring
 # diffs, and in a skills repository markdown IS the executed surface — "docs
 # only" does not mean "cannot introduce a vulnerability".
-if grep -qi 'security-review.*ALWAYS\|ALWAYS.*security-review\|every branch' skills/gaspol-finish/SKILL.md; then
-  pass "/security-review is still unconditional on every branch"
+# REMOVED in IDS-17 alongside its twin below. This one asserted /security-review
+# was unconditional, and by the end of IDS-17 it passed for the worst possible
+# reason: its unanchored substring 'every branch' matched the sentence in
+# gaspol-finish/SKILL.md that explains why the review is NO LONGER unconditional
+# ("running it on every branch spends time on branches where there is nothing to
+# find"). A green assertion whose claim the file actively contradicts is the
+# unanchored-substring failure test-gate-mutations.sh exists to catch, and that
+# harness did NOT catch it: its two plant targets are gaspol-research/SKILL.md
+# and docs/kb-setup.md, neither of which mentions gaspol-finish. No attack row
+# was added, because deleting the assertion removed the exposure -- there is
+# nothing left to plant against. Extending that harness to a finish-gate lane
+# would be new scope for a harness deliberately scoped to the KB subsystem.
+# REMOVED in IDS-17: the assertion that no rule makes /security-review skippable.
+#
+# It was added in IDS-3 and reinforced by the knowledge note
+# `narrow-and-record-conditional-audit-gates`, whose reason was sound on its own
+# terms: in a skills repository markdown IS the executed surface, so a
+# boring-looking diff can still carry a hole.
+#
+# The owner overrode it deliberately: not every ticket changes anything related
+# to security, so running the review unconditionally on every branch spends time
+# on branches where there is nothing to find. /security-review is now OFFERED
+# from gaspol-finish -- still present, still blocking when it IS run and reports
+# a finding. gaspol-execute Step 3.6 still runs it unconditionally on its own
+# security-sensitive triggers, so the auth/secrets/endpoint/payment path is
+# untouched.
+#
+# This comment is the record. Deleting an assertion with no explanation is how
+# the next person restores it by accident, believing it was lost rather than
+# retired. test-finish-fix-loop.sh asserts /security-review is still NAMED in
+# gaspol-finish -- an offer nobody is shown would be a deletion wearing a
+# different word.
+if grep -qi 'security-review' skills/gaspol-finish/SKILL.md; then
+  pass "/security-review is still named in gaspol-finish (offered, not deleted)"
 else
-  fail "/security-review is still unconditional on every branch"
-fi
-if grep -qi 'security-review' skills/gaspol-finish/SKILL.md && \
-   ! grep -qiE 'skip .{0,40}security-review|security-review .{0,20}(is )?(optional|conditional)' skills/gaspol-finish/SKILL.md; then
-  pass "no rule anywhere makes /security-review skippable"
-else
-  fail "no rule anywhere makes /security-review skippable"
+  fail "/security-review is still named in gaspol-finish (offered, not deleted)"
 fi
 
-# The other four chain steps stay unconditional too.
-for step in gaspol-verify gaspol-review gaspol-sync-docs gaspol-learn; do
+# The four MANDATORY chain steps stay unconditional. gaspol-learn left this list
+# in IDS-17 -- it is offered now, and an offer is by definition conditional.
+for step in gaspol-verify gaspol-review gaspol-sync-docs; do
   if grep -q "$step" skills/gaspol-finish/SKILL.md; then
     pass "chain step $step still present"
   else

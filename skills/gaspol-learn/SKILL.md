@@ -1,6 +1,6 @@
 ---
 name: gaspol-learn
-description: "Use when feature implementation ships successfully (auto-triggered from gaspol-finish after verification chain passes)."
+description: "Use when feature implementation ships successfully. Offered by gaspol-finish after its four mandatory steps pass — the user chooses whether to run it; also invoked directly at any time."
 ---
 
 # gaspol-learn
@@ -17,11 +17,13 @@ Junk captures pollute KB. Every entry must pass content/tag/duplicate/source val
 
 ## Core Principle
 
-Shipped features contain patterns worth reusing — but only if captured cleanly. Auto-capture after `gaspol-finish` extracts candidate patterns, user confirms which are genuinely reusable (vs project-specific quirks). Quality gate prevents the KB from becoming a "notes dump".
+Shipped features contain patterns worth reusing — but only if captured cleanly. When invoked, this skill extracts candidate patterns and the user confirms which are genuinely reusable (vs project-specific quirks). The quality gate prevents the KB from becoming a "notes dump".
+
+**Not automatic since v1.26 (IDS-17).** `gaspol-finish` OFFERS this skill after its four mandatory steps; declining records nothing. Most branches produce no pattern worth keeping, and a prompt that fires every time gets answered reflexively — which is worse than not asking, because it fills the store with entries nobody chose.
 
 ## When to Use
 
-- Auto-triggered by `gaspol-finish` after verification chain returns CLEAN
+- **Offered** by `gaspol-finish` after its four mandatory steps pass — run only if the user picks it
 - Manual invocation: `/gaspol-learn` to capture pattern outside normal flow (retroactive learning)
 
 ## When NOT to Use
@@ -253,7 +255,7 @@ Purpose: allow user to reconsider rejected captures later without losing proposa
 
 | Skill | Interaction |
 |---|---|
-| `gaspol-finish` | Auto-triggers gaspol-learn after CLEAN verification |
+| `gaspol-finish` | **Offers** gaspol-learn after its four mandatory steps pass; declining records nothing |
 | `gaspol-adr` | Architectural decisions captured separately (not by learn) |
 | `gaspol-research` | Research entries captured separately (by research skill) |
 | the store's own promoter (outside gaspol) | Validates proposed entries and promotes them; gaspol only writes `proposed` |
