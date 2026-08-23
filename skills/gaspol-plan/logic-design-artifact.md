@@ -67,10 +67,104 @@ Every file the plan touches, and the behaviour in it that must survive unchanged
 reviewer checks the diff against, and what the regression tests protect. A ticket that cannot state
 what it is not changing does not know what it is changing.
 
+## The page skeleton — copy this, do not reinvent it
+
+The artifact is a tabbed page. **The Logic tab is always present.** A change that touches UI files
+gets a second tab holding the mockup; a logic-only change ships **satu tab** — the Logic tab alone,
+with no empty Design tab beside it.
+
+The mockup is mounted in an `<iframe srcdoc>`, and that choice is load-bearing rather than
+stylistic. A mockup carries its own CSS — `body { background: … }`, bare element selectors — which
+would repaint the artifact page itself if pasted inline. `srcdoc` gives it its own document, so its
+styles cannot escape. It is `srcdoc` rather than `src` because a published artifact blocks every
+request to an external host: `src` would need a URL, and `srcdoc` needs none.
+
+```html
+<title>IDS-00 — subject of the ticket</title>
+<style>
+  :root { --ink:#1a1a1a; --bg:#fff; --line:#d9d9d9; --accent:#1a5fb4; }
+  :root:not([data-theme="light"]) { }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink:#e8e8e8; --bg:#1c1c1c; --line:#3a3a3a; --accent:#78aeed; }
+  }
+  :root[data-theme="dark"] { --ink:#e8e8e8; --bg:#1c1c1c; --line:#3a3a3a; --accent:#78aeed; }
+  body { background:var(--bg); color:var(--ink); font:16px/1.6 system-ui,sans-serif; margin:0; padding:24px; }
+  [role="tablist"] { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:24px; }
+  [role="tab"] { background:none; border:0; border-bottom:2px solid transparent; color:inherit;
+                 font:inherit; padding:10px 16px; cursor:pointer; }
+  [role="tab"][aria-selected="true"] { border-bottom-color:var(--accent); color:var(--accent); }
+  [role="tabpanel"][hidden] { display:none; }
+  .mockup-frame { width:100%; height:70vh; border:1px solid var(--line); background:#fff; }
+</style>
+
+<div role="tablist" aria-label="Design artifact">
+  <button role="tab" id="tab-logic" aria-controls="panel-logic" aria-selected="true">Logic</button>
+  <button role="tab" id="tab-design" aria-controls="panel-design" aria-selected="false">Design</button>
+</div>
+
+<div role="tabpanel" id="panel-logic" aria-labelledby="tab-logic">
+  <!-- the five mandatory sections go here -->
+</div>
+
+<div role="tabpanel" id="panel-design" aria-labelledby="tab-design" hidden>
+  <iframe class="mockup-frame" title="Mockup" srcdoc="&lt;style&gt;body{margin:0}&lt;/style&gt;&lt;p&gt;mockup markup, escaped&lt;/p&gt;"></iframe>
+</div>
+
+<script>
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(o => {
+      const panel = document.getElementById(o.getAttribute('aria-controls'));
+      const on = o === t;
+      o.setAttribute('aria-selected', String(on));
+      panel.hidden = !on;
+    });
+  }));
+</script>
+```
+
+**Dropping the Design tab for a logic-only change** means deleting its `<button role="tab">` and its
+`<div role="tabpanel">`. Leave the tablist in place with the single Logic tab; do not leave an empty
+Design panel, which reads as "the mockup is missing" rather than "no mockup was owed".
+
+### Escaping the mockup into `srcdoc`
+
+`srcdoc` is an HTML attribute, so the mockup's own markup must be escaped before it goes in: `&`
+becomes `&amp;`, `"` becomes `&quot;`, `<` becomes `&lt;`, `>` becomes `&gt;`. Escape `&` first, or
+the later replacements get double-escaped.
+
+Where a mockup is too large or too awkward to escape safely, mount it instead as an inline block
+whose CSS you have scoped by hand to a wrapper class — **and record which of the two you used** in
+the ledger line. A silent switch between the two mechanisms is how the isolation guarantee this
+section exists for gets lost without anyone noticing.
+
+## The language the artifact is written in
+
+The artifact is read by a person deciding whether the design is right, so its prose is **plain
+Indonesian**: short sentences, one idea each, no process jargon that carries no meaning for the
+reader.
+
+**Technical terms stay in English.** Two classes, and the second is the one an over-eager translator
+gets wrong:
+
+1. **Literals** — file names, tool names, CLI commands, skill names, error strings, variable names,
+   config keys. These must match something real; translating one makes it wrong, not merely awkward.
+2. **Ordinary technical vocabulary** — `framework`, `hardisk`, `cache`, `deploy`, `commit`, `branch`,
+   `endpoint`, `query`, `build`. Indonesian dictionary equivalents exist (*kerangka kerja*, *cakram
+   keras*, *singgahan*) and using them is **worse**: the reader has to translate back to know what is
+   meant, so the sentence gets slower, not simpler.
+
+The test for a borderline term is not *"does an Indonesian word exist"* but **"which form does the
+reader recognise faster"**. Where the Indonesian word is the everyday one, use it. Where the English
+word is what the reader would say out loud, keep the English word.
+
+This applies to the artifact only. `docs/plans/*.md` stay in English — those are read by whoever
+maintains the code, and that is a different audience.
+
 ## Publishing and approval
 
-1. Write the five sections into a self-contained HTML page (mermaid blocks render natively in
-   artifacts via `<pre class="mermaid">`).
+1. Write the five sections into the Logic panel of the skeleton above (mermaid blocks render
+   natively in artifacts via `<pre class="mermaid">`).
 2. Publish with the **`Artifact`** tool. Title it after the ticket's subject, not "Design Doc".
 3. Ask for approval with **`AskUserQuestion`**:
    `[Approved — start execution]` / `[Change something — say what]` / `[Wrong approach — back to plan]`
