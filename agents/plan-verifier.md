@@ -60,8 +60,20 @@ every gate — the code matched the plan perfectly, and the plan had quietly los
 Resolve it deterministically. Never parse the header by eye:
 
 ```bash
-SPEC="$("${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-verify/scripts/spec-pointer" "$PLAN_FILE")"
-case $? in
+# `if SPEC="$(...)"` and NOT a bare `SPEC="$(...)"` followed by `case $?`.
+# Under `set -e` -- the convention every script in this repo uses -- the exit
+# status of a plain assignment IS the command's status, so a non-zero exit
+# aborts the block AT the assignment and the `case` never runs. Both exit 3
+# (STOP and ask) and exit 4 (continue) would silently truncate this block
+# instead of doing either, and exit 4 is the COMMON case: every plan written
+# without a preceding brainstorm. That is the same 3-vs-4 collapse the note
+# below calls a known bug shape in this repository.
+if SPEC="$("${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-verify/scripts/spec-pointer" "$PLAN_FILE")"; then
+  rc=0
+else
+  rc=$?
+fi
+case "$rc" in
   0) : ;;   # resolved — $SPEC is the absolute path
   3) : ;;   # UNKNOWN — STOP and ask
   4) : ;;   # none — standalone plan, continue

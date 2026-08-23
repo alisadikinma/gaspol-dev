@@ -50,7 +50,21 @@ set -euo pipefail
 IGNORE_PREFIXES=".gaspol/ docs/plans/ .git/"
 IGNORE_EXACT="CLAUDE.md package-lock.json pnpm-lock.yaml yarn.lock composer.lock poetry.lock Cargo.lock"
 
+# stdout, unlike its sibling spec-pointer, which reports on stderr. Deliberate:
+# spec-pointer has a bare-value contract on stdout to protect, this one does not,
+# so it follows regression-gate's convention instead. Cross-referenced in both
+# headers because a future helper that captures "a gate script's report line"
+# uniformly will be wrong about one of them.
 report() { echo "blast-radius: $1"; }
+
+# The nested `while read` loops below are heredoc-fed, NOT piped, so `found=1`
+# survives the loop -- a piped `while` runs in a subshell and the assignment is
+# lost. Review suggested replacing the inner loop with
+# `printf '%s\n' "$planned" | grep -Fxq -- "$f"`; declined, and the reason is the
+# race this file already avoids two functions down: `grep -q` exits on first match
+# and can SIGPIPE the writer, and under `set -o pipefail` that becomes the
+# pipeline's status. Trading a correct O(n*m) loop over tens of paths for a
+# reintroduction of the exact bug regression-gate shipped is a bad trade.
 
 is_ignored() {
     local f="$1" p e

@@ -20,6 +20,12 @@
 #   $1        path to the plan file, absolute or relative to the CWD.
 #   stdout    ON EXIT 0 ONLY: the absolute path of the spec file, and nothing
 #             else — a caller reads this directly, so it must stay clean.
+#             NOTE: this script reports on stderr, its sibling blast-radius-diff
+#             on stdout. Deliberate and not an oversight -- only this one has a
+#             bare-value contract on stdout to protect; blast-radius-diff has
+#             none, so it follows regression-gate's stdout convention. A helper
+#             that captures "a gate script's report line" uniformly will be
+#             wrong about one of them.
 #   stderr    one "spec-pointer: <verdict>" line on EVERY exit path, so a caller
 #             can capture the state unconditionally for a ledger line the way
 #             regression-gate's report line is captured. It is on stderr rather
@@ -31,7 +37,8 @@
 #             collapsed into exit 4: the plan is unreadable; more than one
 #             **Spec:** line (which one is the contract?); the value is empty or
 #             whitespace; the named file does not exist; the file exists but
-#             carries no parseable requirement. That last one matters most — zero
+#             carries no parseable requirement; or no plan file was given at all.
+#             That fifth-and-sixth pair matters most — zero
 #             requirements read as "the spec is satisfied", which is exactly
 #             design_audit.py's own defect one layer down. A broken contract must
 #             never degrade into an empty one.
