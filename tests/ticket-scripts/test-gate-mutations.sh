@@ -180,11 +180,26 @@ else
 fi
 ```'
 
+# --- IDS-18: the anchor gate must cover the NEW scripts, not only kb-root -----
+# spec-pointer's stdout becomes a path plan-verifier then reads, and
+# blast-radius-diff reads a plan and a diff. Both are exactly the shape
+# /security-review flagged in IDS-8: an agent runs a bash block with the TARGET
+# PROJECT as its CWD, so a relative invocation executes whatever that repository
+# happens to ship at that path. A gate that only knows kb-root leaves the two
+# newest call sites open.
+plant skill "$G_PATH" caught 'SPEC="$(skills/gaspol-verify/scripts/spec-pointer "$PLAN_FILE")"'
+plant skill "$G_PATH" caught 'BR="$(skills/gaspol-verify/scripts/blast-radius-diff "$PLAN_FILE" "$BASE")"'
+# ...and prose describing the hazard must still be ALLOWED. Weakening a gate
+# until it stops tripping on its own explanation is how the index gate above
+# regressed three rounds running.
+plant skill "$G_PATH" allowed 'A relative `skills/gaspol-verify/scripts/spec-pointer` would run the open repo copy.'
+plant skill "$G_PATH" allowed 'Never invoke `skills/gaspol-verify/scripts/blast-radius-diff` without the plugin-root anchor.'
+
 # The table defends its own size. Flipping an expectation already fails, but
 # DELETING rows did not — the harness passed with nine index attacks removed.
 # A gate whose attack table can be quietly trimmed is a gate that can be quietly
 # loosened, which is the whole failure mode this file exists for.
-MIN_ROWS=53
+MIN_ROWS=57
 [ "$pass" -ge "$MIN_ROWS" ] \
     || fail "only $pass mutations ran, expected at least $MIN_ROWS — attack rows were removed. Raise MIN_ROWS deliberately when adding rows; never lower it to make a run pass."
 
