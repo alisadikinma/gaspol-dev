@@ -517,20 +517,72 @@ third requires `AskUserQuestion`. `next-ticket` is called once per batch, not on
 Batching changes the container, never the coverage: each item becomes its own plan phase, ordered
 by severity, keeping its own regression test. A dropped item is an Iron Law 2 violation.
 
-### Design Artifact Gate (NEW in v1.20) — logic-only work owes one too
+### Design Artifact — an OFFER since v1.25 (IDS-16), was a BLOCKING gate in v1.20
 
-`gaspol-plan` **Step 0** is now BLOCKING and unconditional: every plan produces exactly one design
-artifact, approved by a human, before `gaspol-execute` will start. Two lanes — UI work renders a
-mockup via `ui-ux-pro-max`; everything else produces the **Logic Design Artifact**
-(`skills/gaspol-plan/logic-design-artifact.md`), published as an HTML Artifact.
+`gaspol-plan` presents **one** `AskUserQuestion` after the plan file and its ledger are written,
+carrying the artifact and the execution choices together rather than as two consecutive modals:
 
-It exists because brainstorm Phase 2.5 offered `[No, pure backend/logic]` and that branch skipped
-design entirely, while the post-plan artifact step was opt-in with "Skip" as one of two answers. For
-an enhancement that changes behaviour but not pixels, the first reviewable thing was the diff.
+```text
+[Render design artifact dulu] · [Eksekusi di sesi ini] · [Eksekusi otomatis]
+[Eksekusi parallel] · [Simpan buat sesi lain] · [Serahkan ke executor luar]
+```
 
-Verdict is recorded twice — `**Artifact:** <url>` in the plan header, `design-artifact: approved —
-<url>` in the ledger, which is the line `gaspol-execute` reads. **Three states, and "not applicable"
-is deliberately not one of them** — that state was the defect.
+**`gaspol-auto` is now offered on every plan.** It was a documented execution mode that `gaspol-plan`
+never surfaced, so the only way to reach it was to already know it existed — an entry point nobody
+can discover is the same defect class as a gate nothing reads.
+
+**Four ledger states, read by `gaspol-execute`, which never presents the offer itself:**
+
+| Ledger line | Action |
+|---|---|
+| `design-artifact: approved — <url>` | proceed |
+| `design-artifact: pending — <url>` | **STOP and ask** — published, never approved |
+| `design-artifact: skipped — <reason>` | proceed; the reason **may not be empty** |
+| no such line | proceed, recording `design-artifact: none — no offer was made` |
+
+**Why the reason is mandatory, and why that is the whole point.** IDS-10 made this gate BLOCKING
+because logic work was shipping with nothing a human could review. Relaxing it re-opens an escape
+hatch, and the owner's own knowledge store had just recorded what happens next: a rule with an
+unexamined exemption degrades into a silent default (`machine-checkable-escape-hatch-closure`), and
+a state label with nothing after the dash is `(if possible)` wearing a new name
+(`ledger-states-require-non-empty-reasons`). Both notes were surfaced at brainstorm Phase 0.5 and
+the owner chose to apply rather than override them. So the guarantee moves rather than disappears:
+from *you may not proceed* to *you may proceed, and the reason is on the record* — which is
+checkable afterwards in a way a blocked run never was. `[Simpan buat sesi lain]` writes no line at
+all, because nothing executed and nothing was skipped.
+
+**One artifact, tab count varies — the two-lane split is deleted.** v1.20 routed UI work to a mockup
+**instead of** the Logic Design Artifact, so UI work never received the five sections: its error
+paths, edge cases and blast radius were never written down. Now the **Logic tab is always present**,
+and a change touching UI files gets a second **Design** tab holding the mockup. UI detection reuses
+the extension list already in `gaspol-plan`'s Design Deliverable column — no second detector.
+
+**The mockup is mounted in `<iframe srcdoc>`, and this was proven before anything was built on it**
+(IDS-16 Phase A, the plan's first phase for exactly this reason). A mockup carries its own CSS that
+would repaint the artifact page if pasted inline. Measured with Playwright against a page carrying a
+deliberately hostile mockup (`body{background:red;color:lime}`, `[role="tab"]{display:none}`,
+`.card{border:8px dashed magenta}`): every rule applied **inside** the frame and none reached
+outside it — host body stayed `rgb(250,249,247)`, both tab controls stayed `display:block`.
+`srcdoc` rather than `src` because a published artifact blocks every request to an external host.
+The artifact-CSP half could not be checked from here — the private artifact returns "Page not found"
+to a browser not signed in — and was recorded `not run` until the owner confirmed it against the
+live page.
+
+**`ui-ux-pro-max` is invoked at most once per ticket**, down from three possible call sites for one
+feature: `gaspol-brainstorm` Phase 3 (which now produces design DECISIONS as text, not a mockup
+file), `gaspol-plan`'s Design Deliverable column (which now **cites** those decisions), and the
+post-plan offer (the single point a mockup is rendered, and only where no brainstorm ran).
+
+**What was knowingly given up.** UI work that reaches `gaspol-plan` directly, without a brainstorm,
+can now answer "just execute". From v1.20 to v1.24 that was impossible. This is a deliberate
+reduction, recorded here rather than discovered later.
+
+**Known-open gap, deliberately not closed and deliberately not ticketed.** A bug fix that changes
+the UI passes **no** design point in any path: bug reports route to `gaspol-debug`, which has no
+design step at all — its only occurrence of "design" is `"Design a minimal test"`, about test
+hypotheses. Closing it would add a gate to the most frequently used skill in the plugin, which is
+the opposite direction from this ticket. No ticket id is minted: a number pointing at no spec is the
+promise-with-no-implementation shape this repository keeps having to undo.
 
 ### Measured Trims (NEW in v1.16) — what the token audit actually found
 
@@ -1273,5 +1325,5 @@ Last ticket: IDS-16
 
 ---
 
-**Version:** 1.24.0
+**Version:** 1.25.0
 **Last Updated:** August 2026
