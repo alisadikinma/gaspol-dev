@@ -48,14 +48,92 @@ echo "test-logic-design-artifact: it is published as an artifact and approved ex
 has "$CONTRACT" "Artifact"        "the contract must publish via the Artifact tool"
 has "$CONTRACT" "AskUserQuestion" "approval must go through AskUserQuestion"
 
-echo "test-logic-design-artifact: gaspol-plan gates on it, and the gate is BLOCKING..."
+echo "test-logic-design-artifact: the tab-count rule is stated, both cases..."
 
-has "$PLAN" "Design Artifact (BLOCKING)" \
-    "gaspol-plan's post-plan step is not a BLOCKING Design Artifact gate"
+has "$CONTRACT" "Logic tab is always present\|Logic tab is ALWAYS present" \
+    "the contract must state that the Logic tab is present for every kind of work"
+has "$CONTRACT" "satu tab\|one tab\|single tab" \
+    "the contract must say what a logic-only change produces, not only the two-tab case"
+
+echo "test-logic-design-artifact: the srcdoc escaping rule is stated, not left to be discovered..."
+
+# Anchored at the TABLE ROW, not at the prose. The first version of this assertion grepped a
+# bare `&amp;quot;`, which also occurs in the paragraph explaining the double-escape bug -- so
+# deleting the escaping table outright left the suite green. Proven by mutation, not reasoned.
+grep -qE '^\| *`"` *\| *`&quot;` *\|' "$CONTRACT" \
+    || fail "the escaping table must carry the row mapping a double quote to its entity"
+grep -qE '^\| *`&` *\| *`&amp;` *\|' "$CONTRACT" \
+    || fail "the escaping table must carry the ampersand row -- it is the one that must be escaped first"
+has "$CONTRACT" "Escape .* first\|escape .* first" \
+    "the escaping rule must state the ampersand is escaped FIRST, or the others get double-escaped"
+has "$CONTRACT" "record which of the two\|record which mechanism" \
+    "a fallback away from srcdoc must be recorded, not switched to silently"
+
+echo "test-logic-design-artifact: the artifact is written in plain Indonesian, with technical terms kept..."
+
+has "$CONTRACT" "plain Indonesian" \
+    "the contract must state the artifact prose is plain Indonesian"
+has "$CONTRACT" "Literals" \
+    "the language rule must name class 1 (literals: file names, tool names, CLI commands, error strings) -- it had no assertion at all"
+has "$CONTRACT" "config keys" \
+    "class 1 must enumerate what counts as a literal, not just label the class"
+has "$CONTRACT" "framework" \
+    "the language rule must name ordinary technical vocabulary that stays English -- 'framework' is the worked example"
+has "$CONTRACT" "hardisk" \
+    "the language rule must carry the second worked example the owner gave -- 'hardisk'"
+has "$CONTRACT" "recognise faster\|recognises faster\|recognize faster" \
+    "the borderline test must be which form the READER recognises faster, not whether an Indonesian word exists"
+grep -qi 'docs/plans' "$CONTRACT" \
+    || fail "the contract must say the Indonesian rule does NOT extend to docs/plans/*.md"
+
+echo "test-logic-design-artifact: gaspol-plan OFFERS the artifact, it does not block on it (IDS-16)..."
+
+# INVERTED from IDS-10, deliberately and with the reason recorded. IDS-10 made this gate
+# BLOCKING because logic work was shipping with nothing a human could review. IDS-16 turns it
+# into an offer because the gate was being paid on every plan including ones whose design had
+# already been settled in conversation. The guarantee IDS-10 bought is NOT abandoned -- it moves
+# from "you may not proceed" to "you may proceed, and the reason is on the record", asserted by
+# the skipped-reason rules below. An offer with no reason attached would be the silent default
+# that `machine-checkable-escape-hatch-closure` warns about, and that is what these assertions
+# are here to prevent.
+grep -q "Design Artifact (BLOCKING)" "$PLAN" \
+    && fail "gaspol-plan still presents Step 0 as a BLOCKING gate instead of an offer (IDS-16)"
 has "$PLAN" "logic-design-artifact.md" \
     "gaspol-plan must reference the contract file"
 has "$PLAN" "design-artifact: approved" \
     "gaspol-plan must record the verdict in the ledger as a machine-checkable line"
+
+echo "test-logic-design-artifact: the offer names every execution mode, gaspol-auto included..."
+
+for mode in gaspol-execute gaspol-auto gaspol-parallel; do
+    has "$PLAN" "$mode" "the post-plan offer must name $mode as a way to proceed"
+done
+has "$PLAN" "Eksekusi otomatis" \
+    "gaspol-auto must appear as an option in the offer itself, not only as prose"
+
+echo "test-logic-design-artifact: declining the artifact costs a reason, and the reason may not be empty..."
+
+has "$PLAN" "design-artifact: skipped" \
+    "declining must write a skipped line to the ledger, not nothing"
+has "$PLAN" "may not be empty\|non-empty\|not be blank" \
+    "the skip reason must be required to be non-empty -- a bare label is the escape hatch this repo already closed once"
+
+echo "test-logic-design-artifact: saving for later writes no line, because nothing executed..."
+
+has "$PLAN" "Simpan buat sesi lain" \
+    "the offer must include a save-for-later option"
+has "$PLAN" "nothing executed\|no line at all\|writes NO line" \
+    "save-for-later must be documented as writing no ledger line, since nothing was skipped"
+
+echo "test-logic-design-artifact: the UI-vs-logic two-lane split is gone..."
+
+grep -qiE '^\| *(UI phases|no UI phases)' "$PLAN" \
+    && fail "the two-lane table (UI lane vs logic lane) is still in gaspol-plan -- IDS-16 replaced it with the tab-count rule"
+
+echo "test-logic-design-artifact: ui-ux-pro-max is invoked at most once per ticket..."
+
+has "$PLAN" "at most once\|invoked once\|only once" \
+    "gaspol-plan must state that ui-ux-pro-max is invoked at most once per ticket, not once per stage"
 
 echo "test-logic-design-artifact: three states, and 'not applicable' is not one of them..."
 
@@ -70,11 +148,41 @@ grep -qiE '\[No, pure backend/logic\]' "$BRAIN" \
 has "$BRAIN" "logic design artifact" \
     "brainstorm Phase 2.5's non-UI branch must route to the logic design artifact, not to nothing"
 
-echo "test-logic-design-artifact: gaspol-execute refuses a plan without an approved artifact..."
+echo "test-logic-design-artifact: brainstorm OFFERS rather than promises (IDS-16)..."
+
+grep -q "Step 0 will produce the logic design artifact" "$BRAIN" \
+    && fail "brainstorm Phase 2.5 still promises gaspol-plan Step 0 WILL produce the artifact -- it now offers it"
+has "$BRAIN" "will OFFER\|will offer" \
+    "brainstorm Phase 2.5 must say gaspol-plan OFFERS the artifact once the plan is written"
+
+echo "test-logic-design-artifact: Phase 3 produces decisions, not the mockup file..."
+
+has "$BRAIN" "design DECISIONS\|design decisions as text\|decisions as text" \
+    "Phase 3 must state it produces design decisions as text; the mockup file is rendered once, later, at the offer"
+
+echo "test-logic-design-artifact: gaspol-execute reads four artifact states (IDS-16)..."
 
 has "$EXEC" "design-artifact" \
     "gaspol-execute has no pre-execution check for the design artifact"
 has "$EXEC" "STOP and ask" \
     "gaspol-execute must STOP and ask on a pending artifact rather than proceeding"
+has "$EXEC" "design-artifact: approved" \
+    "gaspol-execute must define the approved state -- the existing approved grep targets the PLAN, not this file"
+has "$EXEC" "design-artifact: pending" \
+    "gaspol-execute must define the pending state by name, not only by the words STOP and ask"
+has "$EXEC" "design-artifact: skipped" \
+    "gaspol-execute does not define the 'skipped' artifact state"
+has "$EXEC" "no offer was made" \
+    "gaspol-execute must define what a MISSING line means, and record it rather than stopping"
+
+echo "test-logic-design-artifact: gaspol-execute never presents the offer itself..."
+
+has "$EXEC" "never present\|does not present\|never offers" \
+    "gaspol-execute must state that it never presents the artifact offer -- the offer lives only in gaspol-plan"
+
+echo "test-logic-design-artifact: an empty skip reason is not a decision..."
+
+has "$EXEC" "empty reason\|reason is empty\|blank reason" \
+    "a skipped line with no reason must be treated as pending (STOP), not silently accepted"
 
 echo "PASS: test-logic-design-artifact — every ticket owes one reviewable artifact before code"

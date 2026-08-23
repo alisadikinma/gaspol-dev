@@ -1,5 +1,81 @@
 # Changelog
 
+## [1.25.0] - 2026-08-23
+
+### Changed — the design artifact became an offer, and the skip costs a reason (IDS-16)
+
+`gaspol-plan`'s design-artifact step was BLOCKING from 1.20.0. Its own file disagreed with itself:
+the header template's comment at `SKILL.md:127` called the `**Artifact:**` field *"optional —
+present ONLY when the Execution Handoff artifact offer was accepted"*, while line 315 said
+*"Design Artifact (BLOCKING) — every plan file, no exceptions"*. Line 127 predated v1.20 and was
+never updated when IDS-10 made the gate blocking, so a reader following the header and a reader
+following the body got opposite answers.
+
+- **One modal, not two.** The plan file and ledger are written first, then a single
+  `AskUserQuestion` carries the artifact and the execution choices together:
+  `[Render design artifact dulu]` · `[Eksekusi di sesi ini]` · `[Eksekusi otomatis]` ·
+  `[Eksekusi parallel]` · `[Simpan buat sesi lain]` · `[Serahkan ke executor luar]`.
+- **`gaspol-auto` is now offered on every plan.** It was a documented execution mode that
+  `gaspol-plan` never surfaced, so it was reachable only by already knowing it existed.
+- **Declining costs a reason that may not be empty.** The four choices that start execution write
+  `design-artifact: skipped — <reason>`; `[Simpan buat sesi lain]` writes no line, because nothing
+  executed. The guarantee IDS-10 bought moves from *you may not proceed* to *you may proceed and
+  the reason is on the record* — checkable afterwards in a way a blocked run never was. Both
+  knowledge-store notes that predicted the failure mode of a free escape hatch
+  (`machine-checkable-escape-hatch-closure`, `ledger-states-require-non-empty-reasons`) were
+  surfaced at brainstorm Phase 0.5 and applied rather than overridden.
+- **`gaspol-execute` reads four states and never presents the offer.** approved → proceed;
+  pending → STOP and ask; skipped-with-reason → proceed; no line → proceed, recording
+  `design-artifact: none — no offer was made`. A `skipped` line with nothing after the dash is
+  treated as pending. The missing-line row proceeds rather than stops because the offer exists only
+  in `gaspol-plan` — stopping would send the user back for a question nobody asks there either.
+- **One artifact, tab count varies; the two-lane split is deleted.** v1.20 routed UI work to a
+  mockup *instead of* the Logic Design Artifact, so UI work never received the five sections. The
+  Logic tab is now always present, and a plan touching UI files gets a Design tab beside it. UI
+  detection reuses the extension list already in the Design Deliverable column.
+- **`ui-ux-pro-max` is invoked at most once per ticket**, down from three reachable call sites for
+  one feature. `gaspol-brainstorm` Phase 3 now produces design decisions as text rather than a
+  mockup file; the Design Deliverable column cites those decisions; the post-plan offer is the
+  single point a mockup is rendered.
+
+### Verified rather than assumed
+
+The two-tab mechanism was proved in the plan's first phase, before anything was built on it. A page
+carrying a deliberately hostile mockup (`body{background:red;color:lime}`,
+`[role="tab"]{display:none}`, `.card{border:8px dashed magenta}`) was measured with Playwright:
+every rule applied inside the `<iframe srcdoc>` and none reached outside it — host body stayed
+`rgb(250,249,247)`, both tab controls stayed `display:block`. The artifact-CSP half could not be
+checked from the session (a private artifact returns "Page not found" to a browser that is not
+signed in) and was recorded `not run` until confirmed against the live page.
+
+`tests/ticket-scripts/test-execute-trim.sh` caught two drafts of the `gaspol-execute` section at
+29542 and 29179 bytes against its 29000 ceiling. **The ceiling was not raised** — the prose was cut
+to 28985 instead, because raising a limit so your own addition fits is the exemption-becomes-the-
+way-through pattern `test-gate-mutations.sh` exists to catch.
+
+### Undeclared side effect, kept and recorded rather than reverted
+
+`skills/gaspol-plan/SKILL.md` was rewritten CRLF→LF wholesale by the editing pass. `git diff
+--numstat` reports 429/399 while `git diff -w` reports 66/36 — the real content change is ~66
+lines and the rest is line-ending normalisation, which inflates the reviewable diff about
+sixfold. It is kept rather than reverted: this repository is mixed (on `main` 5 of 17 `SKILL.md` files were
+CRLF and 12 LF; at this HEAD it is 4 and 13), so the change moves the file toward the majority. It is recorded here because the
+spec's blast radius said "four skills' text", not a whole-file re-encoding, and an undeclared
+diff is how a reviewer's attention gets spent on nothing.
+
+### Known-open, deliberately not closed and deliberately not ticketed
+
+A bug fix that changes the UI passes no design point in any path: bug reports route to
+`gaspol-debug`, which has no design step — its only occurrence of "design" is
+`"Design a minimal test"`, about test hypotheses. Closing it would add a gate to the most
+frequently used skill in the plugin, the opposite direction from this ticket. No ticket id is
+minted, because a number pointing at no spec is the shape this repository keeps having to undo.
+
+### Also given up, knowingly
+
+UI work reaching `gaspol-plan` directly, without a brainstorm, can now answer "just execute". From
+1.20.0 to 1.24.0 that was impossible.
+
 ## [1.24.0] - 2026-08-23
 
 ### Added — a regression gate + a visual geometry diff (IDS-14)

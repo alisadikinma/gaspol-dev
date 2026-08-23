@@ -200,19 +200,22 @@ beside a documented palette, and re-deriving a convention the project already se
 the plan names something you cannot find in CLAUDE.md, that is a question, not a licence to
 invent.
 
-## Design Artifact Gate (BLOCKING — before Phase A, before any code)
+## Design Artifact Check (before Phase A, before any code)
 
-Read the ledger before starting. `gaspol-plan` Step 0 records one line above `## Log`:
+Read the ledger before starting. `gaspol-plan`'s post-plan offer records one line above `## Log`:
 
 | Ledger line | Action |
 |---|---|
 | `design-artifact: approved — <url>` | proceed |
-| `design-artifact: pending — <url>` | **STOP and ask** — it was published and never approved |
-| no such line | **STOP and ask** — return to `gaspol-plan` Step 0; do not write code |
+| `design-artifact: pending — <url>` | **STOP and ask** — published, never approved |
+| `design-artifact: skipped — <reason>` | proceed; the decision is recorded |
+| no such line | proceed, recording `design-artifact: none — no offer was made` |
 
-Counterpart of the TDD gate: TDD refuses a phase with no failing test, this refuses a plan no
-human has seen rendered. It applies to logic-only work too — that was the gap. There is no "not
-applicable" verdict: an absent line means the artifact was not made, not that none was owed.
+**This skill never presents the offer** — it lives in `gaspol-plan` alone. A missing line therefore
+proceeds: stopping would send the user back for a question nobody asks here.
+
+**An empty reason is not a decision.** A `skipped` line with nothing after the dash is treated as
+`pending` — **STOP and ask**.
 
 ## Completeness Gate (before writing code for any phase, and again before calling it done)
 

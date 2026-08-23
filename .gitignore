@@ -13,3 +13,8 @@ Thumbs.db
 .gaspol/
 graphify-out/
 .claude/worktrees/
+
+# Playwright MCP scratch output — snapshots, console logs, screenshots.
+# Written into whatever directory the MCP server is driven from, which is the repo
+# root during a Live App Check or a visual verification. Session evidence, not source.
+.playwright-mcp/

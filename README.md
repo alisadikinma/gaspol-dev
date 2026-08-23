@@ -4,7 +4,7 @@
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.24.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-38-brightgreen)](#testing)
+[![Version](https://img.shields.io/badge/version-1.25.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-39-brightgreen)](#testing)
 
 ---
 
@@ -45,7 +45,7 @@ completion with evidence — a screenshot and an exit code, never an adjective.
 | Autonomous = unsafe | **Autonomous with hard-stop guardrails** — 8 always-pause conditions |
 | "Write the minimum that works" | **Completeness Ladder** — happy path → every error path → every edge case → the tests that prove them → observability. The only legitimate stop is genuinely unrelated work |
 | N bugs reported → N tickets | **Batch Gate** — one report, one ticket. Splitting needs a listed reason and never exceeds two without asking |
-| Backend work gets no design review | **Design Artifact gate (BLOCKING)** — logic-only work publishes a five-section artifact before execution starts |
+| Backend work gets no design review | **Design artifact offered after every plan** — one tabbed page, Logic tab always present; declining writes the reason to the ledger |
 | Checks run once, at the end | **Verification loop per phase** — baseline before Phase A, then L1 static → L2 unit → L3 build, fail-fast, before every checkpoint |
 | "It compiles, so it works" | **Live App Check** — web through the Playwright MCP, mobile through `adb` on a real device or emulator. A check that did not run is never recorded as passed |
 
@@ -126,12 +126,19 @@ severity, with its own regression test.
 entirely. For a change that alters behaviour but not pixels, the first reviewable thing was the
 diff — after it was built and tested.
 
-`gaspol-plan` **Step 0** is now BLOCKING: every plan produces exactly one approved design artifact
-before `gaspol-execute` will start. UI work renders a mockup; everything else publishes a
-**Logic Design Artifact** — before/after behaviour with the current path *quoted from real code*, a
-mermaid flow, a data-flow table, an edge-case matrix (empty = failed gate), and a blast-radius
-statement. Three states: approved / pending / not published. *"Not applicable"* is deliberately not
-one of them — that state **was** the defect.
+`gaspol-plan` **offers** the artifact once the plan file and its ledger are written — one modal
+carrying the artifact and the execution choices together, `gaspol-auto` among them. The artifact is
+one tabbed page: the **Logic tab is always present** (before/after behaviour with the current path
+*quoted from real code*, a mermaid flow, a data-flow table, an edge-case matrix where empty is a
+failed gate, and a blast-radius statement), plus a **Design tab** holding the mockup when the plan
+touches UI files.
+
+It was BLOCKING from 1.20.0 to 1.24.0. Relaxing it re-opens an escape hatch, so the escape hatch
+was made expensive instead of free: the four choices that start execution write
+`design-artifact: skipped — <reason>` to the ledger, and **the reason may not be empty**. A bare
+label documents the wish to skip without documenting why skipping was acceptable. Four states now —
+approved / pending / skipped-with-reason / no line — and *"not applicable"* is still not one of
+them.
 
 ### Three skills deleted, the rules inside them kept (1.21.0)
 
@@ -415,7 +422,8 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.24.0** (current) | **Regression gate + visual geometry diff** — bug fixes now leave a checked, three-state ledger record instead of an unenforced "(if possible)"; a `data-vv`-marker geometry diff closes the wrong-layout half of the mockup-mismatch complaint (`design_audit.py` already covered wrong-colour/font), wired into `live-app-check`'s web lane; a real `git log \| grep -q` / `pipefail` SIGPIPE race found and fixed along the way |
+| **1.25.0** (current) | **The design artifact became an offer** — one modal after the plan carrying the artifact and every execution mode including `gaspol-auto`, which `gaspol-plan` had never surfaced; declining writes `design-artifact: skipped — <reason>` and the reason may not be empty; the UI-vs-logic two-lane split is gone, replaced by one tabbed page whose Logic tab is always present; `ui-ux-pro-max` invoked at most once per ticket, down from three reachable call sites |
+| 1.24.0 | **Regression gate + visual geometry diff** — bug fixes now leave a checked, three-state ledger record instead of an unenforced "(if possible)"; a `data-vv`-marker geometry diff closes the wrong-layout half of the mockup-mismatch complaint (`design_audit.py` already covered wrong-colour/font), wired into `live-app-check`'s web lane; a real `git log \| grep -q` / `pipefail` SIGPIPE race found and fixed along the way |
 | 1.23.0 | **Live App Check gets a machine** — web via the Playwright MCP, mobile via `adb`/`simctl` with a resolution order that survives Android Studio not touching PATH; `adb devices` treated as four outcomes, not two; a check that did not run is never recorded as passed |
 | 1.22.0 | **Per-phase verification loop** — `gaspol-execute` ran *nothing* until now. Baseline before Phase A, fail-fast L1→L3 before every checkpoint, failing output fed back verbatim, and a phase that never ran its ladder cannot be ticked |
 | 1.21.0 | **Three skills deleted** (20 → 17), the rules inside them rescued: Prior-Art Gate to `_shared/`, KB promotion repointed at a promoter that exists, the eval rule kept inline |
