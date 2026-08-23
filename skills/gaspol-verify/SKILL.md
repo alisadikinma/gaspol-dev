@@ -206,7 +206,45 @@ PLAN FIDELITY CHECK (plan: docs/plans/2026-02-10-IND-42-feature-x-plan.md)
 
   Overall: 4/5 phases complete, 1 skipped
   Action required: Phase 3 error handler, Phase 5 tests
+
+  spec-fidelity: docs/plans/2026-02-10-IND-42-feature-x-spec.md — 11 FOUND, 1 DROPPED
+    DROPPED — "rate-limit failed logins" (searched the plan for: rate, limit, throttle)
+  blast-radius: WARN — 1 unplanned file(s)
+    src/utils/date.ts
 ```
+
+### Spec Fidelity and Blast Radius (IDS-18)
+
+The plan is the second link of `spec → plan → code`, and until IDS-18 it was the only one
+guarded. `plan-verifier` now resolves the plan header's `**Spec:** <path>` pointer and audits
+the spec's requirements alongside the plan's. Record both results here.
+
+**`spec-fidelity:`** — three states, from
+`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-verify/scripts/spec-pointer"`:
+
+| Line | Meaning |
+|---|---|
+| `spec-fidelity: <path> — <n> FOUND, <m> DROPPED` | the gate ran |
+| `spec: none — standalone plan` | **not a failure.** A plan with no preceding brainstorm has no spec to check |
+| `spec-fidelity: UNKNOWN — <reason>` | **STOP and ask.** A broken pointer must never be recorded as "no spec": an empty requirement list reads as *nothing was violated* |
+
+**`blast-radius:`** — from
+`"$CLAUDE_PLUGIN_ROOT/skills/gaspol-verify/scripts/blast-radius-diff"`:
+
+| Line | Meaning |
+|---|---|
+| `blast-radius: clean` | every changed file was declared by the plan or is on the ignore list |
+| `blast-radius: WARN — <n> unplanned file(s)` | **reported, not blocking.** Name every file |
+| `blast-radius: none — the plan declares no files` | **not a failure** |
+| `blast-radius: UNKNOWN — <reason>` | STOP and ask — invalid BASE, or a glob in the plan |
+
+A `DROPPED` requirement **BLOCKS**, exactly as `MISSING` does — the requirement is gone either
+way, and which stage lost it changes who fixes it, not whether it counts. A `blast-radius` WARN
+does **not** block; it is the weaker half of this gate and saying otherwise would make a
+reported observation read as an enforced one.
+
+**A check that could not run is recorded as `not run`, never as passed** — the rule this skill
+already applies to an unavailable `/security-review` and to the WIG lane.
 
 See `plan-verification.md` in this skill directory for the detailed process, including how to parse plan files and compare against git diff.
 

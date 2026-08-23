@@ -60,15 +60,32 @@ echo "test-kb-no-hardcoded-path: every resolver invocation goes through the plug
 # time on this branch that a gate's fix tripped over prose. A line that RUNS is an
 # assignment starting the line; prose wraps the same text in backticks
 # mid-sentence. Shape, not exemption.
-UNANCHORED="$(grep -rnE '^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*="[$][(]skills/_shared/kb-root' \
-        "$REPO_ROOT"/skills "$REPO_ROOT/docs" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)"
+# WIDENED in IDS-18. The gate knew only kb-root, so the two newest scripts --
+# whose stdout is likewise read back and acted on -- were outside it. IDS-8
+# recorded that anchoring one call site is not what closes the surface; widening
+# the gate is. spec-pointer's stdout becomes a path plan-verifier then reads.
+ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff))'
+UNANCHORED="$(grep -rnE "^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*=\"[\$][(]\"?$ANCHORED_SCRIPTS" \
+        "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)"
 [ -z "$UNANCHORED" ] || { echo "$UNANCHORED" >&2; fail "a resolver invocation uses a relative path — prefix it with \"\$CLAUDE_PLUGIN_ROOT/\", the same anchor hooks/hooks.json already uses"; }
 
 # Positive control: the scan must be able to SEE invocations at all.
-ANCHORED=$(grep -rc 'CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root' \
-        "$REPO_ROOT"/skills "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null | awk -F: '{n+=$2} END{print n+0}')
-[ "${ANCHORED:-0}" -ge 8 ] \
-    || fail "the scan found only ${ANCHORED:-0} anchored invocation(s), expected at least 8 — it is broken, so a clean result proves nothing"
+# Counts ALL THREE anchored scripts, not kb-root alone. IDS-18 widened the
+# UNANCHORED regex above; a control that still watched only kb-root would keep
+# passing while the newly added half of that regex was broken, which is exactly
+# the vacuous green this control exists to prevent. 17 present at IDS-18.
+ANCHORED=$(grep -rhoE 'CLAUDE_PLUGIN_ROOT[^"]*/'"$ANCHORED_SCRIPTS" \
+        "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null | wc -l | tr -d ' ')
+[ "${ANCHORED:-0}" -ge 15 ] \
+    || fail "the scan found only ${ANCHORED:-0} anchored invocation(s), expected at least 15 — it is broken, so a clean result proves nothing"
+# And each script must be seen individually: a combined count stays healthy on
+# kb-root's eight alone while both new patterns match nothing.
+for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff; do
+    n=$(grep -rhoE "CLAUDE_PLUGIN_ROOT[^\"]*/skills/$s" \
+            "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" 2>/dev/null | wc -l | tr -d ' ')
+    [ "${n:-0}" -ge 1 ] \
+        || fail "the scan sees zero anchored invocations of $s — that half of the widened gate is dead, so its clean result proves nothing"
+done
 
 echo "test-kb-no-hardcoded-path: positive control — the search works..."
 # Grep a term that is true BEFORE and AFTER this phase. An earlier draft

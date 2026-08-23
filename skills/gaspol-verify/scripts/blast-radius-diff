@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# blast-radius-diff — the plan's declared file list vs the files that actually
+# changed (IDS-18 Phase B).
+#
+# The artifact gaspol-plan offers carries a mandatory section 5, "What is NOT
+# changing (blast radius)" (skills/gaspol-plan/logic-design-artifact.md:64), and
+# nothing ever compared it to anything. `grep -rn "data-vv" skills/` had the same
+# answer in IDS-13: the rule was prose, the machine did not exist.
+#
+# The list is read from the PLAN, not the artifact, and that is deliberate. The
+# artifact is stored as a URL; reading it needs a network round-trip and fails
+# outright when it belongs to another session, so a gate built on it would spend
+# most of its life recorded as "not run" the way the WIG lane does. The
+# artifact's own section 5 copies its list from the plan in the first place.
+#
+# Usage:  blast-radius-diff <plan-file> <BASE>
+#         blast-radius-diff --self-test
+#
+# Contract:
+#   $1        the plan file. Its `**Files:**` blocks are parsed for the literal
+#             paths declared as `- Create|Modify|Test|Delete: \`path\``.
+#   $2        BASE ref. The comparison is <BASE>..HEAD.
+#   stdout    a "blast-radius: <verdict>" line on EVERY exit path, plus one
+#             indented line per unplanned file — the reviewer needs to know WHICH
+#             files, not merely how many.
+#   exit 0    clean — every changed file is planned or ignored.
+#   exit 1    findings, WARN-level, NON-BLOCKING. Every individual finding here
+#             is legitimately explainable (collateral edits happen), so a
+#             per-file BLOCK would fire on most branches and the gate would get
+#             switched off — which costs more than the false alarms it prevents.
+#             Accountability moves to the recorded line instead of the block.
+#             This is deliberately WEAKER than plan-verifier's DROPPED verdict
+#             and must not be described as equivalent.
+#   exit 3    UNKNOWN — STOP and ask. The plan is unreadable, BASE is invalid or
+#             unreachable, this is not a git repository, or the plan declares a
+#             glob or a directory instead of a literal path. A glob is UNKNOWN
+#             rather than ignored: silently skipping it is a silent pass.
+#   exit 4    none — the plan declares no files at all. NOT a failure.
+#
+# A file the plan declares but the diff never touched produces NO finding here.
+# That fact is plan-verifier's MISSING verdict; reporting it in both places gives
+# two findings for one defect, and the duplicate is the noisy kind.
+#
+# The plan text and the diff are only ever read and compared here, never executed.
+set -euo pipefail
+
+# Files that legitimately change on every ticket and appear in no phase's file
+# list. Without these the gate false-positives on literally every branch, and a
+# gate that cries wolf is one somebody turns off.
+IGNORE_PREFIXES=".gaspol/ docs/plans/ .git/"
+IGNORE_EXACT="CLAUDE.md package-lock.json pnpm-lock.yaml yarn.lock composer.lock poetry.lock Cargo.lock"
+
+# stdout, unlike its sibling spec-pointer, which reports on stderr. Deliberate:
+# spec-pointer has a bare-value contract on stdout to protect, this one does not,
+# so it follows regression-gate's convention instead. Cross-referenced in both
+# headers because a future helper that captures "a gate script's report line"
+# uniformly will be wrong about one of them.
+report() { echo "blast-radius: $1"; }
+
+# The nested `while read` loops below are heredoc-fed, NOT piped, so `found=1`
+# survives the loop -- a piped `while` runs in a subshell and the assignment is
+# lost. Review suggested replacing the inner loop with
+# `printf '%s\n' "$planned" | grep -Fxq -- "$f"`; declined, and the reason is the
+# race this file already avoids two functions down: `grep -q` exits on first match
+# and can SIGPIPE the writer, and under `set -o pipefail` that becomes the
+# pipeline's status. Trading a correct O(n*m) loop over tens of paths for a
+# reintroduction of the exact bug regression-gate shipped is a bad trade.
+
+is_ignored() {
+    local f="$1" p e
+    for p in $IGNORE_PREFIXES; do
+        case "$f" in "$p"*) return 0 ;; esac
+    done
+    for e in $IGNORE_EXACT; do
+        [ "$f" = "$e" ] && return 0
+        case "$f" in */"$e") return 0 ;; esac
+    done
+    return 1
+}
+
+main() {
+    if [ "${1:-}" = "--self-test" ]; then self_test; exit $?; fi
+    if [ $# -lt 2 ]; then
+        report "UNKNOWN — usage: blast-radius-diff <plan-file> <BASE>"
+        exit 3
+    fi
+
+    local plan="$1" base="$2"
+
+    if [ ! -f "$plan" ] || [ ! -r "$plan" ]; then
+        report "UNKNOWN — plan file not readable: $plan"
+        exit 3
+    fi
+
+    local top
+    top="$(git -C "$(dirname "$plan")" rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ -z "$top" ]; then
+        report "UNKNOWN — not inside a git repository, cannot read the diff"
+        exit 3
+    fi
+
+    # Literal paths only. The `- <Verb>: `path`` shape is gaspol-plan's own Phase
+    # Structure template, so this parses what the planner was told to write.
+    local planned
+    # sed -E, not basic regex: BSD sed (macOS) does not support \| alternation,
+    # so the basic-regex form parses ZERO paths and the script reports exit 4 —
+    # "the plan declares no files" — on a plan that declares plenty. A parser
+    # that silently finds nothing is worse than one that errors.
+    # SCOPED to `**Files:**` blocks, not the whole file. An unscoped parser picks
+    # up a verb bullet written anywhere in the plan's prose, so a plan with NO
+    # **Files:** block at all returned findings instead of the exit 4 the contract
+    # defines for exactly that case. The block ends at the next bold heading or
+    # markdown heading, which is the shape gaspol-plan's Phase Structure template
+    # produces.
+    planned="$(awk '
+        /^\*\*Files:\*\*/            { inblock = 1; next }
+        inblock && /^\*\*/             { inblock = 0 }
+        inblock && /^#/                 { inblock = 0 }
+        inblock                         { print }
+    ' "$plan" | sed -nE 's/^-[[:space:]]*(Create|Modify|Test|Delete):[[:space:]]*`([^`]*)`.*/\2/p' || true)"
+
+    if [ -z "$planned" ]; then
+        report "none — the plan declares no files; nothing to compare"
+        exit 4
+    fi
+
+    local p
+    while IFS= read -r p; do
+        [ -n "$p" ] || continue
+        case "$p" in
+            *'*'*|*'?'*|*/)
+                report "UNKNOWN — the plan declares '$p', which is a glob or a directory, not a literal path"
+                exit 3
+                ;;
+        esac
+    done <<EOF
+$planned
+EOF
+
+    # Captured into a variable BEFORE anything greps it. Piping git straight into
+    # `grep -q` under `set -o pipefail` lets grep's early exit SIGPIPE git, and
+    # pipefail then reports git's signal status as the pipeline's — the race that
+    # cost regression-gate one run in six.
+    local changed
+    if ! changed="$(git -C "$top" diff --name-only "$base"..HEAD 2>/dev/null)"; then
+        report "UNKNOWN — BASE '$base' is invalid or unreachable; an empty diff would read as 'nothing changed'"
+        exit 3
+    fi
+
+    local unplanned="" f found
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        is_ignored "$f" && continue
+        found=0
+        while IFS= read -r p; do
+            [ "$p" = "$f" ] && { found=1; break; }
+        done <<EOF
+$planned
+EOF
+        [ "$found" = 1 ] || unplanned="$unplanned$f
+"
+    done <<EOF
+$changed
+EOF
+
+    if [ -z "$unplanned" ]; then
+        report "clean — every changed file is declared by the plan or ignored"
+        exit 0
+    fi
+
+    local n; n="$(printf '%s' "$unplanned" | grep -c . || true)"
+    report "WARN — $n changed file(s) the plan never declared (reported, not blocking)"
+    printf '%s' "$unplanned" | sed 's/^/    /'
+    exit 1
+}
+
+self_test() {
+    local tmp; tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' RETURN
+    local rc d base
+
+    _repo() {  # $1 = **Files:** block body
+        local x; x="$(mktemp -d "$tmp/r.XXXXXX")"
+        git -C "$x" init -q
+        git -C "$x" config user.email t@t; git -C "$x" config user.name t
+        x="$(git -C "$x" rev-parse --show-toplevel)"
+        mkdir -p "$x/docs/plans" "$x/src"
+        { echo "**Files:**"; [ -n "$1" ] && printf '%s\n' "$1"; } > "$x/docs/plans/p-plan.md"
+        echo base > "$x/src/existing.txt"
+        git -C "$x" add -A >/dev/null; git -C "$x" commit -qm base
+        echo "$x $(git -C "$x" rev-parse HEAD)"
+    }
+
+    read -r d base <<<"$(_repo '- Modify: `src/existing.txt`')"
+    echo c > "$d/src/existing.txt"
+    git -C "$d" add -A >/dev/null; git -C "$d" commit -qm c
+    rc=0; "$0" "$d/docs/plans/p-plan.md" "$base" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 0 ] || { echo "self-test: case1 expected 0, got $rc" >&2; return 1; }
+
+    read -r d base <<<"$(_repo '- Modify: `src/existing.txt`')"
+    echo c > "$d/src/existing.txt"; echo n > "$d/src/extra.txt"
+    git -C "$d" add -A >/dev/null; git -C "$d" commit -qm c
+    rc=0; "$0" "$d/docs/plans/p-plan.md" "$base" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 1 ] || { echo "self-test: case2 (unplanned file) expected 1, got $rc" >&2; return 1; }
+
+    read -r d base <<<"$(_repo '')"
+    rc=0; "$0" "$d/docs/plans/p-plan.md" "$base" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 4 ] || { echo "self-test: case3 (no files declared) expected 4, got $rc" >&2; return 1; }
+
+    read -r d base <<<"$(_repo '- Modify: `src/*.txt`')"
+    rc=0; "$0" "$d/docs/plans/p-plan.md" "$base" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case4 (glob) expected 3, got $rc" >&2; return 1; }
+
+    read -r d base <<<"$(_repo '- Modify: `src/existing.txt`')"
+    rc=0; "$0" "$d/docs/plans/p-plan.md" "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case5 (bad BASE) expected 3, got $rc" >&2; return 1; }
+
+    read -r d base <<<"$(_repo '- Modify: `src/existing.txt`')"
+    echo c > "$d/src/existing.txt"; mkdir -p "$d/.gaspol"; echo x > "$d/.gaspol/scratch.md"; echo x > "$d/CLAUDE.md"
+    git -C "$d" add -A >/dev/null; git -C "$d" commit -qm c
+    rc=0; "$0" "$d/docs/plans/p-plan.md" "$base" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 0 ] || { echo "self-test: case6 (ignore list) expected 0, got $rc" >&2; return 1; }
+
+    echo "blast-radius-diff: self-test OK"
+}
+
+main "$@"

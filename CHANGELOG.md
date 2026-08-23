@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.27.0] - 2026-08-23
+
+### Added — the spec link of the chain finally has a reader (IDS-18)
+
+The delivery chain is `spec → plan → code`, and only the second link was guarded. `gaspol-plan`
+has written `**Spec:** <path>` into every plan header since IDS-1 and **nothing read it**:
+`grep -rn -- "-spec.md" skills/ agents/` returned five hits, all of them a glob that *finds* a
+spec or a filename mentioned in prose. A requirement the plan dropped was undetectable, because
+the code matched its plan perfectly.
+
+- **`skills/gaspol-verify/scripts/spec-pointer`** — resolves the pointer deterministically.
+  Three states on `kb-root`'s own exit contract: 0 resolved / 3 UNKNOWN / 4 none. Exit 3
+  deliberately covers a spec that exists but carries **no parseable requirement** — zero items
+  must never read as *satisfied*. Resolution is against `git rev-parse --show-toplevel`, never
+  `$PWD`: an agent runs a bash block with the target project as its CWD.
+- **`skills/gaspol-verify/scripts/blast-radius-diff`** — the plan's declared file list against
+  `git diff --name-only <BASE>..HEAD`. The list comes from the **plan**, not the artifact: the
+  artifact is a URL, and a gate needing the network spends its life recorded as `not run`.
+- **`DROPPED`, a new BLOCKING verdict** in `agents/plan-verifier.md` — a spec requirement the
+  plan never carried forward. Not `MISSING`: that names an implementer gap, this names a planner
+  gap. **Consequence, stated up front:** a deliberate scope reduction must now be written back
+  into the spec, which is what turns the spec from an opening note into a contract.
+- **`gaspol-verify` Layer 2** records `spec-fidelity:` and `blast-radius:`, both in the Evidence
+  Format block rather than only in prose — a state documented but absent from the example output
+  is a state nobody writes.
+- **The anchored-invocation gate widened** from `kb-root` alone to all three scripts, with four
+  new attack rows in `test-gate-mutations.sh` (two caught, two prose mentions allowed) seen
+  failing first. IDS-8 recorded that anchoring one call site is not what closes that surface.
+
+**Deliberately weaker, said so rather than glossed:** `blast-radius-diff` exit 1 is WARN and does
+**not** block. Every finding it can produce is legitimately explainable, a per-file BLOCK would
+fire on most branches, and a gate that cries wolf gets switched off. It is not equivalent to
+`DROPPED`.
+
+**Not closed, named so the deferral cannot be mistaken for completion:** the artifact's other four
+sections stay unverified; recall is model-bounded, not deterministic, because a spec is prose;
+spec *quality* is not graded, only whether a requirement survived; and a bug fix still passes no
+spec point at all, since `gaspol-debug` produces no spec.
+
+
 ## [1.26.0] - 2026-08-23
 
 ### Changed — the finish chain drops to four mandatory steps, and finishing itself becomes an offer (IDS-17)

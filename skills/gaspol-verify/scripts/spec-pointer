@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# spec-pointer — resolve the `**Spec:** <path>` line in a plan header (IDS-18 Phase A).
+#
+# gaspol-plan has written that line into every plan header since IDS-1 and
+# NOTHING ever read it: `grep -rn -- "-spec.md" skills/ agents/` returned five
+# hits, all of them either a glob that FINDS a spec or a filename mentioned in
+# prose. So the first link of the spec -> plan -> code chain was unguarded, and
+# a requirement the plan dropped was undetectable. This is the resolver that
+# closes it; the JUDGEMENT half (does the code satisfy the requirement) stays in
+# agents/plan-verifier.md, because prose is not machine-parseable and pretending
+# otherwise would overclaim.
+#
+# The seam is the same one kb-root and regression-gate already use: this script
+# resolves a PATH deterministically and never grades content quality.
+#
+# Usage:  spec-pointer <plan-file>
+#         spec-pointer --self-test
+#
+# Contract:
+#   $1        path to the plan file, absolute or relative to the CWD.
+#   stdout    ON EXIT 0 ONLY: the absolute path of the spec file, and nothing
+#             else — a caller reads this directly, so it must stay clean.
+#             NOTE: this script reports on stderr, its sibling blast-radius-diff
+#             on stdout. Deliberate and not an oversight -- only this one has a
+#             bare-value contract on stdout to protect; blast-radius-diff has
+#             none, so it follows regression-gate's stdout convention. A helper
+#             that captures "a gate script's report line" uniformly will be
+#             wrong about one of them.
+#   stderr    one "spec-pointer: <verdict>" line on EVERY exit path, so a caller
+#             can capture the state unconditionally for a ledger line the way
+#             regression-gate's report line is captured. It is on stderr rather
+#             than stdout precisely so stdout stays a bare path; that split is a
+#             deliberate deviation from the plan text, which said stdout for
+#             both, and it is recorded in the phase report.
+#   exit 0    resolved — the pointer names a readable spec with parseable content.
+#   exit 3    UNKNOWN — STOP and ask. Covers five conditions, deliberately NOT
+#             collapsed into exit 4: the plan is unreadable; more than one
+#             **Spec:** line (which one is the contract?); the value is empty or
+#             whitespace; the named file does not exist; the file exists but
+#             carries no parseable requirement; or no plan file was given at all.
+#             That fifth-and-sixth pair matters most — zero
+#             requirements read as "the spec is satisfied", which is exactly
+#             design_audit.py's own defect one layer down. A broken contract must
+#             never degrade into an empty one.
+#   exit 4    none — the plan header carries no **Spec:** line. NOT a failure: a
+#             standalone plan legitimately has no preceding brainstorm spec.
+#
+# Exit 1 is deliberately unused. This script resolves; it does not judge.
+#
+# Path resolution is against `git rev-parse --show-toplevel`, NEVER $PWD. An
+# agent runs a SKILL.md bash block with the TARGET PROJECT as its working
+# directory, so resolving a repo-relative path against the CWD reads a file from
+# whatever repository the user happens to be sitting in — the IDS-8 hazard class.
+#
+# The plan file's content is only ever read and compared here, never executed and
+# never interpolated into a command.
+set -euo pipefail
+
+# Resolved ONCE, absolutely, before anything can cd. The self-test re-invokes
+# this script from a foreign directory to prove path resolution does not use the
+# CWD, and "$0" is whatever the caller typed -- so a RELATIVE invocation
+# (`bash skills/gaspol-verify/scripts/spec-pointer --self-test`, exactly what the
+# plan's verification step runs) resolved to nothing after that cd and died 127.
+# The suite missed it because the test builds an absolute path, which is the
+# vacuous-green shape this repository keeps having to close.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+report() { echo "spec-pointer: $1" >&2; }
+
+# gaspol-plan's own header template (skills/gaspol-plan/SKILL.md:126) ships a
+# trailing HTML comment ON THE SAME LINE, so stripping it is the common case, not
+# an exotic one.
+strip_comment() { printf '%s' "${1%%<!--*}"; }
+
+trim() {
+    local s="$1"
+    s="${s#"${s%%[![:space:]]*}"}"
+    s="${s%"${s##*[![:space:]]}"}"
+    printf '%s' "$s"
+}
+
+# A spec with no structure cannot carry a requirement worth verdicting. Three
+# non-blank lines AND at least one bullet, table row or heading. Deliberately
+# crude: this answers "is there anything to read", not "is it any good" — the
+# latter is a judgement and belongs to the agent.
+has_parseable_content() {
+    local f="$1" nonblank structure
+    nonblank=$(grep -c '[^[:space:]]' "$f" 2>/dev/null || echo 0)
+    [ "$nonblank" -ge 3 ] || return 1
+    structure=$(grep -c '^[[:space:]]*[-*|#]' "$f" 2>/dev/null || echo 0)
+    [ "$structure" -ge 1 ]
+}
+
+resolve() {
+    local plan="$1"
+
+    if [ ! -f "$plan" ] || [ ! -r "$plan" ]; then
+        report "UNKNOWN — plan file not readable: $plan"
+        return 3
+    fi
+
+    # Header only: the pointer lives above the first section, and a **Spec:**
+    # string quoted inside the plan's own prose is not the contract.
+    local raw count
+    raw="$(grep -n '^\*\*Spec:\*\*' "$plan" || true)"
+    count="$(printf '%s' "$raw" | grep -c . || true)"
+
+    if [ "${count:-0}" -eq 0 ]; then
+        report "none — no **Spec:** line, standalone plan"
+        return 4
+    fi
+    if [ "${count:-0}" -gt 1 ]; then
+        report "UNKNOWN — $count **Spec:** lines in $plan; which one is the contract?"
+        return 3
+    fi
+
+    local line value
+    line="${raw#*:}"
+    value="$(trim "$(strip_comment "${line#\*\*Spec:\*\*}")")"
+
+    if [ -z "$value" ]; then
+        report "UNKNOWN — **Spec:** carries no path; a label with nothing after it is not a pointer"
+        return 3
+    fi
+
+    # Absolute stays absolute; relative resolves against the REPO ROOT, never $PWD.
+    local spec
+    if [ "${value#/}" != "$value" ]; then
+        spec="$value"
+    else
+        local top
+        top="$(git -C "$(dirname "$plan")" rev-parse --show-toplevel 2>/dev/null || true)"
+        if [ -z "$top" ]; then
+            report "UNKNOWN — not inside a git repository, cannot resolve the relative path $value"
+            return 3
+        fi
+        spec="$top/$value"
+    fi
+
+    if [ ! -f "$spec" ] || [ ! -r "$spec" ]; then
+        report "UNKNOWN — **Spec:** names $value, which does not exist or is unreadable"
+        return 3
+    fi
+
+    if ! has_parseable_content "$spec"; then
+        report "UNKNOWN — $value has no parseable requirement; zero items must not read as satisfied"
+        return 3
+    fi
+
+    report "resolved — $spec"
+    printf '%s\n' "$spec"
+    return 0
+}
+
+self_test() {
+    local tmp; tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' RETURN
+    local rc out
+
+    _repo() {  # $1 = spec line (empty for none), $2 = spec body
+        local d; d="$(mktemp -d "$tmp/r.XXXXXX")"
+        git -C "$d" init -q
+        # Return the CANONICAL root: on macOS mktemp hands back /var/... while
+        # git rev-parse resolves the symlink to /private/var/..., and comparing
+        # the two forms fails on a script that is behaving correctly.
+        d="$(git -C "$d" rev-parse --show-toplevel)"
+        mkdir -p "$d/docs/plans"
+        { echo "**Ticket:** T-1"; [ -n "$1" ] && echo "$1"; echo ""; echo "## Goal"; } \
+            > "$d/docs/plans/p-plan.md"
+        [ -n "$2" ] && printf '%s\n' "$2" > "$d/docs/plans/s-spec.md"
+        echo "$d"
+    }
+    local body='# T
+
+## Design
+
+- one
+- two'
+
+    local d
+    d="$(_repo '**Spec:** docs/plans/s-spec.md' "$body")"
+    rc=0; out="$( "$SELF" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
+    [ "$rc" = 0 ] || { echo "self-test: case1 expected 0, got $rc" >&2; return 1; }
+    [ "$out" = "$d/docs/plans/s-spec.md" ] || { echo "self-test: case1 wrong path '$out'" >&2; return 1; }
+
+    d="$(_repo '' '')"
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 4 ] || { echo "self-test: case2 (no line) expected 4, got $rc" >&2; return 1; }
+
+    d="$(_repo '**Spec:**' "$body")"
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case3 (bare label) expected 3, got $rc" >&2; return 1; }
+
+    d="$(_repo '**Spec:** docs/plans/gone-spec.md' "$body")"
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case4 (missing file) expected 3, got $rc" >&2; return 1; }
+
+    d="$(_repo '**Spec:** docs/plans/s-spec.md <!-- omit if standalone -->' "$body")"
+    rc=0; out="$( "$SELF" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
+    [ "$rc" = 0 ] || { echo "self-test: case5 (trailing comment) expected 0, got $rc" >&2; return 1; }
+    [ "$out" = "$d/docs/plans/s-spec.md" ] || { echo "self-test: case5 comment not stripped" >&2; return 1; }
+
+    d="$(_repo '**Spec:** docs/plans/s-spec.md' 'a
+b
+c')"
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case6 (no structure) expected 3, got $rc" >&2; return 1; }
+
+    d="$(_repo '**Spec:** docs/plans/s-spec.md' "$body")"
+    printf '**Spec:** docs/plans/other-spec.md\n' >> "$d/docs/plans/p-plan.md"
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case7 (two pointers) expected 3, got $rc" >&2; return 1; }
+
+    rc=0; "$SELF" "$tmp/nope-plan.md" >/dev/null 2>&1 || rc=$?
+    [ "$rc" = 3 ] || { echo "self-test: case8 (missing plan) expected 3, got $rc" >&2; return 1; }
+
+    # The reason resolution uses the repo root: an agent's CWD is the target project.
+    d="$(_repo '**Spec:** docs/plans/s-spec.md' "$body")"
+    local foreign; foreign="$(mktemp -d "$tmp/f.XXXXXX")"
+    rc=0; out="$( cd "$foreign" && "$SELF" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
+    [ "$rc" = 0 ] || { echo "self-test: case9 (foreign CWD) expected 0, got $rc" >&2; return 1; }
+    [ "$out" = "$d/docs/plans/s-spec.md" ] || { echo "self-test: case9 wrong path '$out'" >&2; return 1; }
+
+    echo "spec-pointer: self-test OK"
+}
+
+main() {
+    if [ "${1:-}" = "--self-test" ]; then self_test; exit $?; fi
+    if [ $# -lt 1 ]; then
+        report "UNKNOWN — no plan file given; usage: spec-pointer <plan-file>"
+        exit 3
+    fi
+    resolve "$1"
+}
+
+main "$@"
