@@ -1,7 +1,7 @@
 ---
 name: code-comment-reviewer
 description: "Check whether the diff violates existing in-file comments/guidance in the files it touches. Tier 2 (opt-in) lane of gaspol-review."
-model: sonnet
+model: opus
 ---
 
 # Code Comment Reviewer Agent

@@ -7,7 +7,8 @@ Use this template when dispatching implementer subagents via `gaspol-parallel`. 
 Default model for implementer dispatch: **`sonnet`** (feature implementation = Sonnet per rubric).
 
 Override to `opus` when: architectural decisions inside the task, complex debugging, or spec-level reasoning required.
-Override to `haiku` when: mechanical rename/format/docs-only changes.
+There is no lower tier to override to: the rubric is two tiers, and mechanical work
+(rename, format, docs-only) is still execution, so it is still `sonnet`.
 
 Agent tool call example:
 ```

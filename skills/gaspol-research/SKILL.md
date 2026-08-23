@@ -3,6 +3,8 @@ name: gaspol-research
 description: "Use when evaluating external libraries, APIs, patterns, or approaches that are unfamiliar or where training data may be outdated. Performs structured deep research with multi-source citation, anti-hallucination safeguards, and freshness-aware caching to cross-project knowledge base."
 ---
 
+<!-- model-tier: exec — gathering is execution: each subagent fetches and summarises one source. Read by skills/gaspol-verify/scripts/model-gate. -->
+
 # gaspol-research
 
 ## Iron Law

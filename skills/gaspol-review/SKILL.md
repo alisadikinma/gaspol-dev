@@ -99,7 +99,8 @@ and "fixing" a non-bug can inject a real one into working code. Before any Criti
 finding is treated as real, dispatch **one refuter subagent per finding whose only job is to
 disprove it.** Minor / Recommendation findings skip refutation (overhead not worth it).
 
-For each Critical/Important finding, dispatch a refuter (model: Sonnet — judgment, not mechanical):
+For each Critical/Important finding, dispatch a refuter (model: opus — a refuter JUDGES a
+finding, and judging it wrongly produces a wrong fix, which costs more than the model does):
 
 ```
 You are refuting a code-review finding. Your job is to PROVE IT WRONG.

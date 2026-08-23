@@ -1,92 +1,139 @@
-# Model Switching Rubric
+# Model Rule — two tiers, and a machine that reads them
 
-Auto-rubric untuk pilih model berdasarkan task type. Orchestrator (main session) selalu Opus. Subagent dispatch pilih model sesuai kompleksitas task.
+**This is a rule, not a preference.** It was an "auto-rubric to choose from" until IDS-20, and in
+that form it drifted from what it was supposed to say in **ten** places — including four reviewer
+prompt files and a sentence instructing an override to a tier nobody had used deliberately in
+months. A rubric you choose from is a rubric that drifts.
 
-## Rubric Table
+```text
+Opus   MUST be used for brainstorm, plan, verify, review, and anything that
+       JUDGES finished work.
+Sonnet MUST be used for execution: implement, test, refactor, sync docs,
+       rename, capture, gather.
+```
 
-| Task Kind | Model | Justification |
+**Two tiers. There is no third.** The main orchestrator session stays on Opus, unchanged: it
+decides which skill runs and when to stop, which is judgement.
+
+Enforced by `skills/gaspol-verify/scripts/model-gate`, invoked from `gaspol-verify` Layer 1.
+
+## The Rule Table
+
+| Task Kind | Model | Why this tier |
 |-----------|-------|---------------|
-| Main orchestrator (current session) | `opus` | Strategic reasoning, workflow decisions, multi-step planning |
-| Architecture planning | `opus` | Deep multi-step analysis, trade-off evaluation |
-| Spec review (spec-reviewer agent) | `opus` | Architectural judgment required |
-| Plan fidelity audit (plan-verifier agent) | `opus` | Evidence-based step-level verification |
-| Complex debugging (systematic root-cause) | `opus` | Hypothesis branching, non-linear |
-| Research synthesis (gaspol-research) | `opus` | Cross-source consolidation + reasoning |
-| Autonomous orchestration (gaspol-auto) | `opus` | Hard-stop decision-making |
-| Feature implementation | `sonnet` | Execute well-defined tasks efficiently |
-| Code review (code-reviewer agent) | `sonnet` | Pattern matching, style check |
-| Test writing | `sonnet` | Mechanical but precise |
-| Research gathering (per-source) | `sonnet` | Parallel fetch + summarize per source |
-| ADR capture (gaspol-adr) | `sonnet` | Structured template filling |
-| Learn capture (gaspol-learn) | `sonnet` | Pattern extraction + validation |
-| Design system reasoning | `sonnet` | Apply rules, match templates |
-| Documentation sync (gaspol-sync-docs) | `haiku` | Template-driven, low reasoning |
-| Simple refactor (code-simplifier agent) | `sonnet` | Behaviour-preserving refactor risks silent regressions — worth the reasoning depth over haiku |
-| Rename / format | `haiku` | Deterministic operation |
-| Simple fact lookup (research light mode) | `haiku` | Bounded scope, single source |
+| Main orchestrator (current session) | `opus` | decides what runs and when to stop — judgement |
+| Architecture planning | `opus` | trade-off evaluation with no single right answer |
+| Brainstorming (`gaspol-brainstorm`) | `opus` | design choices, and the questions worth asking |
+| Implementation planning (`gaspol-plan`) | `opus` | decides coverage; what the plan omits, nothing downstream recovers |
+| Verification (`gaspol-verify`) | `opus` | reads evidence and rules on whether it proves the claim |
+| Spec review (`spec-reviewer`) | `opus` | architectural judgement |
+| Plan fidelity audit (`plan-verifier`) | `opus` | evidence-based, step-level, and BLOCKING |
+| Code review (`code-reviewer`) | `opus` | **changed in IDS-20.** Was `sonnet`, justified as "pattern matching / style check". A review that judges wrongly produces a wrong fix, which costs more than the model does |
+| Refutation pass (`gaspol-review`) | `opus` | argues against a finding — judgement by another name |
+| Refactor for clarity (`code-simplifier`) | `opus` | **changed in IDS-20.** A refactor that must preserve behaviour can introduce a silent regression |
+| Complex debugging (systematic root-cause) | `opus` | hypothesis branching, non-linear |
+| Research synthesis | `opus` | cross-source consolidation and reasoning |
+| Autonomous orchestration (`gaspol-auto`) | `opus` | hard-stop decisions |
+| Feature implementation | `sonnet` | execute a well-defined task |
+| Test writing | `sonnet` | mechanical but precise |
+| Research gathering (per-source) | `sonnet` | fetch and summarise one source |
+| ADR capture (`gaspol-adr`) | `sonnet` | structured template filling |
+| Learn capture (`gaspol-learn`) | `sonnet` | extracts and files patterns; does not judge code |
+| Design system reasoning | `sonnet` | apply rules, match templates |
+| Documentation sync (`gaspol-sync-docs`) | `sonnet` | **was `haiku` until IDS-20** — see below |
+| Simple refactor / rename / format | `sonnet` | **was `haiku` until IDS-20** — see below |
+| Simple fact lookup | `sonnet` | **was `haiku` until IDS-20** — see below |
+
+## The third tier was removed, not forgotten
+
+The last three rows above ran on `haiku`. That tier is **deleted**, and the three rows are kept
+rather than dropped so the next reader can tell a decision from an oversight.
+
+**What that costs, said plainly:** documentation sync, renames and light lookups are now more
+expensive than they strictly need to be. **What it buys:** a boundary nobody has to guess at. A
+three-tier rubric with a fuzzy middle makes people guess, and a wrong guess costs more than the
+price difference. The alternative was a gate carrying an exception list, and an exception is how a
+gate stops working — the reason `tests/ticket-scripts/test-gate-mutations.sh` exists.
+
+`model-gate` treats `haiku` as **exit 1 BLOCKING**, never "unknown". It is not an unrecognised
+tier; it is a deleted one, and reporting it as unknown invites a case-by-case exemption. This file
+is the one place allowed to name it, and only to record that it is gone.
+
+## Which concrete models the aliases mean
+
+Skills and agent frontmatter use the **short aliases** `opus` and `sonnet`, which point at the
+current member of each family.
+
+As of **2026-08-24**:
+
+| Alias | Concrete model |
+|---|---|
+| `opus` | `claude-opus-5` |
+| `sonnet` | `claude-sonnet-5` |
+
+**Why aliases rather than pinned ids.** Pinning `claude-opus-5` across a dozen files means a dozen
+edits every time a model ships, and the file somebody forgets silently keeps the old model — the
+promise-with-no-implementation shape this repository has now undone seven times.
+
+**What that gives up, and it is real:** if `opus` ever resolves to a *weaker* model, **nothing
+tells you.** The table above is a dated record a human can check, not a mechanism. It is not a
+guarantee and must not be described as one. If the mapping ever stops holding, this table is what
+should be corrected first.
 
 ## How to Apply
 
-### In Skill Dispatch
-
-When dispatching a subagent via Task tool, include `model` parameter:
+### In skill dispatch
 
 ```
 Agent({
   description: "Code review task",
   prompt: "...",
   subagent_type: "code-reviewer",
-  model: "sonnet"  // from rubric
+  model: "opus"   // judging surface — the rule, not a preference
 })
 ```
 
-### In Agent Frontmatter
-
-Agents under `agents/` have YAML frontmatter specifying default model:
+### In agent frontmatter
 
 ```yaml
 ---
 name: code-reviewer
 description: ...
-model: sonnet
+model: opus
 ---
 ```
 
-### Override Precedence
+### When the tier is not obvious from the name
 
-1. Explicit `model` param in Agent tool call (highest)
-2. Agent's frontmatter `model` field
-3. Inherited from parent session (fallback)
+`model-gate` reads the tier from the file path (`reviewer`, `verifier`, `simplifier`, `refuter` →
+judging; `implementer` → execution), falling back to the same line. A file it cannot classify
+declares its own tier:
 
-## When to Override
+```markdown
+<!-- model-tier: exec — gathering is execution: each subagent fetches and summarises one source -->
+```
 
-Rubric is default. Override kalau:
-- Task genuinely more complex than typical (e.g., debugging an obscure race condition → force Opus even though it's "debugging")
-- Task simpler than typical (e.g., trivial one-line doc fix → force Haiku even though it's "docs")
+Use it rather than renaming a file to satisfy a pattern. `skills/gaspol-learn/SKILL.md` and
+`skills/gaspol-research/SKILL.md` both carry one.
 
-Log override reasoning kalau routinely deviating — might indicate rubric needs adjustment.
+### Override precedence
 
-## Token/Cost Implications
+1. Explicit `model` param in the Agent tool call (highest)
+2. The agent's frontmatter `model` field
+3. Inherited from the parent session (fallback)
 
-Approximate cost ratio (Apr 2026):
-- Opus : Sonnet : Haiku ≈ 15 : 3 : 1
+**An override that drops a judging task below Opus, or raises an execution task above Sonnet,
+MUST carry a written reason at the call site.** Not a ticket number, not a shrug — a sentence
+saying why this case is different. A silent override is how a rule becomes advice again, which is
+exactly the state this file was in before IDS-20.
 
-Rubric targets ~15% Opus, ~60% Sonnet, ~25% Haiku across typical workflow — saving 3-5x vs all-Opus.
+## What this rule does NOT do
 
-## Integration Points
-
-- `agents/code-reviewer.md` — sonnet (frontmatter)
-- `agents/code-simplifier.md` — sonnet (frontmatter)
-- `agents/plan-verifier.md` — opus (frontmatter)
-- `agents/spec-reviewer.md` — opus (frontmatter)
-- `skills/gaspol-execute/implementer-prompt.md` — dispatch with sonnet default
-- `skills/gaspol-parallel/spec-reviewer-prompt.md` — dispatch with opus
-- `skills/gaspol-parallel/code-quality-reviewer-prompt.md` — dispatch with sonnet
-- `skills/gaspol-research/SKILL.md` — parallel gatherers sonnet, synthesizer opus
-- `skills/gaspol-auto/SKILL.md` — orchestrator opus, implementers sonnet
-
-## References
-
-- Claude Code Agent tool: supports `model` parameter per dispatch
-- Valid values: `opus`, `sonnet`, `haiku` (maps to current latest minor version)
-- Explicit version IDs acceptable: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5-20251001`
+- **It governs declarations, never what actually ran.** `model-gate` reads what the files say. If
+  the harness ignores the field, every check here still passes. This closes the drift hole, not
+  the execution hole.
+- **It cannot see the main session's own model.** gaspol has no way to read or change it. The rule
+  states the expectation and stops there.
+- **A tier violation written as prose is invisible to the gate.** The tier check only matches
+  `model:` followed by a model name; widening it to every sentence would flag correct writing
+  *about* the rule, and a gate that fires on its own documentation is one somebody switches off.

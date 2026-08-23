@@ -1,7 +1,7 @@
 ---
 name: pr-comments-reviewer
 description: "Read PR review comments via `gh pr view --comments` and check whether the diff addresses them."
-model: sonnet
+model: opus
 ---
 
 > **Gating note (read first):** this agent is dispatched ONLY after the calling skill

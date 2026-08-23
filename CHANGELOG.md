@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.29.0] - 2026-08-24
+
+### Changed — the model rubric becomes a rule, and the rule gets a reader (IDS-20)
+
+Execution on Sonnet, brainstorm/plan/verify/review on Opus, asked for directly by the owner. What
+existed was an "auto-rubric to choose from" enforced by nothing, and it had drifted in **ten**
+places — a first survey found four, a second pass over `skills/**` found six more. The count is
+recorded at its true size because an undercounted defect is how a known hazard becomes an unknown
+one. Its prose still named Opus 4.7 and Sonnet 4.6, versions that do not exist.
+
+- **`skills/gaspol-verify/scripts/model-gate`** — four exit states on `ledger-gate`'s contract.
+  The deleted third tier is exit **1**, never exit 3: it is not an unknown tier but a removed one,
+  and reporting it as unknown invites a case-by-case exemption. Tier comes from the file path,
+  falling back to the same line, then to a `model-tier:` line the file declares about itself.
+- **Two tiers, no third.** Docs sync, rename/format and simple lookup move up to `sonnet`. Their
+  rows are kept rather than deleted, so a reader can tell a decision from an oversight, and what
+  the removal costs is written beside what it buys.
+- **Every judging surface moves to `opus`** — both reviewer agents, `code-simplifier`, four
+  reviewer prompt files, two dispatch sites, and the refutation pass. Where a reason accompanied
+  the old model it was rewritten: *"pattern matching / style check"* was the argument FOR the old
+  tier, and leaving it under the new one documents the opposite of what the file does.
+- **Aliases in code, concrete ids recorded once with a date.** What that gives up is stated: if
+  `opus` ever resolves to a weaker model, nothing tells you.
+- **A cross-tier override now requires a written reason at the call site.**
+- **The anchored-invocation gate widens from four scripts to five.**
+
+**Three findings the work produced that nobody had listed.** `gaspol-learn` and `gaspol-research`
+came back exit 3 — correct but unlabelled — which is why a file may now declare its own tier
+rather than the gate growing a keyword list that drifts. The gate flagged its own header, which
+must quote the forbidden word to explain it, so the scan is restricted to `*.md`. And
+`test-model-rule.sh` needed a proximity helper after two assertions failed against correct prose:
+`grep` matches one line at a time, and a wrapped sentence puts the halves on different lines.
+
+**Not closed, and said so:** the gate reads declarations, never the model actually served; the
+alias mapping is a record a human checks, not a mechanism; the main session's own model cannot be
+enforced; and a tier violation written as prose is invisible, because widening the check to every
+sentence would flag correct writing about the rule.
+
 ## [1.28.0] - 2026-08-24
 
 ### Added — the progress ledger had one writer and no reader (IDS-19)

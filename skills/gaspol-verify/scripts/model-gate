@@ -1,0 +1,246 @@
+#!/usr/bin/env bash
+# model-gate — does every model declaration sit on the tier the rule assigns it?
+#              (IDS-20)
+#
+# The rule, stated once and enforced here:
+#
+#     Opus   — brainstorm, plan, verify, review, and anything that JUDGES
+#              finished work.
+#     Sonnet — execution: implement, test, refactor, sync docs, rename, capture.
+#
+# Two tiers, no third. `docs/rubric-model-switching.md` had been advice nobody
+# enforced, and it drifted from the owner's intent in TEN places -- six of which
+# the first survey missed. That is the same defect shape this repository has now
+# undone seven times: a rule stated in prose with nothing reading the record it
+# produces.
+#
+# Usage:  model-gate
+#         model-gate --self-test
+#
+# Contract:
+#   stdout   ONE "model-gate: <verdict>" line on EVERY exit path, so a caller can
+#            capture the state unconditionally for a ledger line. Detail lines
+#            follow on stderr, where they cannot corrupt that contract.
+#   exit 0   every model declaration matches its tier.
+#   exit 1   BLOCKING -- a declaration names the wrong tier, or `haiku` appears.
+#   exit 3   UNKNOWN -- STOP and ask. A declaration whose tier cannot be
+#            determined, or an agent file with no `model:` field at all. A file
+#            the heuristics cannot classify can declare its own tier with a
+#            `model-tier: judge` or `model-tier: exec` line.
+#   exit 4   not applicable -- nothing declares a model. NOT a failure and never
+#            counted as a pass.
+#
+# WHY `haiku` IS EXIT 1 AND NOT EXIT 3. It is not an unknown tier; it is a tier
+# the rule DELETED. Reporting it as unknown invites a case-by-case exemption,
+# and that is how a deleted tier comes back one row at a time. The check is
+# deliberately broad -- the bare word anywhere under agents/ and skills/ --
+# because it survives in prose: implementer-prompt.md carried "Override to
+# `haiku` when: mechanical rename/format/docs-only changes", and an instruction
+# to use a deleted tier IS the tier still being available. `docs/` is not
+# scanned, so the rubric can still explain the removal.
+#
+# WHY TIER COMES FROM THE FILE PATH, falling back to the same line. The first
+# design keyed off a `subagent_type` on an adjacent line; the survey killed it.
+# Six of the ten violations sit in frontmatter or in a prompt template where no
+# `subagent_type` appears at all. A file named code-quality-reviewer-prompt.md
+# is a reviewer's prompt no matter how it is dispatched.
+#
+# WHY AN UNRECOGNISED VALUE IS REPORTED, NEVER BLOCKED. `model: selectedModel`
+# in skills/gaspol-debug/defense-in-depth.md is illustrative code in another
+# language, not a gaspol dispatch. A gate that fires on documentation is one
+# somebody switches off, which costs more than the drift it would have caught.
+#
+# NAMED LIMITATION, not a gap that was missed: this reads DECLARATIONS, never
+# the model a dispatched subagent was actually served. If the harness ignores
+# the field, this still passes. It closes the drift hole, not the execution one.
+#
+# Every file is read and compared, never executed and never interpolated into a
+# command. --self-test prints fixed literals only.
+set -euo pipefail
+
+# A path or line naming any of these is a JUDGING surface. "refuter" is here
+# because gaspol-review dispatches one to argue against a finding, which is
+# judgement by another name.
+JUDGE_PAT='reviewer|verifier|simplifier|refuter'
+# An EXECUTION surface.
+EXEC_PAT='implementer'
+
+report() { echo "model-gate: $*"; }
+detail() { echo "    $*" >&2; }
+
+# tier_of <path> <line> [file] -- prints "judge", "exec", or nothing.
+#
+# Order: path, then the same line, then a tier the FILE declares about itself.
+# The third exists because the first real run reported UNKNOWN for
+# gaspol-learn and gaspol-research -- both correct, both merely unlabelled. The
+# alternatives were worse: growing EXEC_PAT with "gather", "capture", "analyze"
+# and so on is a keyword list that drifts, and defaulting the unmatched case to
+# exec would silently demand sonnet of a judging surface whose name nobody
+# thought about. An explicit marker is a decision somebody made, in the file the
+# decision is about, and it greps.
+tier_of() {
+    if printf '%s' "$1" | grep -qiE "$JUDGE_PAT"; then echo judge; return 0; fi
+    if printf '%s' "$1" | grep -qiE "$EXEC_PAT";  then echo exec;  return 0; fi
+    if printf '%s' "$2" | grep -qiE "$JUDGE_PAT"; then echo judge; return 0; fi
+    if printf '%s' "$2" | grep -qiE "$EXEC_PAT";  then echo exec;  return 0; fi
+    if [ -n "${3:-}" ] && [ -f "$3" ]; then
+        declared="$(grep -oiE 'model-tier:[[:space:]]*(judge|exec)' "$3" 2>/dev/null \
+            | head -1 | grep -oiE '(judge|exec)$' | tr '[:upper:]' '[:lower:]' || true)"
+        if [ -n "$declared" ]; then echo "$declared"; return 0; fi
+    fi
+    return 0
+}
+
+main() {
+    if ! root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        report "UNKNOWN — not inside a git repository"
+        return 3
+    fi
+    cd "$root"
+
+    dirs=""
+    [ -d agents ] && dirs="$dirs agents"
+    [ -d skills ] && dirs="$dirs skills"
+    if [ -z "$dirs" ]; then
+        report "N/A — no agents/ or skills/ directory to scan"
+        return 4
+    fi
+
+    # --- the deleted tier, checked broadly -------------------------------
+    # Captured into a variable BEFORE any pipe: piping grep into something that
+    # exits early can SIGPIPE the producer, and pipefail then reports the
+    # producer's signal instead of the consumer's success. IDS-14 chased exactly
+    # that for a round in regression-gate.
+    # --include='*.md' is the honest boundary, not a self-exemption. Model
+    # declarations and dispatch instructions live in markdown; a shell script
+    # dispatches nothing. Without it this gate flags its OWN header, which must
+    # quote the word to explain why the word is forbidden -- a checker cannot be
+    # its own subject, the same trap IDS-19 hit twice in one afternoon.
+    haiku_hits="$(grep -rniF --include='*.md' 'haiku' $dirs 2>/dev/null || true)"
+    if [ -n "$haiku_hits" ]; then
+        report "BLOCKING — 'haiku' names a tier this rule deleted; $(printf '%s\n' "$haiku_hits" | wc -l | tr -d ' ') occurrence(s)"
+        printf '%s\n' "$haiku_hits" | while IFS= read -r h; do detail "$h"; done
+        return 1
+    fi
+
+    # --- every agent must DECLARE a tier ----------------------------------
+    if [ -d agents ]; then
+        for a in agents/*.md; do
+            [ -f "$a" ] || continue
+            if ! grep -qiE '^[[:space:]]*model:[[:space:]]*"?[A-Za-z]' "$a"; then
+                report "UNKNOWN — $a declares no model: field; inheriting silently is what this rule forbids"
+                return 3
+            fi
+        done
+    fi
+
+    # --- tier check --------------------------------------------------------
+    # `model:` anywhere on a line, but only when the VALUE is a model this rule
+    # knows. That is what keeps `model: selectedModel` and correct sentences
+    # about the rule out of the results.
+    decls="$(grep -rniE --include='*.md' 'model:[[:space:]]*"?(opus|sonnet)"?([^A-Za-z0-9_-]|$)' $dirs 2>/dev/null || true)"
+    others="$(grep -rniE --include='*.md' 'model:[[:space:]]*"?[A-Za-z_]' $dirs 2>/dev/null \
+        | grep -viE 'model:[[:space:]]*"?(opus|sonnet)"?([^A-Za-z0-9_-]|$)' || true)"
+
+    n_other=0
+    [ -n "$others" ] && n_other="$(printf '%s\n' "$others" | wc -l | tr -d ' ')"
+
+    if [ -z "$decls" ] && [ "$n_other" -eq 0 ]; then
+        report "N/A — no model declaration anywhere under$dirs"
+        return 4
+    fi
+
+    violations=""
+    unknowns=""
+    n_ok=0
+    while IFS= read -r hit; do
+        [ -n "$hit" ] || continue
+        file="${hit%%:*}"
+        rest="${hit#*:}"
+        line="${rest#*:}"
+        value="$(printf '%s' "$line" \
+            | grep -oiE 'model:[[:space:]]*"?(opus|sonnet)' \
+            | head -1 \
+            | grep -oiE '(opus|sonnet)$' \
+            | tr '[:upper:]' '[:lower:]' || true)"
+        [ -n "$value" ] || continue
+        tier="$(tier_of "$file" "$line" "$file")"
+        case "$tier" in
+            judge)
+                if [ "$value" = "opus" ]; then n_ok=$((n_ok + 1)); else
+                    violations="$violations
+$file — judging surface declares '$value', the rule says opus"
+                fi ;;
+            exec)
+                if [ "$value" = "sonnet" ]; then n_ok=$((n_ok + 1)); else
+                    violations="$violations
+$file — execution surface declares '$value', the rule says sonnet"
+                fi ;;
+            *)
+                unknowns="$unknowns
+$file — declares '$value' but neither the path nor the line names a tier" ;;
+        esac
+    done <<DECLS
+$decls
+DECLS
+
+    if [ -n "$violations" ]; then
+        # The first offender is named in the ONE-LINE report, not only in the
+        # detail lines: that line is what a caller copies into a ledger, and a
+        # count with no name sends the reader back to re-run the gate.
+        first_v="$(printf '%s\n' "$violations" | grep -m1 ' — ' || true)"
+        report "BLOCKING — $(printf '%s' "$violations" | grep -c ' — ') declaration(s) on the wrong tier; first: $first_v"
+        printf '%s\n' "$violations" | while IFS= read -r v; do [ -n "$v" ] && detail "$v"; done
+        return 1
+    fi
+    if [ -n "$unknowns" ]; then
+        first_u="$(printf '%s\n' "$unknowns" | grep -m1 ' — ' || true)"
+        report "UNKNOWN — $(printf '%s' "$unknowns" | grep -c ' — ') declaration(s) whose tier cannot be determined; STOP and ask; first: $first_u"
+        printf '%s\n' "$unknowns" | while IFS= read -r u; do [ -n "$u" ] && detail "$u"; done
+        return 3
+    fi
+
+    if [ "$n_other" -gt 0 ]; then
+        report "ok — $n_ok declaration(s) on the correct tier; $n_other unrecognised value(s) reported, not blocked"
+        printf '%s\n' "$others" | while IFS= read -r o; do [ -n "$o" ] && detail "$o"; done
+        return 0
+    fi
+    report "ok — $n_ok declaration(s) on the correct tier"
+    return 0
+}
+
+self_test() {
+    rc_st=0
+
+    for p_st in "agents/code-reviewer.md" "agents/plan-verifier.md" \
+                "agents/code-simplifier.md" "skills/x/code-quality-reviewer-prompt.md"; do
+        [ "$(tier_of "$p_st" "")" = "judge" ] \
+            || { echo "self-test: '$p_st' should be a judging surface" >&2; rc_st=1; }
+    done
+    [ "$(tier_of "skills/gaspol-execute/implementer-prompt.md" "")" = "exec" ] \
+        || { echo "self-test: implementer-prompt should be an execution surface" >&2; rc_st=1; }
+
+    # Tier from the LINE when the path carries none -- gaspol-parallel/SKILL.md's shape.
+    [ "$(tier_of "skills/x/SKILL.md" 'subagent_type: "gaspol-dev:code-reviewer", model: "sonnet"')" = "judge" ] \
+        || { echo "self-test: same-line tier lookup failed for a reviewer dispatch" >&2; rc_st=1; }
+    [ "$(tier_of "skills/x/SKILL.md" 'Dispatch implementer (model: sonnet per rubric)')" = "exec" ] \
+        || { echo "self-test: same-line tier lookup failed for an implementer dispatch" >&2; rc_st=1; }
+    [ -z "$(tier_of "skills/x/SKILL.md" 'model: "opus"')" ] \
+        || { echo "self-test: a line with no tier keyword must yield no tier" >&2; rc_st=1; }
+
+    if [ "$rc_st" -eq 0 ]; then
+        echo "model-gate --self-test: PASS"
+    fi
+    return "$rc_st"
+}
+
+if [ "${1:-}" = "--self-test" ]; then
+    self_test
+    exit $?
+fi
+
+set +e
+main "$@"
+rc_main=$?
+set -e
+exit "$rc_main"
