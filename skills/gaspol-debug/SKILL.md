@@ -39,6 +39,45 @@ State the ruling before investigating: *"Five defects, one ticket."* Then invest
 root cause **separately** — batching the ticket never batches the diagnosis. One shared root cause
 across several symptoms is a finding you must prove, never an assumption that saves work.
 
+#### Ledger — created HERE, because nothing else will (BLOCKING)
+
+```
+A bug fix gets a progress ledger too. gaspol-plan is not on this path.
+```
+
+**The bug this closes.** Phase 4 step 1 below tells you to write a `regression-test:` line into
+`.gaspol/progress/PROGRESS-<TICKET>.md`, and `regression-gate` reads it. Until IDS-19 the debug
+path **never created that file** — so the gate returned exit 3 (UNKNOWN, ledger unresolved) as its
+*normal* outcome on the very path it was built for. Measured across all 18 IDS tickets in the
+gaspol repository, a ledger existed if and only if a plan file did. An instruction pointing at a
+file nothing creates is the same defect shape as a gate nothing reads.
+
+1. **A ledger already there? Leave it alone.** If `.gaspol/progress/PROGRESS-<TICKET>.md` exists
+   for this branch's ticket, it was written by `gaspol-plan` or an earlier debug session. Append
+   to it; never overwrite it.
+2. **Otherwise mint the ticket — once per batch.** The Batch Gate directly above has already
+   ruled how many tickets this report is worth, and this step never re-opens that: five defects
+   batched into one ticket call `next-ticket` **once**.
+   ```bash
+   : "${CLAUDE_PLUGIN_ROOT:?set by Claude Code for plugin skills. Without it this would run whatever
+   script the target project happens to ship at a matching relative path}"
+   "$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/next-ticket" <path to the target project's CLAUDE.md>
+   ```
+   - **Exit 0** — stdout is the new ticket id. Use it.
+   - **Exit 2** — the project has no `## gaspol Ticket Counter` section. Use **AskUserQuestion**
+     to ask for a prefix. **Never guess one**: a prefix invented here ends up in filenames,
+     branch names and commit subjects, and nothing later corrects it.
+3. **Write the ledger** in the format under "Progress Ledger Format" in
+   `skills/gaspol-plan/SKILL.md` — the four mandatory sections (`## Pre-flight`,
+   `## Keputusan saat jalan`, `## Phase log`, `## Utang terbuka`) above a `## Log` that stays the
+   **last** block. A debugging session has no plan phases to copy, so its `## Checklist` carries
+   the investigation's own steps: reproduce, root cause named, regression test RED, fix, regression
+   test GREEN, no regression elsewhere.
+4. `## Pre-flight` records the state you found, not the state you wish for: the failing command
+   and its exact output, and whether the rest of the suite was already red **before** you touched
+   anything. A pre-existing failure that goes unrecorded gets blamed on your fix.
+
+
 **Read the error. The FULL error.**
 
 Most debugging failures start here. Read the entire error message, not just the first line. Read the stack trace. Read the context around the error.

@@ -160,6 +160,39 @@ grep -qF 'regression-gate' "$DEBUG_SKILL" \
     && note "gaspol-debug names the machine that checks the ledger line" \
     || bad "gaspol-debug never names regression-gate"
 
+# IDS-19: the ledger this skill writes into must be one this skill can CREATE.
+# Phase 4 step 1 told the agent to write a regression-test: line into the ledger,
+# and the debug path never created one -- so regression-gate returned exit 3
+# (UNKNOWN, ledger unresolved) as its NORMAL outcome on the very path it was
+# built for. An instruction pointing at a file nothing creates is the same
+# defect shape as a gate nothing reads.
+echo "test-regression-gate: gaspol-debug creates the ledger it writes into (IDS-19)..."
+
+# The python3 call is the `if` CONDITION, not a statement followed by `$?`.
+# Under `set -e` a non-zero statement kills the script before the `$?` test can
+# run -- observed here as a silent exit 1 with an empty stderr, the same trap
+# test-spec-pointer-branches-run.sh documents. A condition is exempt from set -e;
+# a bare statement is not.
+if python3 - "$DEBUG_SKILL" <<'PYCHECK'
+import re, sys, pathlib
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+m = re.search(r"\n### Phase 1: Root Cause Investigation\n(.*?)\n### Phase 2:", text, re.S)
+sys.exit(0 if (m and "ledger" in m.group(1).lower()) else 1)
+PYCHECK
+then
+    note "gaspol-debug Phase 1 has a ledger-creation step"
+else
+    bad "gaspol-debug: expected a ledger-creation step in Phase 1, found none"
+fi
+
+grep -qF '"$CLAUDE_PLUGIN_ROOT/skills/gaspol-execute/scripts/next-ticket"' "$DEBUG_SKILL" \
+    && note "gaspol-debug mints its ticket through the anchored next-ticket" \
+    || bad "gaspol-debug does not invoke next-ticket through \$CLAUDE_PLUGIN_ROOT"
+
+grep -qiE 'exit 2|AskUserQuestion' "$DEBUG_SKILL" \
+    && note "gaspol-debug handles next-ticket exit 2 without guessing a prefix" \
+    || bad "gaspol-debug never says what to do when no ticket counter exists"
+
 echo "test-regression-gate: wiring into the two callers (A3)..."
 
 VERIFY_SKILL="$REPO_ROOT/skills/gaspol-verify/SKILL.md"
