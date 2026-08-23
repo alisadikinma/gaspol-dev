@@ -124,7 +124,7 @@ Every plan document MUST start with this header:
 **Ticket:** IND-81
 **Ledger:** .gaspol/progress/PROGRESS-IND-81.md
 **Spec:** docs/plans/2026-08-20-IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
-**Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- optional — present ONLY when the Execution Handoff artifact offer was accepted and rendered; omit entirely otherwise, never write "n/a" -->
+**Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- present ONLY when the post-plan offer's [Render design artifact dulu] option was taken and the artifact was approved; omit the whole line otherwise, and never write "n/a" -- a declined artifact is recorded in the LEDGER as `design-artifact: skipped — <reason>`, not here -->
 
 ## Goal
 
@@ -258,7 +258,12 @@ same block reads `php artisan test`, on a Python repo `pytest`, and where `detec
 | 2 | LoginForm component | Design spec (tokens, layout, motion, states) | Design system compliance |
 ```
 
-Design deliverable is produced by invoking the `ui-ux-pro-max` skill during plan creation for each UI phase.
+The Design Deliverable cell **cites** the design decisions `gaspol-brainstorm` Phase 3 already
+produced — palette, font pairing, layout blueprint, motion, accessibility — rather than invoking
+`ui-ux-pro-max` again here. That skill is called **at most once per ticket**: at Phase 3 where a
+brainstorm ran, or at the post-plan offer where none did. It was previously reachable from three
+separate places for one feature, which is three answers to the same question and no rule for which
+one wins.
 
 **Security-Sensitive Phases:** When a phase touches **auth/authorization, secrets,
 user input or file uploads, a new API endpoint, payment, or sensitive data**, the
@@ -312,52 +317,76 @@ A phase without verification criteria is **INCOMPLETE**. The executor will not k
 
 ## Execution Handoff
 
-**Step 0 — Design Artifact (BLOCKING)** — every plan file, no exceptions:
+**Step 0 — the post-plan offer** — presented once, right here, and nowhere else:
 
-Every plan produces exactly ONE design artifact, and execution does not start until a human has
-approved it. This is not the same thing as the optional UI mockup it replaced: a mockup is a design
-*deliverable*, while this gate asks whether a human has approved the **behaviour** before code
-starts. Logic-only work owes one too — that was the gap. "No UI, so no design" is how a wrong flow
-gets built, tested, and reviewed before anyone sees it.
+The plan file and its ledger are written FIRST. Then present exactly one `AskUserQuestion` carrying
+both the artifact and the execution choices together — not an artifact gate followed by a separate
+execution modal, which is two questions for one decision:
 
-Two lanes, one artifact:
+```text
+[Render design artifact dulu]   → render it, then present this same modal without this option
+[Eksekusi di sesi ini]          → gaspol-execute, per-phase checkpoints
+[Eksekusi otomatis]             → gaspol-auto, autonomous with hard-stop guardrails — ALWAYS offered
+[Eksekusi parallel]             → gaspol-parallel, only when the plan has independent phases
+[Simpan buat sesi lain]         → stop here
+[Serahkan ke executor luar]     → only when an executor resolves (see below)
+```
 
-| Plan contains | Lane |
-|---|---|
-| UI phases (per the Design Deliverable Column above) | render the mockup — `ui-ux-pro-max`, and `skills/gaspol-brainstorm/visual-companion.md` for how the mockup is built and iterated. That file stays the source of truth for the pattern; do not duplicate it here. |
-| no UI phases (logic, data, infra, refactor) | the **Logic Design Artifact** — five mandatory sections, contract in `skills/gaspol-plan/logic-design-artifact.md` |
+`gaspol-auto` is offered on **every** plan. It is a documented execution mode that this skill
+previously never surfaced, so the only way to reach it was to already know it existed. Its own
+pre-flight gate — plan approval, clean git state, a passing baseline, the per-phase TDD check — is
+unchanged and still refuses to start when any of those fail. Those are `gaspol-auto`'s refusals to
+run, not reasons to hide the door.
 
-Both lanes end the same way: publish with the **`Artifact`** tool, approve via **AskUserQuestion**,
-then record the verdict in **two** places —
+**What the artifact contains** is the tab-count rule in
+`skills/gaspol-plan/logic-design-artifact.md`: the Logic tab always, plus a Design tab holding the
+mockup when the plan touches UI files. That file also carries the page skeleton to copy, the
+`srcdoc` escaping rule, and the requirement that the prose is plain Indonesian.
+
+**`ui-ux-pro-max` is invoked at most once per ticket.** Where `gaspol-brainstorm` Phase 3 already
+ran, its design decisions are reused here and the skill is not called again. Where brainstorm never
+ran and the plan touches UI, this is the single point it is called.
+
+### Declining costs a reason, and the reason may not be empty
+
+The four options that START EXECUTION — `[Eksekusi di sesi ini]`, `[Eksekusi otomatis]`,
+`[Eksekusi parallel]`, `[Serahkan ke executor luar]` — write one line to the ledger before handing
+off:
+
+```text
+design-artifact: skipped — <reason>
+```
+
+An empty reason is refused: ask again. A bare label with nothing after the dash documents the wish
+to skip without documenting why skipping was acceptable, which is the escape hatch this repository
+has already had to close once elsewhere.
+
+`[Simpan buat sesi lain]` writes **NO line at all**. Nothing was skipped, because nothing executed,
+and demanding a justification for a decision the user has not yet made teaches people to type
+anything to get past the prompt.
+
+**The cost of that, stated rather than glossed:** this offer exists only here. A later session that
+resumes the plan through `gaspol-execute` will not be asked again — it reads a ledger with no line,
+proceeds, and records `design-artifact: none — no offer was made`. Re-entering `gaspol-plan` for
+that plan is the only way to reach the offer a second time.
+
+### Recording an approved artifact
+
+When `[Render design artifact dulu]` is chosen and the artifact is approved, record it in **two**
+places:
 
 - `**Artifact:** <url>` in this plan file's header, beside `**Ticket:**` / `**Ledger:**`
 - `design-artifact: approved — <url>` in the ledger, above `## Log`
 
-**Three states, kept apart:**
+| Ledger line | What `gaspol-execute` does |
+|---|---|
+| `design-artifact: approved — <url>` | proceed |
+| `design-artifact: pending — <url>` | **STOP and ask** — published, never approved |
+| `design-artifact: skipped — <reason>` | proceed |
+| no line | proceed, recording `design-artifact: none — no offer was made` |
 
-| State | Ledger line | What happens |
-|---|---|---|
-| approved | `design-artifact: approved — <url>` | execution may start |
-| pending | `design-artifact: pending — <url>` | **STOP and ask.** Published, not yet approved. |
-| not published | (no line) | execution may not start; publish it |
 
-There is deliberately no "not applicable" state. That state was the defect: it is what let logic
-work ship with nothing anyone could review. If the artifact feels like ceremony for the change in
-front of you, the artifact will be short — five sections about a one-file change fit on half a
-page — but it still gets written and still gets looked at.
-
-After the plan is written and saved, and the design artifact above is **approved**, offer the user three options:
-
-**Option 1: Execute in this session**
-> "Ready to start Phase A? I'll use gaspol-execute to implement with per-phase checkpoints."
-
-**Option 2: Parallel execution**
-> "Want to use gaspol-parallel for independent phases? Phases [X, Y] can run in parallel."
-
-**Option 3: Separate session**
-> "Save plan for a new session? The plan file at `docs/plans/...` has everything needed."
-
-**Option 4: External executor** — offer this **only if** an executor is configured (see below):
+### `[Serahkan ke executor luar]` — shown only when an executor is configured
 > "Hand off to your external executor? I'll run `<resolved command>` — it implements **blind** from this self-contained plan and its per-plan ledger, then you return here for review + commit."
 
 This is the two-lane, token-saving path: planning + review stay in this session; the heavy codegen runs in a separate, cheaper executor process. **gaspol-dev ships no executor of its own** — this option surfaces a command *you* wired up, and never invents one.
@@ -365,7 +394,8 @@ This is the two-lane, token-saving path: planning + review stay in this session;
 **Resolving the executor command (in order, first hit wins):**
 1. `$GASPOL_EXECUTOR` environment variable.
 2. First line of a `.gaspol/executor` file in the project root (lets a repo commit its own executor).
-3. **Neither set → do not show Option 4 at all.** The plugin works fully with Options 1–3 (pure in-session, zero setup).
+3. **Neither set → leave this option out of the modal entirely.** The plugin works fully with the
+   in-session options above; there is nothing to configure to use it.
 
 The value is a **command template** with `{plan}` and `{ledger}` placeholders, e.g. `aider --file {plan}`, `opencode run {plan}`, `cursor-agent {plan}`. Substitute the plan path and the resolved per-plan ledger path, then present the concrete command for approval before running.
 

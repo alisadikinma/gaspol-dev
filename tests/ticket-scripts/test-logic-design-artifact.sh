@@ -77,14 +77,54 @@ has "$CONTRACT" "recognise faster\|recognises faster\|recognize faster" \
 grep -qi 'docs/plans' "$CONTRACT" \
     || fail "the contract must say the Indonesian rule does NOT extend to docs/plans/*.md"
 
-echo "test-logic-design-artifact: gaspol-plan gates on it, and the gate is BLOCKING..."
+echo "test-logic-design-artifact: gaspol-plan OFFERS the artifact, it does not block on it (IDS-16)..."
 
-has "$PLAN" "Design Artifact (BLOCKING)" \
-    "gaspol-plan's post-plan step is not a BLOCKING Design Artifact gate"
+# INVERTED from IDS-10, deliberately and with the reason recorded. IDS-10 made this gate
+# BLOCKING because logic work was shipping with nothing a human could review. IDS-16 turns it
+# into an offer because the gate was being paid on every plan including ones whose design had
+# already been settled in conversation. The guarantee IDS-10 bought is NOT abandoned -- it moves
+# from "you may not proceed" to "you may proceed, and the reason is on the record", asserted by
+# the skipped-reason rules below. An offer with no reason attached would be the silent default
+# that `machine-checkable-escape-hatch-closure` warns about, and that is what these assertions
+# are here to prevent.
+grep -q "Design Artifact (BLOCKING)" "$PLAN" \
+    && fail "gaspol-plan still presents Step 0 as a BLOCKING gate instead of an offer (IDS-16)"
 has "$PLAN" "logic-design-artifact.md" \
     "gaspol-plan must reference the contract file"
 has "$PLAN" "design-artifact: approved" \
     "gaspol-plan must record the verdict in the ledger as a machine-checkable line"
+
+echo "test-logic-design-artifact: the offer names every execution mode, gaspol-auto included..."
+
+for mode in gaspol-execute gaspol-auto gaspol-parallel; do
+    has "$PLAN" "$mode" "the post-plan offer must name $mode as a way to proceed"
+done
+has "$PLAN" "Eksekusi otomatis" \
+    "gaspol-auto must appear as an option in the offer itself, not only as prose"
+
+echo "test-logic-design-artifact: declining the artifact costs a reason, and the reason may not be empty..."
+
+has "$PLAN" "design-artifact: skipped" \
+    "declining must write a skipped line to the ledger, not nothing"
+has "$PLAN" "may not be empty\|non-empty\|not be blank" \
+    "the skip reason must be required to be non-empty -- a bare label is the escape hatch this repo already closed once"
+
+echo "test-logic-design-artifact: saving for later writes no line, because nothing executed..."
+
+has "$PLAN" "Simpan buat sesi lain" \
+    "the offer must include a save-for-later option"
+has "$PLAN" "nothing executed\|no line at all\|writes NO line" \
+    "save-for-later must be documented as writing no ledger line, since nothing was skipped"
+
+echo "test-logic-design-artifact: the UI-vs-logic two-lane split is gone..."
+
+grep -qiE '^\| *(UI phases|no UI phases)' "$PLAN" \
+    && fail "the two-lane table (UI lane vs logic lane) is still in gaspol-plan -- IDS-16 replaced it with the tab-count rule"
+
+echo "test-logic-design-artifact: ui-ux-pro-max is invoked at most once per ticket..."
+
+has "$PLAN" "at most once\|invoked once\|only once" \
+    "gaspol-plan must state that ui-ux-pro-max is invoked at most once per ticket, not once per stage"
 
 echo "test-logic-design-artifact: three states, and 'not applicable' is not one of them..."
 
