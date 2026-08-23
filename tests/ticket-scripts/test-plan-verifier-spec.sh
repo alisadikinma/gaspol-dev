@@ -91,6 +91,33 @@ if not re.search(r"(never blocking|not blocking|non-blocking|do not block|report
 sys.exit(0)
 PYEOF
 
+echo "test-plan-verifier-spec: the artifact cross-check has all four states..."
+# Added after round 1. The re-review closed this finding but noted it shipped as
+# prose with no assertion, unlike DROPPED -- which is the rule-with-no-enforcer
+# shape this whole ticket exists to close. Asserting it here so a later edit
+# cannot quietly drop a state.
+python3 - "$PV" <<'PYEOF2' || fail "the artifact cross-check is missing a state, or its disagreement path does not STOP"
+import re, sys, pathlib
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+m = re.search(r"^####[^\n]*Artifact cross-check[^\n]*\n(.*?)^#{2,4}\s", text, re.S | re.M)
+if not m:
+    print("    no '#### ... Artifact cross-check' subsection at all", file=sys.stderr)
+    sys.exit(1)
+sec = m.group(1).lower()
+problems = []
+if "none" not in sec:                       problems.append("no 'none' state for a missing URL")
+if "not run" not in sec:                    problems.append("no 'not run' state for a failed read")
+if "agree" not in sec:                      problems.append("no agreement state")
+# The load-bearing one: a disagreement must STOP, never silently pick a side.
+if not re.search(r"disagree", sec):         problems.append("no disagreement state")
+if not re.search(r"stop and ask", sec):     problems.append("the disagreement path does not STOP and ask")
+if not re.search(r"never.{0,40}passed|never record it as passed", sec):
+    problems.append("a failed read is not explicitly barred from counting as passed")
+for x in problems:
+    print("    " + x, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PYEOF2
+
 # ---------------------------------------------------------------- Phase D ----
 echo "test-plan-verifier-spec: gaspol-verify Layer 2 records spec-fidelity..."
 grep -q 'spec-fidelity:' "$VERIFY" \

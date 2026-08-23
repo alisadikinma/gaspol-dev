@@ -173,12 +173,34 @@ echo changed > "$d/src/existing.txt"; commit_all "$d"
 run_brd "$d" "$base"
 [ "$RC" = 4 ] || fail "case15 expected exit 4 — a verb bullet outside a **Files:** block is prose, not a declaration; got $RC ($OUT)"
 
-echo "test-blast-radius-diff: case 16 — the **Files:** block still parses when it IS present..."
+echo "test-blast-radius-diff: case 16 — a **Steps:** heading ENDS the block (discriminating)..."
+# The first version of this case did not discriminate: it declared a file under
+# **Steps:** that was never created, so exit 0 came out whether or not the
+# scoping worked. A case that passes both ways proves nothing. This version
+# CREATES that file, so a parser that still reads past **Files:** would treat it
+# as declared and return 0, while the correct one reports it unplanned.
 read -r d base <<<"$(make_repo '- Modify: `src/existing.txt`')"
-printf '\n**Steps:**\n\n1. Later we will `- Create: `src/never.txt`` maybe.\n- Create: `src/never.txt`\n' >> "$d/docs/plans/p-plan.md"
-echo changed > "$d/src/existing.txt"; commit_all "$d"
+printf '\n**Steps:**\n\n- Create: `src/leaked.txt`\n' >> "$d/docs/plans/p-plan.md"
+echo changed > "$d/src/existing.txt"; echo leaked > "$d/src/leaked.txt"; commit_all "$d"
 run_brd "$d" "$base"
-[ "$RC" = 0 ] || fail "case16 expected exit 0 — the real block parses and the bullet under **Steps:** does not; got $RC ($OUT)"
+[ "$RC" = 1 ] || fail "case16 expected exit 1 — a bullet under **Steps:** is not a declaration, so src/leaked.txt is unplanned; got $RC ($OUT)"
+case "$OUT" in *leaked.txt*) ;; *) fail "case16 must name src/leaked.txt as unplanned: $OUT" ;; esac
+
+echo "test-blast-radius-diff: case 17 — a '###' heading also ends the block..."
+read -r d base <<<"$(make_repo '- Modify: `src/existing.txt`')"
+printf '\n### Phase B\n\n- Create: `src/leaked2.txt`\n' >> "$d/docs/plans/p-plan.md"
+echo changed > "$d/src/existing.txt"; echo leaked > "$d/src/leaked2.txt"; commit_all "$d"
+run_brd "$d" "$base"
+[ "$RC" = 1 ] || fail "case17 expected exit 1 — a markdown heading ends the block; got $RC ($OUT)"
+
+echo "test-blast-radius-diff: case 18 — a SECOND **Files:** block re-opens parsing..."
+# Every real plan has one block per phase. If a terminator did not allow re-entry,
+# only phase A's files would ever be read and every later phase would look unplanned.
+read -r d base <<<"$(make_repo '- Modify: `src/existing.txt`')"
+printf '\n### Phase B\n\n**Files:**\n- Create: `src/second.txt`\n' >> "$d/docs/plans/p-plan.md"
+echo changed > "$d/src/existing.txt"; echo two > "$d/src/second.txt"; commit_all "$d"
+run_brd "$d" "$base"
+[ "$RC" = 0 ] || fail "case18 expected exit 0 — a second **Files:** block must re-open parsing, or every phase after the first reads as unplanned; got $RC ($OUT)"
 
 echo "test-blast-radius-diff: a report line is written on EVERY exit path..."
 for spec in "0:- Modify: \`src/existing.txt\`" "4:" "3:- Modify: \`src/*.txt\`"; do
