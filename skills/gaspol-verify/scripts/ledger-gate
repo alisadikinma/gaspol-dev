@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+# ledger-gate — does this branch's ticket have a progress ledger, and is it
+#               structurally sound? (IDS-19 Phase A)
+#
+# The progress ledger had exactly ONE creator -- gaspol-plan step 7 -- and no
+# reader anywhere that checked it existed. Measured across all 18 IDS tickets in
+# this repository, the ledger was present if and only if a plan file was:
+# IDS-3, IDS-5, IDS-9 and IDS-15 had neither. Every path that reaches code
+# without passing through gaspol-plan (gaspol-debug, gaspol-brainstorm's bounded
+# path, a direct edit) produced no ledger at all, and nothing noticed.
+#
+# This is the seventh instance in this repository of one defect shape: a rule
+# stated in prose, with nothing reading the record the rule is supposed to
+# produce. IDS-7, IDS-8, IDS-12, IDS-13, IDS-14 and IDS-18 were the first six.
+#
+# The seam is the one kb-root, regression-gate and spec-pointer already use:
+# this script resolves and validates STRUCTURE deterministically. It never
+# grades whether the ledger's content is honest -- see "What this does not do".
+#
+# Usage:  ledger-gate <BASE>
+#         ledger-gate --self-test
+#
+# Contract:
+#   $1        BASE git ref. The diff examined is <BASE>..HEAD.
+#   stdout    ONE "ledger-gate: <verdict>" line on EVERY exit path, so a caller
+#             can capture the state unconditionally for a ledger line. stdout
+#             rather than stderr because this script has NO bare-value contract
+#             on stdout to protect -- it follows regression-gate and
+#             blast-radius-diff, NOT spec-pointer (whose stdout carries a bare
+#             path and whose report is therefore on stderr). That split is
+#             deliberate and already recorded in spec-pointer's own header; a
+#             helper that captures "a gate script's report line" uniformly will
+#             be wrong about one of them.
+#   exit 0    ledger found and structurally valid.
+#   exit 1    BLOCKING -- a ticket resolved, the branch changed code, and no
+#             ledger exists for that ticket.
+#   exit 3    UNKNOWN -- STOP and ask.
+#   exit 4    not applicable -- NOT a failure, and never counted as a pass.
+#
+# WHY EXIT 3 IS NOT MERGED INTO EXIT 1. A malformed ledger must degrade to
+# neither "missing" nor "fine". A ledger carrying a block below "## Log" still
+# EXISTS, so scan-active-ledgers reads the wrong last line and reports the
+# ticket's state incorrectly -- strictly worse than an absent file, which at
+# least reports nothing. Collapsing the two would turn a wrong answer into a
+# silent one.
+#
+# WHY EXIT 4 EXISTS AT ALL. Without it every typo fix on an unticketed branch
+# gets blocked, the gate cries wolf, and somebody switches it off -- the same
+# reasoning that made blast-radius-diff a WARN rather than a BLOCK. Exit 4
+# covers two situations, told apart by the reason text, because they read
+# differently to whoever audits the line later:
+#     ledger-gate: N/A — no ticket on this branch
+#     ledger-gate: N/A — docs-only branch, no code commits
+# The reason after the dash is mandatory. A bare "N/A" is "(if possible)"
+# wearing a new name, which is the escape hatch IDS-14 had to close.
+#
+# WHAT THIS DOES NOT DO, stated so nobody reads it as more than it is: it checks
+# that a ledger EXISTS and has the right SHAPE. It never checks whether its
+# content is honest. A checklist ticked without the work being done passes with
+# exit 0. This closes the silent-skip hole, not the recorded-but-false hole.
+#
+# Every file this script touches is read and compared, never executed and never
+# interpolated into a command. --self-test prints fixed literals only.
+set -euo pipefail
+
+# The ignore list is COPIED VERBATIM from skills/gaspol-verify/scripts/blast-radius-diff
+# (its lines 50-51), not sourced from it. Sourcing a sibling gate would make each
+# script's behaviour depend on the other's load order and turn one script's bug
+# into two; the cost of the copy is that the two must be diffed by hand when
+# either changes, which is why the origin is named here.
+#
+# Markdown is deliberately NOT on this list. In a skills repository a
+# skills/*.md file IS the executed surface -- the same reasoning CLAUDE.md
+# records for running /security-review on markdown diffs. Letting markdown count
+# as "docs" would hand this repository a permanent exemption from its own gate.
+IGNORE_PREFIXES=".gaspol/ docs/plans/ .git/"
+IGNORE_EXACT="CLAUDE.md package-lock.json pnpm-lock.yaml yarn.lock composer.lock poetry.lock Cargo.lock"
+
+report() { echo "ledger-gate: $*"; }
+
+is_ignored() {
+    f_ignore="$1"
+    for p_ignore in $IGNORE_PREFIXES; do
+        case "$f_ignore" in
+            "$p_ignore"*) return 0 ;;
+        esac
+    done
+    for e_ignore in $IGNORE_EXACT; do
+        if [ "$f_ignore" = "$e_ignore" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# ticket_from_plan <absolute plan path> -- prints the **Ticket:** value, or nothing.
+# grep -E throughout: BSD sed rejects \| alternation in a basic regex, and IDS-18's
+# blast-radius-diff parser silently found ZERO paths because of exactly that.
+ticket_from_plan() {
+    line_tfp="$(grep -m1 -E '^\*\*Ticket:\*\*[[:space:]]*' "$1" 2>/dev/null || true)"
+    [ -n "$line_tfp" ] || return 0
+    printf '%s' "$line_tfp" \
+        | sed -E 's/^\*\*Ticket:\*\*[[:space:]]*//' \
+        | tr -d '[:space:]'
+}
+
+main() {
+    base="${1:-}"
+    if [ -z "$base" ]; then
+        report "UNKNOWN — no BASE ref given"
+        return 3
+    fi
+
+    # Resolved before anything else, and the script then works from the repo
+    # root. An agent runs a SKILL.md bash block with the TARGET PROJECT as its
+    # working directory, so resolving repo-relative paths against \$PWD reads
+    # files from whatever repository the user happens to be sitting in -- the
+    # IDS-8 hazard class.
+    if ! root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        report "UNKNOWN — not inside a git repository"
+        return 3
+    fi
+    cd "$root"
+
+    if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then
+        report "UNKNOWN — BASE '$base' is not a valid git ref"
+        return 3
+    fi
+
+    if ! changed="$(git diff --name-only "$base"..HEAD 2>/dev/null)"; then
+        report "UNKNOWN — could not diff $base..HEAD"
+        return 3
+    fi
+
+    # --- 1. ticket from a plan header in the diff -------------------------
+    plan_tickets=""
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        case "$f" in
+            docs/plans/*-plan.md) ;;
+            *) continue ;;
+        esac
+        [ -f "$f" ] || continue
+        t="$(ticket_from_plan "$f")"
+        [ -n "$t" ] || continue
+        case " $plan_tickets " in
+            *" $t "*) ;;
+            *) plan_tickets="$plan_tickets $t" ;;
+        esac
+    done <<CHANGED
+$changed
+CHANGED
+
+    n_tickets=0
+    for t in $plan_tickets; do
+        n_tickets=$((n_tickets + 1))
+        ticket="$t"
+    done
+    if [ "$n_tickets" -gt 1 ]; then
+        report "UNKNOWN — the diff carries plans naming different tickets:$plan_tickets — which one is the contract?"
+        return 3
+    fi
+    [ "$n_tickets" -eq 1 ] || ticket=""
+
+    # --- 2. ticket from the branch name -----------------------------------
+    # Uppercase-anchored on purpose: a lowercase branch like "ids-99-foo" must
+    # NOT resolve a ticket, or a stray word in a branch name starts minting one.
+    if [ -z "$ticket" ]; then
+        branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+        ticket="$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9]*-[0-9]+' | head -1 || true)"
+    fi
+
+    # --- 3. no ticket anywhere --------------------------------------------
+    if [ -z "$ticket" ]; then
+        report "N/A — no ticket on this branch"
+        return 4
+    fi
+
+    # --- did this branch change any code? ---------------------------------
+    has_code=0
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        if is_ignored "$f"; then
+            continue
+        fi
+        has_code=1
+        break
+    done <<CHANGED2
+$changed
+CHANGED2
+
+    if [ "$has_code" -eq 0 ]; then
+        report "N/A — docs-only branch, no code commits"
+        return 4
+    fi
+
+    # --- resolve the ledger ------------------------------------------------
+    ledger=""
+    primary=".gaspol/progress/PROGRESS-$ticket.md"
+    if [ -e "$primary" ]; then
+        ledger="$primary"
+    else
+        # The legacy forms, still read: gaspol-plan wrote .gaspol/progress/<slug>.md
+        # before IDS-1, and the shared .gaspol/progress.md before that. A ledger
+        # is claimed by the ticket named in its BODY, which is what makes the
+        # slug irrelevant.
+        for cand in .gaspol/progress/*.md .gaspol/progress.md; do
+            [ -f "$cand" ] || continue
+            if grep -qF "**Ticket:** $ticket" "$cand" 2>/dev/null; then
+                ledger="$cand"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$ledger" ]; then
+        report "BLOCKING — $ticket changed code but has no ledger at $primary"
+        return 1
+    fi
+
+    # --- structural validation ---------------------------------------------
+    if [ ! -r "$ledger" ]; then
+        report "UNKNOWN — ledger exists but cannot be read: $ledger"
+        return 3
+    fi
+    if [ ! -s "$ledger" ]; then
+        report "UNKNOWN — ledger is empty: $ledger"
+        return 3
+    fi
+    if ! grep -qE '^## Checklist[[:space:]]*$' "$ledger"; then
+        report "UNKNOWN — ledger has no '## Checklist' heading: $ledger"
+        return 3
+    fi
+
+    # Captured into a variable BEFORE any pipe touches it. Piping git/grep
+    # straight into a command that exits early can SIGPIPE the producer, and
+    # under `set -o pipefail` the pipeline then reports the PRODUCER's signal
+    # status instead of the consumer's success -- the intermittent bug IDS-14
+    # chased for a whole round in regression-gate's has_fix_commit().
+    headings="$(grep -nE '^## ' "$ledger" || true)"
+    log_line="$(printf '%s\n' "$headings" | grep -E ':## Log[[:space:]]*$' | tail -1 | cut -d: -f1 || true)"
+    if [ -z "$log_line" ]; then
+        report "UNKNOWN — ledger has no '## Log' heading: $ledger"
+        return 3
+    fi
+    last_heading="$(printf '%s\n' "$headings" | tail -1 | cut -d: -f1)"
+    if [ "$last_heading" != "$log_line" ]; then
+        report "UNKNOWN — a '## ' block appears after '## Log' in $ledger — scan-active-ledgers reads the last non-empty line and will report this ticket's state wrongly"
+        return 3
+    fi
+
+    report "ok — $ticket has a valid ledger at $ledger"
+    return 0
+}
+
+self_test() {
+    rc_st=0
+
+    # is_ignored — the copied list must behave like blast-radius-diff's.
+    for path_st in ".gaspol/progress/PROGRESS-IDS-1.md" "docs/plans/x-plan.md" "CLAUDE.md" "pnpm-lock.yaml"; do
+        if ! is_ignored "$path_st"; then
+            echo "self-test: expected '$path_st' to be ignored" >&2
+            rc_st=1
+        fi
+    done
+    for path_st in "skills/gaspol-plan/SKILL.md" "src/a.ts" "tests/ticket-scripts/x.sh" "README.md"; do
+        if is_ignored "$path_st"; then
+            echo "self-test: expected '$path_st' to count as code" >&2
+            rc_st=1
+        fi
+    done
+
+    # The ticket pattern is uppercase-anchored.
+    got_st="$(printf '%s' "IDS-19-ledger-standard" | grep -oE '[A-Z][A-Z0-9]*-[0-9]+' | head -1 || true)"
+    if [ "$got_st" != "IDS-19" ]; then
+        echo "self-test: expected IDS-19 from the branch name, got '$got_st'" >&2
+        rc_st=1
+    fi
+    got_st="$(printf '%s' "ids-19-lowercase" | grep -oE '[A-Z][A-Z0-9]*-[0-9]+' | head -1 || true)"
+    if [ -n "$got_st" ]; then
+        echo "self-test: a lowercase branch must resolve no ticket, got '$got_st'" >&2
+        rc_st=1
+    fi
+
+    # The BSD-hostile-alternation check deliberately does NOT live here. It
+    # lives in tests/ticket-scripts/test-ledger-gate.sh, and the reason is that
+    # two attempts to put it here both FAILED AGAINST THEMSELVES: a guard that
+    # searches its own source for a pattern must quote that pattern, so it
+    # always finds one -- first over the whole file, then over sed lines only,
+    # where the narrowed guard's own comment reintroduced the word "sed". A
+    # checker cannot be its own subject. The test file reads this script
+    # without being it, which is the only place the check can be honest.
+
+    if [ "$rc_st" -eq 0 ]; then
+        echo "ledger-gate --self-test: PASS"
+    fi
+    return "$rc_st"
+}
+
+if [ "${1:-}" = "--self-test" ]; then
+    self_test
+    exit $?
+fi
+
+set +e
+main "$@"
+rc_main=$?
+set -e
+exit "$rc_main"
