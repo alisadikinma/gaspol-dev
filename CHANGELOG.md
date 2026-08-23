@@ -58,8 +58,8 @@ way-through pattern `test-gate-mutations.sh` exists to catch.
 `skills/gaspol-plan/SKILL.md` was rewritten CRLF→LF wholesale by the editing pass. `git diff
 --numstat` reports 429/399 while `git diff -w` reports 66/36 — the real content change is ~66
 lines and the rest is line-ending normalisation, which inflates the reviewable diff about
-sixfold. It is kept rather than reverted: this repository is mixed (4 of 17 `SKILL.md` files were
-CRLF, 13 LF), so the change moves the file toward the majority. It is recorded here because the
+sixfold. It is kept rather than reverted: this repository is mixed (on `main` 5 of 17 `SKILL.md` files were
+CRLF and 12 LF; at this HEAD it is 4 and 13), so the change moves the file toward the majority. It is recorded here because the
 spec's blast radius said "four skills' text", not a whole-file re-encoding, and an undeclared
 diff is how a reviewer's attention gets spent on nothing.
 
