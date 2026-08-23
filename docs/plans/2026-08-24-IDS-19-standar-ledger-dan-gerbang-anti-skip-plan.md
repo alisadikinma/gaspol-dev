@@ -166,7 +166,10 @@ appended verbatim (it is already `- [ ]`).
 
 **Ticket:** IDS-19
 **Plan:** docs/plans/2026-08-24-IDS-19-standar-ledger-dan-gerbang-anti-skip-plan.md
-**Spec:** docs/plans/2026-08-24-IDS-19-standar-ledger-dan-gerbang-anti-skip-spec.md
+<!-- the example's Spec line is indented so it is not mistaken for THIS plan's own
+     header: spec-pointer reads any line starting `**Spec:**` and refuses when it
+     finds two, which is what it did here -->
+  **Spec:** docs/plans/2026-08-24-IDS-19-standar-ledger-dan-gerbang-anti-skip-spec.md
 
 ## Pre-flight
 
