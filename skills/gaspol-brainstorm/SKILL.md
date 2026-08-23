@@ -267,14 +267,18 @@ If Phase 3 triggers are AMBIGUOUS (mixed signals — some UI, some backend):
 
 If clearly non-UI (pure backend/API/DB/business logic):
   → Skip Phase 3 and proceed to Phase 4 — the LOGIC lane, not "no design".
-    gaspol-plan Step 0 will produce the logic design artifact
+    gaspol-plan will OFFER the logic design artifact
     (`skills/gaspol-plan/logic-design-artifact.md`) once the plan is written.
+    It is an offer, not a gate: declining writes the reason to the ledger.
 ```
 
 **Skipping Phase 3 is not skipping design.** Phase 3 is the *UI* design phase; the logic lane's
-artifact is produced later, at plan stage, because it describes the flow the plan lays out. What
-was removed here is the branch that led to no artifact at all — logic work whose first reviewable
-output was the diff.
+artifact is offered later, at plan stage, because it describes the flow the plan lays out.
+
+**Phase 3 produces design DECISIONS as text** — palette, font pairing, layout blueprint, motion,
+accessibility. It does not render the mockup file. That happens once, later, in `gaspol-plan`'s
+post-plan offer, which mounts it as the artifact's Design tab. One render point, so the same
+question cannot get three different answers.
 
 Design triggers (Phase 3 fires if any match):
 

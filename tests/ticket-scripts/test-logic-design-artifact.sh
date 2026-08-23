@@ -139,6 +139,18 @@ grep -qiE '\[No, pure backend/logic\]' "$BRAIN" \
 has "$BRAIN" "logic design artifact" \
     "brainstorm Phase 2.5's non-UI branch must route to the logic design artifact, not to nothing"
 
+echo "test-logic-design-artifact: brainstorm OFFERS rather than promises (IDS-16)..."
+
+grep -q "Step 0 will produce the logic design artifact" "$BRAIN" \
+    && fail "brainstorm Phase 2.5 still promises gaspol-plan Step 0 WILL produce the artifact -- it now offers it"
+has "$BRAIN" "will OFFER\|will offer" \
+    "brainstorm Phase 2.5 must say gaspol-plan OFFERS the artifact once the plan is written"
+
+echo "test-logic-design-artifact: Phase 3 produces decisions, not the mockup file..."
+
+has "$BRAIN" "design DECISIONS\|design decisions as text\|decisions as text" \
+    "Phase 3 must state it produces design decisions as text; the mockup file is rendered once, later, at the offer"
+
 echo "test-logic-design-artifact: gaspol-execute reads four artifact states (IDS-16)..."
 
 has "$EXEC" "design-artifact" \
