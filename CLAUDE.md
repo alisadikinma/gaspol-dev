@@ -32,6 +32,9 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-verify/scripts/spec-pointer` | **NEW (v1.27)** — resolves the `**Spec:** <path>` line in a plan header, which `gaspol-plan` had been writing since IDS-1 with **zero** readers. Three states on `kb-root`'s own exit contract (0 resolved / 3 UNKNOWN / 4 none). Exit 3 deliberately covers a spec that exists but carries **no parseable requirement** — zero items must not read as *satisfied*, which is `design_audit.py`'s defect one layer down. Resolves against `git rev-parse --show-toplevel`, never `$PWD` |
 | `skills/gaspol-verify/scripts/blast-radius-diff` | **NEW (v1.27)** — the plan's declared file list vs `git diff --name-only <BASE>..HEAD`. Reads the list from the **plan**, not the artifact: the artifact is a URL, and a gate needing the network spends its life recorded as `not run`. Exit 1 is **WARN and does not block** — collateral edits are legitimate, a per-file BLOCK fires on most branches, and a gate that cries wolf gets switched off. Built-in ignore list (`.gaspol/`, `docs/plans/`, `CLAUDE.md`, lockfiles) is what makes it survivable |
 | `skills/gaspol-verify/scripts/ledger-gate` | **NEW (v1.28)** — the reader the progress ledger never had. Four exit states on the contract `spec-pointer` established (0 found and structurally valid / 1 BLOCKING / 3 UNKNOWN / 4 not applicable). Exit 3 is deliberately **not** merged into exit 1: a ledger carrying a block below `## Log` still exists, so `scan-active-ledgers` reads the wrong last line and reports the ticket's state **wrongly** — worse than an absent file, which at least reports nothing. Markdown is deliberately absent from the ignore list, because in a skills repository `skills/*.md` IS the executed surface |
+| `skills/gaspol-verify/scripts/model-gate` | **NEW (v1.29)** — reads the model rule: Opus judges, Sonnet works. Four exit states on `ledger-gate`'s contract. The deleted third tier is exit **1**, never exit 3 — it is not an unknown tier but a removed one, and reporting it as unknown invites a case-by-case exemption. Tier comes from the file path, falling back to the same line, then to a `model-tier:` line the file declares about itself; the first design keyed off an adjacent `subagent_type` and could see only four of the ten real violations. Scans `*.md` only, because otherwise it flags its own header |
+| `tests/ticket-scripts/test-model-gate.sh` | **NEW (v1.29)** — 18 cases over all four exit states, both tier sources, the self-declared tier and its enforcement, and a live assertion that the gate is clean against **this** repository: a gate green only on synthetic trees proves nothing about the repo it ships in |
+| `tests/ticket-scripts/test-model-rule.sh` | **NEW (v1.29)** — asserts the rubric states a MUST, names no third tier as a choice, carries no stale version numbers, records the alias mapping **with a date**, states what the alias choice gives up, demands a written reason for a cross-tier override, and names its own enforcer. Carries a `near()` proximity helper with its own positive control, written after two assertions failed against correct prose because `grep` matches one line at a time |
 | `tests/ticket-scripts/test-ledger-gate.sh` | **NEW (v1.28)** — 19 cases over all four exit states, both legacy ledger paths, a lowercase branch that must resolve **no** ticket, and invocation from a subdirectory. Also home to the BSD-`sed` portability guard, which could not live in the script's own `--self-test`: a guard that searches its own source for a pattern must quote that pattern, so it always finds one. Two attempts inside the script both failed against themselves |
 | `tests/ticket-scripts/test-ledger-template.sh` | **NEW (v1.28)** — 8 assertions over `gaspol-plan`'s ledger template, which it **extracts** rather than duplicates: a copy inside the test would keep passing after the real one drifted. Carries a positive control asserting the extractor read a real template, not an empty file |
 | `skills/gaspol-execute/scripts/detect-app-target` | **NEW (v1.23)** — sibling of `detect-stack`, answering the other question: not "what verifies this code?" but "what does it take to RUN this app right now?". Prints one lane per detected app surface plus its literal readiness probe; `--self-test`. Resolves adb through `$ADB` → PATH → `$ANDROID_HOME` → `$ANDROID_SDK_ROOT` → the macOS and Linux default SDK paths, because PATH-only detection produced a **false UNKNOWN on the first machine it ran on** |
@@ -498,6 +501,64 @@ Layer 2. What is given up: nothing forces anyone to read that line. It is not eq
 - **A bug fix still passes no spec point at all** — bug reports route to `gaspol-debug`, which
   produces no spec. Unchanged here, and deliberately not ticketed: a number pointing at no spec is
   the promise-with-no-implementation shape this repository keeps having to undo.
+
+### Model Rule (NEW in v1.29) — the rubric was advice, and advice drifts
+
+Canonical sources: `docs/rubric-model-switching.md`, `skills/gaspol-verify/scripts/model-gate`.
+
+Asked for directly by the owner: execution on Sonnet, brainstorm/plan/verify/review on Opus. What
+existed was `docs/rubric-model-switching.md`, opening with *"Auto-rubric untuk pilih model
+berdasarkan task type"* — something to choose from, enforced by nothing.
+
+**It had drifted in ten places, and the count is the scope.** A first survey found four; a second
+pass over `skills/**` found six more. Recording four would have carried six known violations out
+of the ticket by omission, which is how a known hazard becomes an unknown one:
+
+| Surface | Was |
+|---|---|
+| `agents/code-reviewer.md`, `agents/code-simplifier.md` | `sonnet` |
+| four reviewer prompt files under `skills/gaspol-review/` | `sonnet` |
+| `skills/gaspol-parallel/code-quality-reviewer-prompt.md`, two places | `sonnet` |
+| `skills/gaspol-parallel/SKILL.md` code-quality dispatch | `"sonnet"` |
+| `skills/gaspol-review/SKILL.md` refuter | `Sonnet` |
+| `skills/gaspol-execute/implementer-prompt.md` | *"Override to `haiku` when: mechanical rename/format/docs-only changes"* — an instruction to use a tier this release **deleted**, which is that tier still being available |
+
+Its prose still named **Opus 4.7** and **Sonnet 4.6** — versions that do not exist. A rubric naming
+models that do not exist reads as unmaintained, and an unmaintained rubric is one nobody consults,
+which is how ten drifts happened without anyone deciding them.
+
+**Two tiers, no third.** `Opus` judges; `Sonnet` works. The third tier is **deleted**, not
+exempted: docs sync, rename/format and simple lookup are now more expensive than they strictly
+need to be, and what that buys is a boundary nobody has to guess at plus no exception list inside
+the gate. `model-gate` treats the deleted tier's name as **BLOCKING**, never *unknown* —
+"unknown" invites a case-by-case exemption, which is how a deleted tier returns one row at a time.
+The check is deliberately broad, the bare word anywhere in markdown, because it survived in prose.
+
+**Aliases in code, concrete ids recorded once with a date.** `opus` and `sonnet` point at the
+current member of each family, so nothing needs editing when a model ships. **What that gives up
+is real and is written down:** if `opus` ever resolves to a *weaker* model, nothing tells you. The
+dated table in the rubric is a record a human checks, not a mechanism.
+
+**Three findings the work produced that nobody had listed.** The gate's first real run reported
+exit 3 for `gaspol-learn` and `gaspol-research` — both already correct, both merely unlabelled.
+Rather than grow a keyword list that drifts, or default the unmatched case to execution and
+silently demand Sonnet of a judging surface nobody named carefully, **a file may declare its own
+tier** with a `model-tier:` line. Second, `code-quality-reviewer-prompt.md` justified its old model
+as *"pattern matching / style check"* — the argument FOR the old tier, which had to be rewritten
+rather than left standing under the new one. Third, the gate flagged **its own header**, which must
+quote the forbidden word to explain why it is forbidden; the scan is restricted to `*.md`, since a
+shell script dispatches nothing.
+
+**What this does NOT close:**
+
+- **It reads declarations, never what ran.** If the harness ignores the `model` field, every check
+  still passes. This closes the drift hole, not the execution hole.
+- **The alias mapping is a note, not a mechanism.**
+- **The main session's own model is not enforced** — gaspol cannot read or change it.
+- **A tier violation written as prose is invisible.** Widening the tier check to every sentence
+  would flag correct writing *about* the rule, and a gate that fires on its own documentation is
+  one somebody switches off. `skills/gaspol-review/SKILL.md`'s refuter line was exactly that shape
+  and was fixed by hand.
 
 ### Ledger Standard + Ledger Gate (NEW in v1.28) — the record had one writer and no reader
 
@@ -1564,5 +1625,5 @@ Last ticket: IDS-20
 
 ---
 
-**Version:** 1.28.0
+**Version:** 1.29.0
 **Last Updated:** August 2026

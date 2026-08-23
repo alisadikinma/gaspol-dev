@@ -58,15 +58,35 @@ if grep -qiF 'haiku' "$RUBRIC"; then
 else
     note "the rubric does not name haiku at all"
 fi
-grep -qiF 'haiku' "$CM" && fail "CLAUDE.md still offers haiku as a tier" || true
-note "CLAUDE.md names no haiku tier"
+# CLAUDE.md gets the same allowance as the rubric, and for the same reason: to
+# record that a tier was removed you must name it. The test that forbade the
+# word outright failed against the paragraph documenting the removal — a checker
+# cannot forbid the vocabulary its subject needs to explain itself.
+if grep -qiF 'haiku' "$CM"; then
+    near "$CM" "haiku" "(removed|deleted|dihapus|no longer|blocking|until ids-20)" \
+        || fail "CLAUDE.md names haiku without saying it was removed nearby — a deleted tier presented as a choice is the tier still being available"
+    note "CLAUDE.md names haiku only as a recorded removal"
+else
+    note "CLAUDE.md names no haiku tier"
+fi
 
 echo "test-model-rule: the stale version numbers are gone..."
+# A stale version may be QUOTED as evidence that it was stale — the record of
+# the fix has to name what was fixed. What is forbidden is presenting one as
+# current. Same allowance as the deleted tier above, and for the same reason:
+# forbidding the vocabulary the subject needs to explain itself makes the
+# checker fail against correct documentation, which happened FIVE times in this
+# ticket before the pattern was named.
 for stale in "Opus 4.7" "Sonnet 4.6" "Haiku 4.5"; do
-    grep -qF "$stale" "$RUBRIC" && fail "the rubric still names $stale, a version that does not exist" || true
-    grep -qF "$stale" "$CM" && fail "CLAUDE.md still names $stale, a version that does not exist" || true
+    for doc in "$RUBRIC" "$CM"; do
+        if grep -qF "$stale" "$doc"; then
+            near "$doc" "$(printf '%s' "$stale" | tr 'A-Z' 'a-z')" \
+                 "(do(es)? not exist|no longer|stale|until ids-20|was |were )" \
+                || fail "$(basename "$doc") names $stale as if it were current — that version does not exist"
+        fi
+    done
 done
-note "no stale version numbers in the rubric or CLAUDE.md"
+note "no stale version number is presented as current"
 
 echo "test-model-rule: both tiers are named, and only two..."
 grep -qiE '\bopus\b' "$RUBRIC" || fail "the rubric never names opus"
