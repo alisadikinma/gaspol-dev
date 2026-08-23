@@ -157,6 +157,29 @@ echo changed > "$d/src/my file.txt"; commit_all "$d"
 run_brd "$d" "$base"
 [ "$RC" = 0 ] || fail "case14 expected exit 0, got $RC ($OUT)"
 
+echo "test-blast-radius-diff: case 15 — a verb bullet OUTSIDE any **Files:** block is not parsed..."
+# Found by plan-verifier on this ticket's own branch. The parser was unscoped, so
+# a `- Create: ...` bullet written anywhere in the plan's prose was read as a
+# declared file — and a plan with NO **Files:** block returned findings instead of
+# the exit 4 the contract defines for exactly that case.
+read -r d base <<<"$(make_repo '')"
+python3 - "$d/docs/plans/p-plan.md" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+# No **Files:** heading anywhere — only a verb bullet loose in prose.
+p.write_text("**Ticket:** T-1\n\n### Phase A\n\nThe fix will `- Create: `src/loose.txt`` eventually.\n\n- Create: `src/loose.txt`\n", encoding="utf-8")
+PYEOF
+echo changed > "$d/src/existing.txt"; commit_all "$d"
+run_brd "$d" "$base"
+[ "$RC" = 4 ] || fail "case15 expected exit 4 — a verb bullet outside a **Files:** block is prose, not a declaration; got $RC ($OUT)"
+
+echo "test-blast-radius-diff: case 16 — the **Files:** block still parses when it IS present..."
+read -r d base <<<"$(make_repo '- Modify: `src/existing.txt`')"
+printf '\n**Steps:**\n\n1. Later we will `- Create: `src/never.txt`` maybe.\n- Create: `src/never.txt`\n' >> "$d/docs/plans/p-plan.md"
+echo changed > "$d/src/existing.txt"; commit_all "$d"
+run_brd "$d" "$base"
+[ "$RC" = 0 ] || fail "case16 expected exit 0 — the real block parses and the bullet under **Steps:** does not; got $RC ($OUT)"
+
 echo "test-blast-radius-diff: a report line is written on EVERY exit path..."
 for spec in "0:- Modify: \`src/existing.txt\`" "4:" "3:- Modify: \`src/*.txt\`"; do
     want="${spec%%:*}"; block="${spec#*:}"

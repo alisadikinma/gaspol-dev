@@ -49,6 +49,15 @@
 # never interpolated into a command.
 set -euo pipefail
 
+# Resolved ONCE, absolutely, before anything can cd. The self-test re-invokes
+# this script from a foreign directory to prove path resolution does not use the
+# CWD, and "$0" is whatever the caller typed -- so a RELATIVE invocation
+# (`bash skills/gaspol-verify/scripts/spec-pointer --self-test`, exactly what the
+# plan's verification step runs) resolved to nothing after that cd and died 127.
+# The suite missed it because the test builds an absolute path, which is the
+# vacuous-green shape this repository keeps having to close.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
 report() { echo "spec-pointer: $1" >&2; }
 
 # gaspol-plan's own header template (skills/gaspol-plan/SKILL.md:126) ships a
@@ -163,45 +172,45 @@ self_test() {
 
     local d
     d="$(_repo '**Spec:** docs/plans/s-spec.md' "$body")"
-    rc=0; out="$( "$0" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
+    rc=0; out="$( "$SELF" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
     [ "$rc" = 0 ] || { echo "self-test: case1 expected 0, got $rc" >&2; return 1; }
     [ "$out" = "$d/docs/plans/s-spec.md" ] || { echo "self-test: case1 wrong path '$out'" >&2; return 1; }
 
     d="$(_repo '' '')"
-    rc=0; "$0" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
     [ "$rc" = 4 ] || { echo "self-test: case2 (no line) expected 4, got $rc" >&2; return 1; }
 
     d="$(_repo '**Spec:**' "$body")"
-    rc=0; "$0" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
     [ "$rc" = 3 ] || { echo "self-test: case3 (bare label) expected 3, got $rc" >&2; return 1; }
 
     d="$(_repo '**Spec:** docs/plans/gone-spec.md' "$body")"
-    rc=0; "$0" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
     [ "$rc" = 3 ] || { echo "self-test: case4 (missing file) expected 3, got $rc" >&2; return 1; }
 
     d="$(_repo '**Spec:** docs/plans/s-spec.md <!-- omit if standalone -->' "$body")"
-    rc=0; out="$( "$0" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
+    rc=0; out="$( "$SELF" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
     [ "$rc" = 0 ] || { echo "self-test: case5 (trailing comment) expected 0, got $rc" >&2; return 1; }
     [ "$out" = "$d/docs/plans/s-spec.md" ] || { echo "self-test: case5 comment not stripped" >&2; return 1; }
 
     d="$(_repo '**Spec:** docs/plans/s-spec.md' 'a
 b
 c')"
-    rc=0; "$0" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
     [ "$rc" = 3 ] || { echo "self-test: case6 (no structure) expected 3, got $rc" >&2; return 1; }
 
     d="$(_repo '**Spec:** docs/plans/s-spec.md' "$body")"
     printf '**Spec:** docs/plans/other-spec.md\n' >> "$d/docs/plans/p-plan.md"
-    rc=0; "$0" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
+    rc=0; "$SELF" "$d/docs/plans/p-plan.md" >/dev/null 2>&1 || rc=$?
     [ "$rc" = 3 ] || { echo "self-test: case7 (two pointers) expected 3, got $rc" >&2; return 1; }
 
-    rc=0; "$0" "$tmp/nope-plan.md" >/dev/null 2>&1 || rc=$?
+    rc=0; "$SELF" "$tmp/nope-plan.md" >/dev/null 2>&1 || rc=$?
     [ "$rc" = 3 ] || { echo "self-test: case8 (missing plan) expected 3, got $rc" >&2; return 1; }
 
     # The reason resolution uses the repo root: an agent's CWD is the target project.
     d="$(_repo '**Spec:** docs/plans/s-spec.md' "$body")"
     local foreign; foreign="$(mktemp -d "$tmp/f.XXXXXX")"
-    rc=0; out="$( cd "$foreign" && "$0" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
+    rc=0; out="$( cd "$foreign" && "$SELF" "$d/docs/plans/p-plan.md" 2>/dev/null )" || rc=$?
     [ "$rc" = 0 ] || { echo "self-test: case9 (foreign CWD) expected 0, got $rc" >&2; return 1; }
     [ "$out" = "$d/docs/plans/s-spec.md" ] || { echo "self-test: case9 wrong path '$out'" >&2; return 1; }
 

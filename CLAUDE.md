@@ -959,8 +959,8 @@ Anti-hallucination: WebFetch actual pages, orchestrator spot-check cache for quo
 `plan-verifier` agent upgraded to step-level evidence-based audit (`agents/plan-verifier.md`):
 
 - Parses plan into granular items (every bullet, not phase header)
-- Verdict per item: FOUND (with code quote) / PARTIAL / MISSING / DIVERGED
-- BLOCKING verdict if MISSING > 0 OR unapproved PARTIAL > 0 OR placeholders > 0
+- Verdict per item: FOUND (with code quote) / PARTIAL / MISSING / DIVERGED / **DROPPED** (a spec requirement the plan never carried forward — v1.27)
+- BLOCKING verdict if MISSING > 0 OR **DROPPED > 0** OR unapproved PARTIAL > 0 OR placeholders > 0
 - Anti-hallucination spot-check: orchestrator samples 3 random FOUND items, verifies quotes
 
 Invoked BLOCKING from:
@@ -1141,7 +1141,7 @@ Iron Law: `NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE`
 
 **Layer 1: Technical** — commands are derived, never hardcoded: run `skills/gaspol-execute/scripts/detect-stack <project-root>`, which prints `<level>: <command>` lines (e.g. `unit: npm test`, `static: npx tsc --noEmit`). Three cases: a `<level>: <command>` line → run it, must exit 0 / 0 failures; `<level>: UNKNOWN` (marker present, no backing command) → STOP and ask the user; zero lines (no stack markers) → fall back to the plan-declared commands, recorded explicitly as `detect-stack: no stack markers, using plan-declared commands` rather than silently skipped
 
-**Layer 2: Plan Fidelity** — use upgraded `plan-verifier` agent (step-level, evidence-based, BLOCKING if MISSING>0)
+**Layer 2: Plan Fidelity** — use upgraded `plan-verifier` agent (step-level, evidence-based, BLOCKING if MISSING>0 **or DROPPED>0**). Since v1.27 it also resolves the plan header's `**Spec:**` pointer and audits the spec's requirements, recording `spec-fidelity:` and `blast-radius:` lines
 
 **Layer 3: Placeholder Scan** — search changed files for TODO/FIXME/HACK/placeholder/mock/dummy patterns, check for hardcoded data, missing imports, dead code, console.log
 

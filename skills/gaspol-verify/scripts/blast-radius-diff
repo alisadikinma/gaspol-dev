@@ -92,7 +92,18 @@ main() {
     # so the basic-regex form parses ZERO paths and the script reports exit 4 —
     # "the plan declares no files" — on a plan that declares plenty. A parser
     # that silently finds nothing is worse than one that errors.
-    planned="$(sed -nE 's/^-[[:space:]]*(Create|Modify|Test|Delete):[[:space:]]*`([^`]*)`.*/\2/p' "$plan" || true)"
+    # SCOPED to `**Files:**` blocks, not the whole file. An unscoped parser picks
+    # up a verb bullet written anywhere in the plan's prose, so a plan with NO
+    # **Files:** block at all returned findings instead of the exit 4 the contract
+    # defines for exactly that case. The block ends at the next bold heading or
+    # markdown heading, which is the shape gaspol-plan's Phase Structure template
+    # produces.
+    planned="$(awk '
+        /^\*\*Files:\*\*/            { inblock = 1; next }
+        inblock && /^\*\*/             { inblock = 0 }
+        inblock && /^#/                 { inblock = 0 }
+        inblock                         { print }
+    ' "$plan" | sed -nE 's/^-[[:space:]]*(Create|Modify|Test|Delete):[[:space:]]*`([^`]*)`.*/\2/p' || true)"
 
     if [ -z "$planned" ]; then
         report "none — the plan declares no files; nothing to compare"

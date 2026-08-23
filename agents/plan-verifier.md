@@ -161,6 +161,22 @@ finding here is legitimately explainable — collateral edits happen — so bloc
 fire on most branches, and a gate that cries wolf is one somebody switches off. It is weaker
 than `DROPPED` and must not be presented as equivalent.
 
+#### Artifact cross-check — only when the URL is readable
+
+The script reads the **plan's** list. The artifact's own section 5 is supposed to carry the same
+list, so when the ledger has a `design-artifact: approved — <url>` (or `pending`) line, read that
+artifact with `Artifact action:"read"` and compare its blast-radius section to the plan's.
+
+This is the agent's job, not the script's: a bash script cannot make a network request, and this
+check must degrade rather than fail.
+
+| Situation | What you do |
+|---|---|
+| the ledger has no artifact URL | record `artifact-cross-check: none — no artifact recorded`. Not a failure |
+| the read fails (private, another session, offline) | record `artifact-cross-check: not run — <reason>`. **Never** record it as passed — the rule this repository already applies to an unavailable `/security-review` |
+| both lists read and **agree** | record `artifact-cross-check: agrees` |
+| both lists read and **disagree** | **STOP and ask**, the same as an exit 3. Do not silently prefer either side: two sources of truth are only safe while their disagreement is loud |
+
 A file the plan declares but the diff never touched produces **no** finding here. That fact is
 already a `MISSING` verdict from Step 3; reporting it twice gives two findings for one defect.
 
@@ -313,6 +329,12 @@ The agent itself must be aware this spot-check happens — that's the deterrent 
 ---
 
 ## Important Rules
+
+0. **A deliberate scope reduction is written back into the SPEC.** A requirement narrowed only in
+   conversation, or dropped silently at plan time, is reported `DROPPED` and BLOCKS — correctly.
+   Edit the spec (or move the item to its "Out of scope" section) so the contract records the
+   decision. Stated here as well as in the Verdict Taxonomy because this is the rule people meet
+   first when a `DROPPED` verdict surprises them.
 
 1. **Every FOUND needs a code quote.** No evidence → downgrade.
 2. **Every MISSING needs search terms tried.** "I didn't find it" is insufficient — show what was searched.
