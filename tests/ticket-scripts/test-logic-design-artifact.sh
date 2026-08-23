@@ -48,6 +48,35 @@ echo "test-logic-design-artifact: it is published as an artifact and approved ex
 has "$CONTRACT" "Artifact"        "the contract must publish via the Artifact tool"
 has "$CONTRACT" "AskUserQuestion" "approval must go through AskUserQuestion"
 
+echo "test-logic-design-artifact: the tab-count rule is stated, both cases..."
+
+has "$CONTRACT" "Logic tab is always present\|Logic tab is ALWAYS present" \
+    "the contract must state that the Logic tab is present for every kind of work"
+has "$CONTRACT" "satu tab\|one tab\|single tab" \
+    "the contract must say what a logic-only change produces, not only the two-tab case"
+
+echo "test-logic-design-artifact: the srcdoc escaping rule is stated, not left to be discovered..."
+
+has "$CONTRACT" "&amp;quot;" \
+    "the escaping rule must show the actual entity a double quote becomes inside srcdoc"
+has "$CONTRACT" "Escape .* first\|escape .* first" \
+    "the escaping rule must state the ampersand is escaped FIRST, or the others get double-escaped"
+has "$CONTRACT" "record which of the two\|record which mechanism" \
+    "a fallback away from srcdoc must be recorded, not switched to silently"
+
+echo "test-logic-design-artifact: the artifact is written in plain Indonesian, with technical terms kept..."
+
+has "$CONTRACT" "plain Indonesian" \
+    "the contract must state the artifact prose is plain Indonesian"
+has "$CONTRACT" "framework" \
+    "the language rule must name ordinary technical vocabulary that stays English -- 'framework' is the worked example"
+has "$CONTRACT" "hardisk" \
+    "the language rule must carry the second worked example the owner gave -- 'hardisk'"
+has "$CONTRACT" "recognise faster\|recognises faster\|recognize faster" \
+    "the borderline test must be which form the READER recognises faster, not whether an Indonesian word exists"
+grep -qi 'docs/plans' "$CONTRACT" \
+    || fail "the contract must say the Indonesian rule does NOT extend to docs/plans/*.md"
+
 echo "test-logic-design-artifact: gaspol-plan gates on it, and the gate is BLOCKING..."
 
 has "$PLAN" "Design Artifact (BLOCKING)" \

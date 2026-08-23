@@ -129,37 +129,49 @@ Design panel, which reads as "the mockup is missing" rather than "no mockup was 
 
 ### Escaping the mockup into `srcdoc`
 
-`srcdoc` is an HTML attribute, so the mockup's own markup must be escaped before it goes in: `&`
-becomes `&amp;`, `"` becomes `&quot;`, `<` becomes `&lt;`, `>` becomes `&gt;`. Escape `&` first, or
-the later replacements get double-escaped.
+`srcdoc` is an HTML attribute, so the mockup's own markup must be escaped before it goes in:
+
+| Character | Becomes |
+|---|---|
+| `&` | `&amp;` |
+| `"` | `&quot;` |
+| `<` | `&lt;` |
+| `>` | `&gt;` |
+
+Escape the ampersand first. Do it in any other order and the entities written by the later
+replacements get their own `&` escaped again, so `&quot;` arrives in the browser as the literal text
+`&amp;quot;`.
 
 Where a mockup is too large or too awkward to escape safely, mount it instead as an inline block
-whose CSS you have scoped by hand to a wrapper class — **and record which of the two you used** in
-the ledger line. A silent switch between the two mechanisms is how the isolation guarantee this
-section exists for gets lost without anyone noticing.
+whose CSS you have scoped by hand to a wrapper class — and **record which of the two mechanisms you
+used** in the ledger line. Switching silently is how the isolation guarantee this section exists for
+gets lost with nobody noticing.
 
 ## The language the artifact is written in
 
-The artifact is read by a person deciding whether the design is right, so its prose is **plain
-Indonesian**: short sentences, one idea each, no process jargon that carries no meaning for the
-reader.
+The artifact is read by a person deciding whether the design is right.
+Its prose is **plain Indonesian**: short sentences, one idea each, and no process jargon that
+carries no meaning for the reader.
 
 **Technical terms stay in English.** Two classes, and the second is the one an over-eager translator
 gets wrong:
 
 1. **Literals** — file names, tool names, CLI commands, skill names, error strings, variable names,
-   config keys. These must match something real; translating one makes it wrong, not merely awkward.
-2. **Ordinary technical vocabulary** — `framework`, `hardisk`, `cache`, `deploy`, `commit`, `branch`,
-   `endpoint`, `query`, `build`. Indonesian dictionary equivalents exist (*kerangka kerja*, *cakram
-   keras*, *singgahan*) and using them is **worse**: the reader has to translate back to know what is
-   meant, so the sentence gets slower, not simpler.
+   config keys. These must match something real, so translating one makes it wrong rather than
+   merely awkward.
+2. **Ordinary technical vocabulary** — `framework`, `hardisk`, `cache`, `deploy`, `commit`,
+   `branch`, `endpoint`, `query`, `build`. Indonesian dictionary equivalents exist for all of these
+   (*kerangka kerja*, *cakram keras*, *singgahan*) and using them is **worse**: the reader has to
+   translate back to know what is meant, so the sentence gets slower rather than simpler.
 
 The test for a borderline term is not *"does an Indonesian word exist"* but **"which form does the
 reader recognise faster"**. Where the Indonesian word is the everyday one, use it. Where the English
 word is what the reader would say out loud, keep the English word.
 
+What must be simple is the sentence around the term, never the term itself.
+
 This applies to the artifact only. `docs/plans/*.md` stay in English — those are read by whoever
-maintains the code, and that is a different audience.
+maintains the code, which is a different audience with a different need.
 
 ## Publishing and approval
 
