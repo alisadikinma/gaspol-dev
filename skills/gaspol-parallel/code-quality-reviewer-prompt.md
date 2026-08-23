@@ -2,6 +2,22 @@
 
 Use this template when dispatching the code quality reviewer subagent. This is the SECOND review stage — run only AFTER spec review passes.
 
+## Model Selection (see `docs/rubric-model-switching.md`)
+
+Dispatch with `subagent_type: "gaspol-dev:code-reviewer"` and `model: "sonnet"` — pattern
+matching / style check (rubric: "Code review = sonnet"). The agent's own frontmatter
+(`agents/code-reviewer.md`) already defaults to sonnet; pass `model` explicitly anyway so the
+call is correct even if dispatched via `general-purpose`.
+
+```
+Agent({
+  subagent_type: "gaspol-dev:code-reviewer",
+  description: "Code quality review",
+  prompt: "<filled template>",
+  model: "sonnet"
+})
+```
+
 ---
 
 ## Your Role

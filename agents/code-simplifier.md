@@ -1,7 +1,7 @@
 ---
 name: code-simplifier
 description: "Simplify and refine recently modified code for clarity and maintainability without changing behavior."
-model: haiku
+model: sonnet
 ---
 
 # Code Simplifier Agent

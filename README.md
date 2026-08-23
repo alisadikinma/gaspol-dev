@@ -271,7 +271,7 @@ than a pass/fail verdict.
 
 ### Agents
 - **code-reviewer** (Sonnet) — Quality review between commits
-- **code-simplifier** (Haiku) — Refine for clarity without behaviour change
+- **code-simplifier** (Sonnet) — Refine for clarity without behaviour change
 - **plan-verifier** (Opus) — **Step-level evidence-based** audit, BLOCKING verdict
 - **spec-reviewer** (Opus) — Verify implementation matches spec exactly
 

@@ -1,27 +1,27 @@
 # Model Switching Rubric
 
-Auto-rubric untuk pilih model berdasarkan task type. Orchestrator (main session) selalu Opus 4.7. Subagent dispatch pilih model sesuai kompleksitas task.
+Auto-rubric untuk pilih model berdasarkan task type. Orchestrator (main session) selalu Opus. Subagent dispatch pilih model sesuai kompleksitas task.
 
 ## Rubric Table
 
 | Task Kind | Model | Justification |
 |-----------|-------|---------------|
-| Main orchestrator (current session) | `opus` (4.7) | Strategic reasoning, workflow decisions, multi-step planning |
+| Main orchestrator (current session) | `opus` | Strategic reasoning, workflow decisions, multi-step planning |
 | Architecture planning | `opus` | Deep multi-step analysis, trade-off evaluation |
 | Spec review (spec-reviewer agent) | `opus` | Architectural judgment required |
 | Plan fidelity audit (plan-verifier agent) | `opus` | Evidence-based step-level verification |
 | Complex debugging (systematic root-cause) | `opus` | Hypothesis branching, non-linear |
 | Research synthesis (gaspol-research) | `opus` | Cross-source consolidation + reasoning |
 | Autonomous orchestration (gaspol-auto) | `opus` | Hard-stop decision-making |
-| Feature implementation | `sonnet` (4.6) | Execute well-defined tasks efficiently |
+| Feature implementation | `sonnet` | Execute well-defined tasks efficiently |
 | Code review (code-reviewer agent) | `sonnet` | Pattern matching, style check |
 | Test writing | `sonnet` | Mechanical but precise |
 | Research gathering (per-source) | `sonnet` | Parallel fetch + summarize per source |
 | ADR capture (gaspol-adr) | `sonnet` | Structured template filling |
 | Learn capture (gaspol-learn) | `sonnet` | Pattern extraction + validation |
 | Design system reasoning | `sonnet` | Apply rules, match templates |
-| Documentation sync (gaspol-sync-docs) | `haiku` (4.5) | Template-driven, low reasoning |
-| Simple refactor (code-simplifier agent) | `haiku` | Mechanical transformation |
+| Documentation sync (gaspol-sync-docs) | `haiku` | Template-driven, low reasoning |
+| Simple refactor (code-simplifier agent) | `sonnet` | Behaviour-preserving refactor risks silent regressions — worth the reasoning depth over haiku |
 | Rename / format | `haiku` | Deterministic operation |
 | Simple fact lookup (research light mode) | `haiku` | Bounded scope, single source |
 
@@ -76,7 +76,7 @@ Rubric targets ~15% Opus, ~60% Sonnet, ~25% Haiku across typical workflow — sa
 ## Integration Points
 
 - `agents/code-reviewer.md` — sonnet (frontmatter)
-- `agents/code-simplifier.md` — haiku (frontmatter)
+- `agents/code-simplifier.md` — sonnet (frontmatter)
 - `agents/plan-verifier.md` — opus (frontmatter)
 - `agents/spec-reviewer.md` — opus (frontmatter)
 - `skills/gaspol-execute/implementer-prompt.md` — dispatch with sonnet default
@@ -89,4 +89,4 @@ Rubric targets ~15% Opus, ~60% Sonnet, ~25% Haiku across typical workflow — sa
 
 - Claude Code Agent tool: supports `model` parameter per dispatch
 - Valid values: `opus`, `sonnet`, `haiku` (maps to current latest minor version)
-- Explicit version IDs acceptable: `claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
+- Explicit version IDs acceptable: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5-20251001`

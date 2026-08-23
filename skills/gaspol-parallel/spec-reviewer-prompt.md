@@ -2,6 +2,21 @@
 
 Use this template when dispatching the spec reviewer subagent. Replace all bracketed sections with actual content.
 
+## Model Selection (see `docs/rubric-model-switching.md`)
+
+Dispatch with `subagent_type: "gaspol-dev:spec-reviewer"` and `model: "opus"` — architectural
+judgment required (rubric: "Spec review = opus"). The agent's own frontmatter (`agents/spec-reviewer.md`) already defaults to opus; pass `model` explicitly anyway so the call is correct even
+if dispatched via `general-purpose`.
+
+```
+Agent({
+  subagent_type: "gaspol-dev:spec-reviewer",
+  description: "Spec compliance review",
+  prompt: "<filled template>",
+  model: "opus"
+})
+```
+
 ---
 
 ## Your Role

@@ -79,7 +79,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-learn/SKILL.md` | **NEW** — Quality-gated post-ship pattern capture to KB |
 | `skills/gaspol-auto/SKILL.md` | **NEW** — Autonomous execution with hard-stop guardrails |
 | `agents/code-reviewer.md` | Code review between commits (model: sonnet) |
-| `agents/code-simplifier.md` | Simplify and refine code for clarity (model: haiku) |
+| `agents/code-simplifier.md` | Simplify and refine code for clarity (model: sonnet) |
 | `agents/plan-verifier.md` | Step-level evidence-based plan audit (model: opus, BLOCKING) |
 | `agents/spec-reviewer.md` | Verify implementation matches specification (model: opus) |
 
@@ -750,7 +750,7 @@ Quick reference:
 - **Haiku 4.5**: docs sync, simple refactor, rename/format, simple fact lookup
 
 Applied via:
-- Agent frontmatter `model:` field (4 agents: code-reviewer=sonnet, code-simplifier=haiku, plan-verifier=opus, spec-reviewer=opus)
+- Agent frontmatter `model:` field (4 agents: code-reviewer=sonnet, code-simplifier=sonnet, plan-verifier=opus, spec-reviewer=opus)
 - Agent tool dispatch with `model` param per call
 
 Target cost mix: ~15% Opus, ~60% Sonnet, ~25% Haiku.
@@ -1269,7 +1269,7 @@ Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated repor
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-14
+Last ticket: IDS-15
 
 ---
 

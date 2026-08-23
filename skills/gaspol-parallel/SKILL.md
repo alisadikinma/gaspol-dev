@@ -303,7 +303,8 @@ reviewer subagents so they audit one stable artifact. **BASE is the Step-2 SHA, 
 
 #### Step 5: Spec Review
 
-Dispatch the spec reviewer using `spec-reviewer-prompt.md` (pass the review-package path):
+Dispatch with `subagent_type: "gaspol-dev:spec-reviewer"`, `model: "opus"` (see the template's own
+Model Selection section), using `spec-reviewer-prompt.md` (pass the review-package path):
 - Reviewer reads ACTUAL CODE (not the implementer's report)
 - Compares implementation to requirements line by line
 - Checks for placeholder data (CRITICAL)
@@ -314,7 +315,8 @@ Dispatch the spec reviewer using `spec-reviewer-prompt.md` (pass the review-pack
 
 #### Step 6: Code Quality Review
 
-Dispatch the code quality reviewer using `code-quality-reviewer-prompt.md` (pass the same
+Dispatch with `subagent_type: "gaspol-dev:code-reviewer"`, `model: "sonnet"` (see the template's
+own Model Selection section), using `code-quality-reviewer-prompt.md` (pass the same
 review-package path):
 - Uses the `gaspol-review` skill's code-reviewer template
 - Reviews the diff in the review package (base SHA → HEAD)
