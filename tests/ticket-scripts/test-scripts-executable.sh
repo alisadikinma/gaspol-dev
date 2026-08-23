@@ -36,6 +36,7 @@ DIRECT=(
     skills/gaspol-verify/scripts/spec-pointer
     skills/gaspol-verify/scripts/blast-radius-diff
     skills/gaspol-verify/scripts/ledger-gate
+    skills/gaspol-verify/scripts/model-gate
     skills/gaspol-brainstorm/visual-companion/scripts/start-server.sh
     skills/gaspol-brainstorm/visual-companion/scripts/stop-server.sh
     skills/gaspol-brainstorm/visual-companion/scripts/smoke-test.sh
