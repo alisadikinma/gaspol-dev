@@ -1,7 +1,7 @@
 # Logic Design Artifact — the reviewable contract for work with no UI
 
-> Read by `gaspol-plan`'s **Design Artifact (BLOCKING)** step when the plan has no UI phases.
-> UI work takes the other lane (`ui-ux-pro-max` / `visual-companion.md`) and does not read this file.
+> Read by `gaspol-plan`'s post-plan **offer** for every plan, not only logic-only ones. The Logic
+> tab below is always present; UI work adds a Design tab beside it rather than taking another lane.
 
 ## Why this exists (IDS-10)
 
@@ -72,6 +72,13 @@ what it is not changing does not know what it is changing.
 The artifact is a tabbed page. **The Logic tab is always present.** A change that touches UI files
 gets a second tab holding the mockup; a logic-only change ships **satu tab** — the Logic tab alone,
 with no empty Design tab beside it.
+
+"Touches UI files" is decided by the extension list `gaspol-plan`'s Design Deliverable column
+already uses — quoted here verbatim so there is exactly one list and no second detector:
+
+```text
+.tsx  .jsx  .vue  .svelte  .astro  .css  .scss  .sass
+```
 
 The mockup is mounted in an `<iframe srcdoc>`, and that choice is load-bearing rather than
 stylistic. A mockup carries its own CSS — `body { background: … }`, bare element selectors — which
@@ -184,7 +191,9 @@ maintains the code, which is a different audience with a different need.
    - `**Artifact:** <url>` in the plan file header, beside `**Ticket:**`
    - `design-artifact: approved — <url>` in the ledger, above `## Log`
 
-`gaspol-execute` reads that ledger line. Until it says `approved`, execution does not start.
+`gaspol-execute` reads that ledger line. `approved` and `skipped — <reason>` both proceed;
+`pending` stops and asks; no line at all proceeds and is recorded as
+`design-artifact: none — no offer was made`.
 
 ## Red Flags
 

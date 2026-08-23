@@ -249,7 +249,7 @@ same block reads `php artisan test`, on a Python repo `pytest`, and where `detec
 
 `gaspol-execute` enforces this — phase without proper TDD step 1 will be refused at execution time (Step 2 hard gate). Plans violating this template are rejected before execution starts.
 
-**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css`), the Phase table MUST include a Design Deliverable column:
+**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column:
 
 ```markdown
 | Phase | Code Deliverable | Design Deliverable | Verification |
@@ -423,7 +423,7 @@ Before presenting the plan, verify none of these red flags are present:
 | Trigger | Skill | Relationship |
 |---------|-------|-------------|
 | Before this skill | `gaspol-brainstorm` | Brainstorm produces the design section in same file; plan appends |
-| During this skill | `ui-ux-pro-max` (plugin) | Invoked for each UI phase to produce design deliverable |
+| During this skill | `ui-ux-pro-max` (plugin) | At most ONCE per ticket, and only where no brainstorm ran — otherwise Phase 3's decisions are cited |
 | During this skill | `gaspol-adr` | Capture architectural decisions at fork points in the plan |
 | After this skill | `gaspol-execute` | Execute the plan with per-phase checkpoints + TDD hard gate |
 | After this skill | `gaspol-parallel` | Execute independent phases in parallel (mode: plan-phases) |

@@ -251,9 +251,9 @@ Trade-offs:
 ## Phase 2.5: Design Gate (architectural path only — which design lane, never whether)
 
 ```
-This gate routes; it never exempts. Every ticket produces exactly one design
-artifact before code starts (gaspol-plan Step 0, BLOCKING). What this phase
-decides is WHICH kind.
+This gate routes; it decides WHICH design lane, not whether one exists.
+gaspol-plan then OFFERS the artifact once the plan is written — declining is
+allowed and writes its reason to the ledger.
 
 If Phase 3 design triggers fire from Phase 1 intent keywords OR file extension hints OR approach involves UI:
   → Phase 3 auto-triggers (UI lane: ui-ux-pro-max)

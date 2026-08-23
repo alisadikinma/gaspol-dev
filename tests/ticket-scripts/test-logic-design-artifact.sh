@@ -57,8 +57,13 @@ has "$CONTRACT" "satu tab\|one tab\|single tab" \
 
 echo "test-logic-design-artifact: the srcdoc escaping rule is stated, not left to be discovered..."
 
-has "$CONTRACT" "&amp;quot;" \
-    "the escaping rule must show the actual entity a double quote becomes inside srcdoc"
+# Anchored at the TABLE ROW, not at the prose. The first version of this assertion grepped a
+# bare `&amp;quot;`, which also occurs in the paragraph explaining the double-escape bug -- so
+# deleting the escaping table outright left the suite green. Proven by mutation, not reasoned.
+grep -qE '^\| *`"` *\| *`&quot;` *\|' "$CONTRACT" \
+    || fail "the escaping table must carry the row mapping a double quote to its entity"
+grep -qE '^\| *`&` *\| *`&amp;` *\|' "$CONTRACT" \
+    || fail "the escaping table must carry the ampersand row -- it is the one that must be escaped first"
 has "$CONTRACT" "Escape .* first\|escape .* first" \
     "the escaping rule must state the ampersand is escaped FIRST, or the others get double-escaped"
 has "$CONTRACT" "record which of the two\|record which mechanism" \
@@ -68,6 +73,10 @@ echo "test-logic-design-artifact: the artifact is written in plain Indonesian, w
 
 has "$CONTRACT" "plain Indonesian" \
     "the contract must state the artifact prose is plain Indonesian"
+has "$CONTRACT" "Literals" \
+    "the language rule must name class 1 (literals: file names, tool names, CLI commands, error strings) -- it had no assertion at all"
+has "$CONTRACT" "config keys" \
+    "class 1 must enumerate what counts as a literal, not just label the class"
 has "$CONTRACT" "framework" \
     "the language rule must name ordinary technical vocabulary that stays English -- 'framework' is the worked example"
 has "$CONTRACT" "hardisk" \
@@ -157,6 +166,10 @@ has "$EXEC" "design-artifact" \
     "gaspol-execute has no pre-execution check for the design artifact"
 has "$EXEC" "STOP and ask" \
     "gaspol-execute must STOP and ask on a pending artifact rather than proceeding"
+has "$EXEC" "design-artifact: approved" \
+    "gaspol-execute must define the approved state -- the existing approved grep targets the PLAN, not this file"
+has "$EXEC" "design-artifact: pending" \
+    "gaspol-execute must define the pending state by name, not only by the words STOP and ask"
 has "$EXEC" "design-artifact: skipped" \
     "gaspol-execute does not define the 'skipped' artifact state"
 has "$EXEC" "no offer was made" \

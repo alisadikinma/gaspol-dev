@@ -53,6 +53,16 @@ signed in) and was recorded `not run` until confirmed against the live page.
 to 28985 instead, because raising a limit so your own addition fits is the exemption-becomes-the-
 way-through pattern `test-gate-mutations.sh` exists to catch.
 
+### Undeclared side effect, kept and recorded rather than reverted
+
+`skills/gaspol-plan/SKILL.md` was rewritten CRLF→LF wholesale by the editing pass. `git diff
+--numstat` reports 429/399 while `git diff -w` reports 66/36 — the real content change is ~66
+lines and the rest is line-ending normalisation, which inflates the reviewable diff about
+sixfold. It is kept rather than reverted: this repository is mixed (4 of 17 `SKILL.md` files were
+CRLF, 13 LF), so the change moves the file toward the majority. It is recorded here because the
+spec's blast radius said "four skills' text", not a whole-file re-encoding, and an undeclared
+diff is how a reviewer's attention gets spent on nothing.
+
 ### Known-open, deliberately not closed and deliberately not ticketed
 
 A bug fix that changes the UI passes no design point in any path: bug reports route to
