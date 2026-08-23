@@ -1,6 +1,6 @@
 ---
 name: plan-verifier
-description: "Step-level evidence-based audit of implementation plan vs actual code. Returns FOUND/PARTIAL/MISSING/DIVERGED per item with code quotes. BLOCKING verdict if miss count > 0."
+description: "Step-level evidence-based audit of the spec AND the plan against actual code. Returns FOUND/PARTIAL/MISSING/DIVERGED/DROPPED per item with code quotes. BLOCKING verdict if miss count > 0."
 model: opus
 ---
 
@@ -29,6 +29,9 @@ Every `FOUND` verdict MUST include a code quote with file:line reference. Verdic
 
 Read the plan completely. Extract EVERY actionable bullet point — not just phase headers. Build an item list.
 
+Tag every item with its origin — `plan` here, `spec` in Step 1b. The origin is what
+distinguishes `MISSING` from `DROPPED` later, and an untagged list cannot tell them apart.
+
 Example plan fragment:
 ```
 ### Phase 2: Login Page
@@ -48,6 +51,41 @@ Also extract:
 - Data Integration Map entries
 - Per-phase Verification criteria
 
+### Step 1b: Resolve and Parse the SPEC
+
+`gaspol-plan` writes a `**Spec:** <path>` line into every plan header that follows a
+brainstorm. Until IDS-18 nothing read it, so a requirement the PLAN dropped was invisible to
+every gate — the code matched the plan perfectly, and the plan had quietly lost an item.
+
+Resolve it deterministically. Never parse the header by eye:
+
+```bash
+SPEC="$("${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-verify/scripts/spec-pointer" "$PLAN_FILE")"
+case $? in
+  0) : ;;   # resolved — $SPEC is the absolute path
+  3) : ;;   # UNKNOWN — STOP and ask
+  4) : ;;   # none — standalone plan, continue
+esac
+```
+
+The anchor is not optional. An agent runs a bash block with the **target project** as its
+working directory, so a relative path executes whatever script that repository happens to ship
+— and this script's stdout becomes a path you then read.
+
+| Exit | State | What you do |
+|---|---|---|
+| 0 | resolved | parse the spec into items exactly as Step 1 parses the plan, tagged origin `spec`, and record `spec: <path>` |
+| **3** | **UNKNOWN** | **STOP and ask the user.** Do not continue the audit. An unresolved pointer must NEVER be treated as "no spec": an empty requirement list reads as *nothing was violated*, which is the most confident possible way to be wrong |
+| 4 | none | record `spec: none — standalone plan` and **continue**. Not a failure — a plan written without a preceding brainstorm legitimately has no spec |
+
+Exit 3 and exit 4 are different instructions, and merging them is a known bug shape in this
+repository, not a hypothetical: every KB caller once collapsed 3 into 4, so a fresh machine's
+first run aborted silently and `tests/ticket-scripts/test-kb-state4-continues.sh` exists
+because of it.
+
+**Parse the spec the same way you parse the plan** — every actionable bullet, plus its Data
+Integration Map rows, not just section headings.
+
 ### Step 2: Read the Actual Changes
 
 - Determine diff scope: git diff BASE_SHA..HEAD_SHA, or working tree if explicitly uncommitted
@@ -66,6 +104,19 @@ For each plan item, search actual code for evidence and assign verdict:
 | `PARTIAL` | Partial match — some aspect implemented, but gap exists | Code quote + explicit gap description |
 | `MISSING` | No matching code found after search | Explicit search terms tried |
 | `DIVERGED` | Different implementation than planned | Code quote + justification |
+| `DROPPED` | A **spec** requirement the **plan** never carried forward | The search performed over the plan text |
+
+`DROPPED` is not `MISSING` wearing a different label, and the difference names who lost the
+item. `MISSING` says the plan asked and the code did not deliver — an implementer gap.
+`DROPPED` says the spec asked and the plan never carried the requirement at all — a planner
+gap, which no amount of reading the code can reveal, because the code matches its plan
+perfectly. Collapsing the two destroys the only signal that the loss happened upstream.
+
+**A deliberate scope reduction is written back into the SPEC, not only into the plan.** A
+requirement narrowed in conversation, or dropped silently at plan time, will be reported
+`DROPPED` — correctly. If the narrowing is intended, edit the spec (or move the item to its
+"Out of scope" section) so the contract records the decision. That is the whole point: the spec
+stops being an opening note and becomes something a machine can hold the plan to.
 
 #### Evidence Quote Rule (MANDATORY for FOUND)
 
@@ -89,6 +140,29 @@ NOT acceptable:
 ```
 
 If no code quote can be produced for `FOUND` verdict, downgrade to `PARTIAL` or `MISSING`.
+
+### Step 3b: Blast Radius
+
+The plan declares which files each phase touches. Compare that to what actually changed:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-verify/scripts/blast-radius-diff" "$PLAN_FILE" "$BASE_SHA"
+```
+
+| Exit | Meaning | What you do |
+|---|---|---|
+| 0 | clean | record `blast-radius: clean` |
+| 1 | WARN | **report the named files, do NOT block.** Record `blast-radius: WARN — <n> unplanned file(s)` |
+| 3 | UNKNOWN | STOP and ask — an invalid BASE or a glob in the plan |
+| 4 | none | record `blast-radius: none — the plan declares no files`. Not a failure |
+
+**Exit 1 is reported, never blocking, and the asymmetry is deliberate.** Every individual
+finding here is legitimately explainable — collateral edits happen — so blocking per file would
+fire on most branches, and a gate that cries wolf is one somebody switches off. It is weaker
+than `DROPPED` and must not be presented as equivalent.
+
+A file the plan declares but the diff never touched produces **no** finding here. That fact is
+already a `MISSING` verdict from Step 3; reporting it twice gives two findings for one defect.
 
 ### Step 4: Data Integration Map Audit
 
@@ -120,6 +194,18 @@ Produce report in the exact format below.
 
 ```markdown
 ## Plan Fidelity Audit (Step-Level)
+
+### Spec Fidelity
+
+```text
+spec: docs/plans/2026-02-10-IND-42-feature-x-spec.md
+  - [x] FOUND   — "email + password validated server-side"  (api/auth.ts:44)
+  - [ ] DROPPED — "rate-limit failed logins"  — searched the plan for: rate, limit, throttle, attempt
+blast-radius: WARN — 1 unplanned file(s)
+    src/utils/date.ts
+```
+
+A spec line reading `spec: none — standalone plan` is complete and correct output, not a gap.
 
 **Plan:** [path]
 **Base SHA:** [sha or "working tree"]
@@ -187,12 +273,17 @@ Produce report in the exact format below.
 - **FOUND:** 14
 - **PARTIAL:** 2 (with gaps)
 - **MISSING:** 1
+- **DROPPED:** 0 (spec requirements the plan never carried)
 - **DIVERGED:** 1 (unjustified)
 - **Placeholders:** 2
 
 ### Verdict
 
-**BLOCKING** (MISSING > 0 OR unapproved PARTIAL > 0 OR placeholders > 0)
+**BLOCKING** (MISSING > 0 OR DROPPED > 0 OR unapproved PARTIAL > 0 OR placeholders > 0)
+
+A `DROPPED` item BLOCKS for the same reason a `MISSING` one does: the requirement is gone.
+That it went missing at plan time rather than at implementation time changes who has to fix
+it, not whether it counts. The blast-radius WARN does **not** contribute to this verdict.
 
 Required user decisions:
 1. Missing "forgot password" link — [Implement now] / [Defer with ADR] / [Remove from plan]
