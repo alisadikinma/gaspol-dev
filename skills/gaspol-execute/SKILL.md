@@ -455,6 +455,12 @@ Once all phases pass the completion gate, in order:
 3. **gaspol-sync-docs** — update CLAUDE.md with new routes, hooks, tables.
 4. **gaspol-review** — code quality and consistency.
 
+### Step 8: Present the Finish Offer
+
+Finishing is an offer, not the automatic next step. Present it exactly as
+[_shared/finish-offer.md](../_shared/finish-offer.md) states — options, deferral cursor,
+non-empty-reason rule, error paths. Never restate it here; a copy drifts.
+
 ---
 
 ## Completion Gate
@@ -513,7 +519,8 @@ finish. The four that catch most of them:
 the design decisions behind it.
 
 **Downstream, in order:** `gaspol-verify` (once the completion gate passes) → `gaspol-sync-docs`
-→ `gaspol-review` → `gaspol-finish`.
+→ `gaspol-review` → the finish offer ([_shared/finish-offer.md](../_shared/finish-offer.md)),
+which the user may decline.
 
 **With `gaspol-parallel`:** implementer subagents are dispatched using
 [implementer-prompt.md](implementer-prompt.md) — each gets its task-scoped brief path, the

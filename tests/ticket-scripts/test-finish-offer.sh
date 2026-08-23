@@ -67,6 +67,18 @@ claim "$OFFER" "finish-offer" "no ledger" || exit 1
 # its own suite is not work you get asked how to finish.
 claim "$OFFER" "finish-offer" "do NOT re-present the offer" || exit 1
 
+echo "test-finish-offer: callers reference the file, none restates the modal..."
+for f in gaspol-execute gaspol-parallel gaspol-auto; do
+    grep -qF "_shared/finish-offer.md" "$REPO_ROOT/skills/$f/SKILL.md" \
+        || fail "skills/$f/SKILL.md does not reference _shared/finish-offer.md — an unreferenced shared file is the kb_local defect again: documented in one place, read by nothing"
+done
+COPIES=$(grep -rl "Cuma verify dulu" "$REPO_ROOT/skills" 2>/dev/null | wc -l | tr -d ' ')
+[ "$COPIES" = "1" ] \
+    || fail "'Cuma verify dulu' appears in $COPIES files under skills/ — it must appear in exactly one (skills/_shared/finish-offer.md)"
+
+echo "test-finish-offer: gaspol-auto's offer is post-run, not a mid-run checkpoint..."
+claim "$REPO_ROOT/skills/gaspol-auto/SKILL.md" "gaspol-auto" "not a mid-run checkpoint" || exit 1
+
 # Positive control: the claim() helper must be able to FAIL, or every check above
 # is theatre.
 if claim "$OFFER" "control" "a phrase that is certainly not in this file zzqq" 2>/dev/null; then
