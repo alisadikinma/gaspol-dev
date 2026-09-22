@@ -1,0 +1,13 @@
+{
+  "name": "gaspol-dev",
+  "displayName": "Gaspol Dev",
+  "version": "1.29.0",
+  "description": "Battle-tested execution fidelity: anti-placeholder enforcement, per-phase checkpoints, plan verification, TDD, debugging, worktree isolation, and the Completeness Ladder.",
+  "author": {
+    "name": "Ali Sadikin",
+    "url": "https://github.com/alisadikinma"
+  },
+  "homepage": "https://github.com/alisadikinma/gaspol-dev",
+  "repository": "https://github.com/alisadikinma/gaspol-dev",
+  "license": "MIT"
+}
