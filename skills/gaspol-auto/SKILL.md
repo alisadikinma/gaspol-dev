@@ -85,7 +85,7 @@ For each phase in plan (sequential):
    - If REVIEW and findings surfaced → mini-pause (see Hard Stop below if Critical)
 4. **Ledger tick (BLOCKING)** — the orchestrating session runs `gaspol-execute`'s
    tick-then-append gate (Checkpoint Rule 6): Checklist ticked, `## Phase log` row set to the
-   status and real commit SHA, one `## Log` line with the `NEXT:` cursor. No ledger write, no
+   status and real commit SHA (in backticks, `` `86f058d` ``; `` `<no commit>` `` until committed), one `## Log` line with the `NEXT:` cursor. No ledger write, no
    next phase. Autonomous means no prompt between phases, never no record between phases.
 5. **Continue to next phase** (NO per-phase user prompt — that's the autonomous part)
 

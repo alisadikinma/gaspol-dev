@@ -112,7 +112,7 @@ resolution above — reuse the spec file's ticket if one exists):
    the four mandatory sections, a `### [ ] Phase <N>: <name>` **sub-block per phase** whose body
    is that phase's `**Steps:**` rendered as checkboxes followed by its `**Verification:**` block
    verbatim, a `## Phase log` table with **one row per phase, every phase, from the start**
-   (`| A — <name> | TODO | — |`), and a `## Log` with exactly one line:
+   (`| A — <name> | TODO | `` `<no commit>` `` |`), and a `## Log` with exactly one line:
    `- <YYYY-MM-DD> plan ditulis — NEXT: Phase A` (or whatever the first phase is named).
    **Copy, do not summarise.** Both blocks already exist in the plan you just wrote, and
    `**Verification:**` is already `- [ ]` checkboxes — so the richer ledger costs nothing to
@@ -198,9 +198,9 @@ use exactly this template:
 | Phase | Status | Commit |
 |---|---|---|
 | A — script detect-stack | DONE | `4f2a1c9` |
-| B — glob ledger | DOING | — |
-| C — konvensi nama file spec & plan | TODO | — |
-| D — contoh fase dibatalkan | DIBATALKAN | — |
+| B — glob ledger | DOING | `<no commit>` |
+| C — konvensi nama file spec & plan | TODO | `<no commit>` |
+| D — contoh fase dibatalkan | DIBATALKAN | `<no commit>` |
 
 ## Utang terbuka
 
@@ -227,7 +227,7 @@ ticket, and boxes like that are the entire reason this format is worth copying.
 |---|---|---|
 | `## Pre-flight` | git state, the baseline suite run and its counts, `detect-stack` output | a red baseline nobody recorded gets blamed on the new phase, and the fix loop burns its rounds on somebody else's failure |
 | `## Keputusan saat jalan` | each mid-run choice, who decided it, the date | the only record of what is neither in the plan nor in the code |
-| `## Phase log` | phase → status → **real commit SHA** | a SHA can be re-checked; the word "DONE" cannot |
+| `## Phase log` | phase → status → **real commit SHA, always in backticks** (`<no commit>` until committed) | a SHA can be re-checked; the word "DONE" cannot |
 | `## Utang terbuka` | what was deliberately left undone, each item named | what is not written down becomes a *"nanti"* that never arrives |
 
 **Every other section is added when it has content, never as an empty heading.** IND-117's ledger

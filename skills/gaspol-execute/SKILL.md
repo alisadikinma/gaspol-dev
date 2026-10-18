@@ -303,9 +303,9 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
    - **(a) Tick the Checklist, in place:** `- [x] Phase [X]: [name] — DONE`, `- [>] … — DOING`
      at start, or `- [~] … — <short reason>` if cancelled/skipped (reason MANDATORY, detail in the Log).
    - **(b) Set the phase's `## Phase log` row:** status (`DONE`/`DOING`/`WIP`/`DIBATALKAN`) and
-     the real commit SHA (`—` until committed). A finished phase still at `TODO` fails the gate.
+     the real commit SHA **in backticks, short form** (`` `86f058d` ``), never bare, never `—`; until committed the cell reads `` `<no commit>` ``. A finished phase still at `TODO`, or with a bare or missing SHA, fails the gate.
    - **(c) Append one Log line:**
-     `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <next phase, or "DONE">`.
+     `Phase [X] [name] — COMPLETE (`<sha>`) — <1-line summary> — NEXT: <next phase, or "DONE">`. The SHA is in backticks here too.
      If the phase is left unfinished (a blocker, an approaching `/compact`, a pause), append
      instead: `Phase [X] [name] — WIP — <done so far> — BLOCKER: <what is stuck> — NEXT: <exact resume action>`.
 

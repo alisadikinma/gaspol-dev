@@ -2,6 +2,13 @@
 
 ## [1.29.2] - 2026-10-18
 
+### Fixed — commit SHAs in the ledger are always backticked
+
+- `gaspol-execute` Checkpoint Rule 6, `gaspol-auto` and `gaspol-plan` now require the SHA in the
+  `## Phase log` row and the `## Log` line as `` `86f058d` `` (short, backticked), and
+  `` `<no commit>` `` until committed, never `—`. A bare or missing SHA fails the gate. Found in
+  GV-28 after the same correction was given repeatedly.
+
 ### Changed — the full suite is the final gate, not a per-phase tax
 
 - **Test cadence** (`_shared/verification-loop.md`). A phase runs its targeted group (touched
