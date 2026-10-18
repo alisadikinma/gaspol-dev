@@ -42,7 +42,7 @@ Cheapest first, **fail-fast**: stop at the first level that fails.
 | Level | What | When it runs |
 |---|---|---|
 | **L1 static** | typecheck + lint | every phase that touches code |
-| **L2 unit** | the test suite | every phase that touches code |
+| **L2 unit** | targeted tests while working, the full suite once at phase end | every phase that touches code |
 | **L3 build** | the production build | the last phase, and any phase touching build config, dependencies, or entry points |
 | **L4 integration** | data actually flows end to end | phases wiring a real integration |
 | **L5 edge** | the non-happy paths actually executed | phases whose Completeness Ladder rungs 2-3 produced cases |
@@ -51,6 +51,12 @@ Cheapest first, **fail-fast**: stop at the first level that fails.
 complexity classifier already recognises — skips L2 and L3. It still runs L1 where a linter covers
 those files. This is deliberate: IDS-10 removed the scope governor, and "run a full build after a
 one-line docs edit" is exactly the over-application that leaves behind.
+
+**Cadence inside a phase.** Each TDD step runs only the tests it touches (one test file or one
+case: seconds). The full suite runs **once**, when the phase's steps are done, before the
+checkpoint. A full suite after every step multiplies its runtime by the step count and adds no
+evidence the end-of-phase run does not already give. A failure in the full run is fixed and then
+re-run from that failing group (On failure, point 3), not from the whole suite.
 
 **A level that does not apply is skipped EXPLICITLY, with the reason, in the checkpoint.** A silent
 skip is a placeholder-grade lie — the rule the Validation Ladder has carried since v1.8.
@@ -73,8 +79,12 @@ skip is a placeholder-grade lie — the rule the Validation Ladder has carried s
 Run the ladder **once, before any phase starts**, and record the result in the ledger:
 
 ```
-verification-baseline: L1 pass · L2 pass (142 tests) · L3 not run — captured at <SHA>
+verification-baseline: L1 pass · L2 pass (142 tests, 3m10s) · L3 not run — captured at <SHA>
 ```
+
+Capture it **once per run** and reuse it; never re-run the baseline to get counts per group or a
+second opinion — read them from the first run's output. Record the suite's runtime: it tells the
+plan what one full-suite run costs, so a phase estimate counts it once, not per step.
 
 Without it, a suite that was **already red** gets blamed on the first phase, and the fix loop
 burns its rounds on somebody else's failure. `gaspol-finish` learned this in IDS-9 (its Step 0

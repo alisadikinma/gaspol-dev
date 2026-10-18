@@ -132,10 +132,31 @@ lines_php() {
     fi
 }
 
+# pytest on PATH proves pytest is installed, not that THIS project uses it: a
+# stdlib-unittest project gets "unit: pytest" and pytest then collects nothing
+# or the wrong files. Only a pytest config marker selects it.
+uses_pytest() {
+    local root="$1" f line
+    [[ -f "$root/pytest.ini" || -f "$root/conftest.py" || -f "$root/tests/conftest.py" ]] && return 0
+    # Pure bash on purpose: callers may run this with a PATH that holds no grep.
+    for f in "$root/pyproject.toml" "$root/setup.cfg"; do
+        [[ -f "$f" ]] || continue
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ "$line" == "[tool.pytest"* || "$line" == "[tool:pytest]"* ]] && return 0
+        done <"$f"
+    done
+    return 1
+}
+
 lines_python() {
+    local root="$1"
     emit_gated "static" "mypy ."
     emit_gated "lint" "ruff check ."
-    emit_gated "unit" "pytest"
+    if uses_pytest "$root"; then
+        emit_gated "unit" "pytest"
+    else
+        emit_gated "unit" "python3 -m unittest discover"
+    fi
 }
 
 lines_go() {
@@ -199,7 +220,20 @@ scan_root() {
             else
                 echo "$line"
             fi
-        done < <("lines_${stack}" "$root")
+        done < <("lines_${stack}" "$root" | repo_runner_override "$root")
+    done
+}
+
+# A test runner the repo ships itself (tests/run.sh) is the project's own
+# declaration of how its suite runs, and beats any guess from marker files.
+repo_runner_override() {
+    local root="$1" line
+    while IFS= read -r line; do
+        if [[ -f "$root/tests/run.sh" && "$line" == unit:* ]]; then
+            echo "unit: bash tests/run.sh"
+        else
+            echo "$line"
+        fi
     done
 }
 

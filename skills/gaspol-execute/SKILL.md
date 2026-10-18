@@ -297,23 +297,23 @@ After completing EACH phase (not a batch of phases — EACH one), present a stru
 4. **Classify data sources.** Every component that handles data must list its source and whether it is real or placeholder.
 5. **List all file changes.** Every file created or modified in the phase.
 6. **The tick-then-append gate (BLOCKING).** After presenting the checkpoint and BEFORE the
-   next phase starts, update the plan's resolved ledger in two places. This is blocking, like
-   a test gate: no next phase until both are written, and never batched at the end — a crash
-   mid-run must leave a truthful state, not a stale one.
-   - **(a) Tick the Checklist, in place:** `- [x] Phase [X]: [name] — DONE` on completion,
-     `- [>] … — DOING` when the phase starts, or `- [~] … — <short reason>` if cancelled or
-     skipped (a reason on the line is MANDATORY, with detail in the Log).
-   - **(b) Append one Log line:**
+   next phase starts, the orchestrating session (never a dispatched implementer) updates the
+   plan's resolved ledger in three places. Blocking like a test gate: no next phase until all
+   three are written, never batched at the end — a crash must leave a truthful state.
+   - **(a) Tick the Checklist, in place:** `- [x] Phase [X]: [name] — DONE`, `- [>] … — DOING`
+     at start, or `- [~] … — <short reason>` if cancelled/skipped (reason MANDATORY, detail in the Log).
+   - **(b) Set the phase's `## Phase log` row:** status (`DONE`/`DOING`/`WIP`/`DIBATALKAN`) and
+     the real commit SHA (`—` until committed). A finished phase still at `TODO` fails the gate.
+   - **(c) Append one Log line:**
      `Phase [X] [name] — COMPLETE — <1-line summary> — NEXT: <next phase, or "DONE">`.
      If the phase is left unfinished (a blocker, an approaching `/compact`, a pause), append
      instead: `Phase [X] [name] — WIP — <done so far> — BLOCKER: <what is stuck> — NEXT: <exact resume action>`.
 
-   The trailing `NEXT:`/`BLOCKER:` fields are the **handoff cursor** — a resumed session reads
-   the last line to know where to continue and what is blocking, instead of inferring "first
-   unfinished phase". Older lines without them still parse. **Never** write the ledger under
-   `.git/` (a protected path — agent writes are blocked there), and keep `.gaspol/` in the
-   project `.gitignore`; it is working-tree scratch. `git clean -fdx` deletes it, in which case
-   recover phase state from `git log`.
+   The trailing `NEXT:`/`BLOCKER:` fields are the **handoff cursor**: a resumed session reads the
+   last line to know where to continue, instead of inferring "first unfinished phase". Older lines
+   without them still parse. **Never** write the ledger under `.git/` (agent writes are blocked
+   there); keep `.gaspol/` in `.gitignore`. `git clean -fdx` deletes it — then recover phase state
+   from `git log`.
 
 ### Checkpoint Template
 

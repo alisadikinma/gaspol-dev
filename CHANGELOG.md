@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.29.1] - 2026-10-18
+
+### Fixed — a run records itself and stops paying for the same test twice
+
+- **Phase log is part of the per-phase gate.** `gaspol-execute` Checkpoint Rule 6 now writes three
+  things, not two: the Checklist tick, the `## Phase log` row (status + real commit SHA) and the
+  `## Log` line. The orchestrating session writes them, never a dispatched implementer.
+  `gaspol-auto` gains an explicit ledger-tick step in its Execution Loop. `gaspol-plan` creates
+  the `## Phase log` with one `TODO` row per phase from the start, so the table is never partial.
+- **Repo gates go in the phase that triggers them** (`gaspol-plan`). A tool that a project registry
+  or index must name is registered in the phase that creates it, not in the last phase, so no
+  phase is left red by the plan's own ordering.
+- **Test cadence** (`_shared/verification-loop.md`). Targeted tests per TDD step, the full suite
+  once at phase end, the baseline once per run with its runtime recorded.
+- **Small phases stay in session** (`gaspol-auto`). An implementer is dispatched only for phases
+  estimated over 15 minutes, touching more than 5 files, or running in parallel.
+- **detect-stack reads the repo's own runner.** `tests/run.sh` wins over marker guesses; a Python
+  project gets `pytest` only with a pytest config marker, otherwise `python3 -m unittest discover`.
+  Three new cases in `test-detect-stack.sh`.
+- **Step-1 self-check before a plan is presented** (`gaspol-plan`): the count of
+  `1. Write failing test for ... Expected error:` lines must equal the count of phases.
+
 ## [1.29.0] - 2026-08-24
 
 ### Changed — the model rubric becomes a rule, and the rule gets a reader (IDS-20)

@@ -1625,5 +1625,5 @@ Last ticket: IDS-20
 
 ---
 
-**Version:** 1.29.0
+**Version:** 1.29.1
 **Last Updated:** August 2026

@@ -225,6 +225,9 @@ mkdir -p "$PY_DIR"
 cat >"$PY_DIR/pyproject.toml" <<'EOF'
 [project]
 name = "x"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 EOF
 
 OUTPUT="$(PATH=/nonexistent "$BASH_BIN" "$DETECT_STACK" "$PY_DIR")"
@@ -388,6 +391,40 @@ fake_bin "$PHP_FAKE_BIN" php
 OUTPUT="$(PATH="$PHP_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$PHP_LARAVEL_DIR")"
 if ! grep -qx "unit: php artisan test" <<<"$OUTPUT"; then
     echo "FAIL: case 15 expected 'unit: php artisan test' for a Laravel project, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 16 (python, no pytest config, pytest on PATH -> unittest)..."
+PY_UT_DIR="$TMP_DIR/py-unittest"
+PY_FAKE_BIN="$TMP_DIR/py-fake-bin"
+mkdir -p "$PY_UT_DIR"
+touch "$PY_UT_DIR/requirements.txt"
+fake_bin "$PY_FAKE_BIN" pytest python3 mypy ruff
+OUTPUT="$(PATH="$PY_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$PY_UT_DIR")"
+if ! grep -qx "unit: python3 -m unittest discover" <<<"$OUTPUT"; then
+    echo "FAIL: case 16 expected 'unit: python3 -m unittest discover' without pytest config, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 17 (python with pytest.ini -> pytest)..."
+PY_PT_DIR="$TMP_DIR/py-pytest"
+mkdir -p "$PY_PT_DIR"
+touch "$PY_PT_DIR/requirements.txt" "$PY_PT_DIR/pytest.ini"
+OUTPUT="$(PATH="$PY_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$PY_PT_DIR")"
+if ! grep -qx "unit: pytest" <<<"$OUTPUT"; then
+    echo "FAIL: case 17 expected 'unit: pytest' with pytest.ini, got:" >&2
+    printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+echo "test-detect-stack: running case 18 (tests/run.sh beats marker guesses)..."
+mkdir -p "$PY_UT_DIR/tests"
+printf '#!/usr/bin/env bash\n' >"$PY_UT_DIR/tests/run.sh"
+OUTPUT="$(PATH="$PY_FAKE_BIN" "$BASH_BIN" "$DETECT_STACK" "$PY_UT_DIR")"
+if ! grep -qx "unit: bash tests/run.sh" <<<"$OUTPUT" || grep -q "unit: python3" <<<"$OUTPUT"; then
+    echo "FAIL: case 18 expected only 'unit: bash tests/run.sh' when tests/run.sh exists, got:" >&2
     printf '%s\n' "$OUTPUT" >&2
     exit 1
 fi

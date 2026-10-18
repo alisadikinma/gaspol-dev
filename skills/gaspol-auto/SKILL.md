@@ -78,12 +78,16 @@ Only after all 4 pre-flight checks pass, proceed.
 
 For each phase in plan (sequential):
 
-1. **Dispatch implementer** (model: sonnet per rubric) with phase text + CLAUDE.md context + anti-placeholder rules + TDD step 1 hard gate
+1. **Implement the phase.** Dispatch an implementer (model: sonnet per rubric) with phase text + CLAUDE.md context + anti-placeholder rules + TDD step 1 hard gate **only when the phase is large** (estimated over 15 minutes or touching more than 5 files) or runs in parallel. A smaller phase is implemented in the orchestrating session: every dispatch re-reads the plan and the project context before writing a line, which on a small phase costs more tokens and time than the phase itself. Same TDD gate either way.
 2. **Wait for completion** — implementer runs RED → GREEN → REFACTOR → commit
 3. **Post-phase silent check**:
    - Run tiered auto-review classifier (from Phase F logic)
    - If REVIEW and findings surfaced → mini-pause (see Hard Stop below if Critical)
-4. **Continue to next phase** (NO per-phase user prompt — that's the autonomous part)
+4. **Ledger tick (BLOCKING)** — the orchestrating session runs `gaspol-execute`'s
+   tick-then-append gate (Checkpoint Rule 6): Checklist ticked, `## Phase log` row set to the
+   status and real commit SHA, one `## Log` line with the `NEXT:` cursor. No ledger write, no
+   next phase. Autonomous means no prompt between phases, never no record between phases.
+5. **Continue to next phase** (NO per-phase user prompt — that's the autonomous part)
 
 ### Hard Stop Conditions (ALWAYS pause)
 

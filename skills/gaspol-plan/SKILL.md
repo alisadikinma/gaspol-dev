@@ -27,6 +27,12 @@ Coverage is born in the plan. A phase that never enumerated its error paths ship
 
 Every phase carries the answers as steps. A rung that genuinely does not apply is written down as **not applicable, with the reason** — never left blank, because a blank reads as "covered" to the executor.
 
+**Repo gates go in the phase that triggers them.** Before writing phases, list the project's
+own checks that fire on a NEW file — a registry or index that must name every tool, a docs table
+generated from code, a coverage gate refusing an unused module. Any phase that creates such a file
+also registers it, in the same phase. Scheduling "register everything" for the last phase leaves
+every phase before it red, and the run burns a fix round on a failure the plan itself caused.
+
 **Reuse, not volume:** prefer stdlib → native platform feature → already-installed dependency over new code, and plan no interface with one implementation. Reuse cuts cleverness, never coverage.
 
 **Boundary:** completeness is depth on what the spec asked for. It is not licence to plan features the spec does not contain — work outside the spec is listed under "Out of scope" in one line, never absorbed silently. And it never softens FIDELITY: the Data Integration Map stays the contract, and no phase turns a real data source into a placeholder.
@@ -105,7 +111,8 @@ resolution above — reuse the spec file's ticket if one exists):
    Write `.gaspol/progress/PROGRESS-<TICKET>.md` (and its parent dir) with the header fields,
    the four mandatory sections, a `### [ ] Phase <N>: <name>` **sub-block per phase** whose body
    is that phase's `**Steps:**` rendered as checkboxes followed by its `**Verification:**` block
-   verbatim, and a `## Log` with exactly one line:
+   verbatim, a `## Phase log` table with **one row per phase, every phase, from the start**
+   (`| A — <name> | TODO | — |`), and a `## Log` with exactly one line:
    `- <YYYY-MM-DD> plan ditulis — NEXT: Phase A` (or whatever the first phase is named).
    **Copy, do not summarise.** Both blocks already exist in the plan you just wrote, and
    `**Verification:**` is already `- [ ]` checkboxes — so the richer ledger costs nothing to
@@ -192,6 +199,8 @@ use exactly this template:
 |---|---|---|
 | A — script detect-stack | DONE | `4f2a1c9` |
 | B — glob ledger | DOING | — |
+| C — konvensi nama file spec & plan | TODO | — |
+| D — contoh fase dibatalkan | DIBATALKAN | — |
 
 ## Utang terbuka
 
@@ -326,6 +335,11 @@ same block reads `php artisan test`, on a Python repo `pytest`, and where `detec
 ```
 
 `gaspol-execute` enforces this — phase without proper TDD step 1 will be refused at execution time (Step 2 hard gate). Plans violating this template are rejected before execution starts.
+
+**Self-check before the plan is presented:** the number of lines matching
+`^1\. Write failing test for .+ Expected error: ` must equal the number of `### Phase` headings.
+Count both; fix any phase whose step 1 drifted ("Write failing check", "Write failing consistency
+test ...") before the offer. Catching it at execution pre-flight costs a plan edit mid-run.
 
 **Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column:
 
