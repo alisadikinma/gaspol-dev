@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.29.2] - 2026-10-18
+
+### Changed — the full suite is the final gate, not a per-phase tax
+
+- **Test cadence** (`_shared/verification-loop.md`). A phase runs its targeted group (touched
+  modules plus the fast contract checks). The full suite runs once in the last phase, and again only
+  at a shared-surface phase (shared module, registry/index, build or dependency config, scaffold).
+  Found in GV-28: a 3-minute full suite after each of 17 phases, plus a second copy when the
+  orchestrator re-verified. `gaspol-tdd` red flag 10 matches.
+
 ## [1.29.1] - 2026-10-18
 
 ### Fixed — a run records itself and stops paying for the same test twice

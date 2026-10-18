@@ -1,7 +1,7 @@
 {
   "name": "gaspol-dev",
   "description": "Battle-tested Claude Code skills born from building a real AI-powered SaaS platform. Anti-placeholder enforcement, per-phase checkpoints, plan verification, design intelligence, worktree isolation, and an auto-trigger bootstrap.",
-  "version": "1.29.1",
+  "version": "1.29.2",
   "author": {
     "name": "Ali Sadikin",
     "url": "https://github.com/alisadikinma"

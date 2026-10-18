@@ -189,7 +189,7 @@ Stop immediately if any of these occur:
 7. **Multiple behaviors in one test** -- Split into separate tests. One behavior per test.
 8. **Mocking everything** -- If you're mocking more than external dependencies, your design needs work.
 9. **Skipping REFACTOR** -- Technical debt accumulates. Refactor while tests are green.
-10. **Not running all tests** -- Run the full suite, not just the new test.
+10. **Not running the neighbours** -- Run the new test, then the rest of its test file and module group. The full suite is the final gate (see `_shared/verification-loop.md` Cadence), not a per-step or per-phase run.
 
 ---
 

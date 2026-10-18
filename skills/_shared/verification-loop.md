@@ -42,7 +42,8 @@ Cheapest first, **fail-fast**: stop at the first level that fails.
 | Level | What | When it runs |
 |---|---|---|
 | **L1 static** | typecheck + lint | every phase that touches code |
-| **L2 unit** | targeted tests while working, the full suite once at phase end | every phase that touches code |
+| **L2 unit** | targeted tests: the files the phase touches plus the cheap contract group they belong to | every phase that touches code |
+| **L2 full** | the full suite | once, in the last phase, before the final review; and at a *shared-surface* phase (see Cadence) |
 | **L3 build** | the production build | the last phase, and any phase touching build config, dependencies, or entry points |
 | **L4 integration** | data actually flows end to end | phases wiring a real integration |
 | **L5 edge** | the non-happy paths actually executed | phases whose Completeness Ladder rungs 2-3 produced cases |
@@ -52,11 +53,17 @@ complexity classifier already recognises — skips L2 and L3. It still runs L1 w
 those files. This is deliberate: IDS-10 removed the scope governor, and "run a full build after a
 one-line docs edit" is exactly the over-application that leaves behind.
 
-**Cadence inside a phase.** Each TDD step runs only the tests it touches (one test file or one
-case: seconds). The full suite runs **once**, when the phase's steps are done, before the
-checkpoint. A full suite after every step multiplies its runtime by the step count and adds no
-evidence the end-of-phase run does not already give. A failure in the full run is fixed and then
-re-run from that failing group (On failure, point 3), not from the whole suite.
+**Cadence — the full suite is a final gate, not a per-phase tax.** Each TDD step runs only the
+tests it touches (one file or case: seconds). At phase end run the *targeted* group: the test
+files of the modules the phase changed, plus the project's fast contract checks (the ones that
+finish in seconds, e.g. a consistency or registry validator). The **full suite runs once, in the
+last phase**, before the final review, and again only when a phase touches a *shared surface*:
+a module many groups import, a registry/index every tool must appear in, build or dependency
+config, or a scaffold/template that is copied into other projects. A full suite after every phase
+multiplies its runtime by the phase count; later phases build on earlier ones, so a regression in
+another group surfaces at the final run, where the fix is still one `git bisect` away. A failure
+in the full run is fixed and then re-run from that failing group (On failure, point 3), not from
+the whole suite. The checkpoint states which group ran and why the full suite was or was not due.
 
 **A level that does not apply is skipped EXPLICITLY, with the reason, in the checkpoint.** A silent
 skip is a placeholder-grade lie — the rule the Validation Ladder has carried since v1.8.
@@ -84,7 +91,7 @@ verification-baseline: L1 pass · L2 pass (142 tests, 3m10s) · L3 not run — c
 
 Capture it **once per run** and reuse it; never re-run the baseline to get counts per group or a
 second opinion — read them from the first run's output. Record the suite's runtime: it tells the
-plan what one full-suite run costs, so a phase estimate counts it once, not per step.
+plan what one full-suite run costs, so a phase estimate counts it once, not per step or per phase.
 
 Without it, a suite that was **already red** gets blamed on the first phase, and the fix loop
 burns its rounds on somebody else's failure. `gaspol-finish` learned this in IDS-9 (its Step 0
