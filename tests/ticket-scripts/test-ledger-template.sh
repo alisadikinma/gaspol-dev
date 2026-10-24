@@ -101,7 +101,7 @@ echo "test-ledger-template: 7. step 7 names the copy source..."
 STEP7="$(python3 - "$PLAN_SKILL" <<'PYEOF'
 import re, sys, pathlib
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-m = re.search(r"\n7\. \*\*Create the ledger file now.*?(?=\n\nEvery plan document)", text, re.S)
+m = re.search(r"\n7\. \*\*Create the ledger file now.*?(?=\n\nEvery plan MUST start with the header)", text, re.S)
 print(m.group(0) if m else "")
 PYEOF
 )"

@@ -7,11 +7,7 @@ description: "Use when you have a spec or requirements for a multi-step task, be
 
 ## Overview
 
-Write comprehensive implementation plans assuming the executor has **zero context** and **questionable taste**. Every plan includes:
-
-- A **Data Integration Map** (contract for real vs placeholder)
-- **Per-phase verification criteria** (no phase ships without passing checks)
-- **TDD-first steps** (write test, see fail, implement, see pass, commit)
+Write comprehensive implementation plans assuming the executor has **zero context** and **questionable taste**.
 
 Plans follow: DRY, YAGNI, TDD-first, frequent commits. Read `references/plan-details.md` when a gate below needs its reasoning.
 
@@ -32,6 +28,8 @@ own checks that fire on a NEW file — a registry or index that must name every 
 generated from code, a coverage gate refusing an unused module. Any phase that creates such a file
 also registers it, in the same phase.
 
+**Reuse, not volume:** prefer stdlib → native platform feature → already-installed dependency over new code, and plan no interface with one implementation. Reuse cuts cleverness, never coverage.
+
 **Boundary:** completeness is depth on what the spec asked for. It is not licence to plan features the spec does not contain — work outside the spec is listed under "Out of scope" in one line, never absorbed silently. And it never softens FIDELITY: the Data Integration Map stays the contract, and no phase turns a real data source into a placeholder.
 
 ## Announce at Start
@@ -44,8 +42,8 @@ Before writing a single line of the plan, you MUST:
 
 1. **READ `CLAUDE.md`** to understand existing architecture, tables, hooks, contexts, routes
 2. **IDENTIFY reusable** hooks, contexts, utilities, and patterns already in the codebase
-3. **CHECK if similar features already exist** (avoid duplicating work)
-4. **REFERENCE existing code in the plan** with full file paths (e.g., `src/contexts/WorkspaceContext.tsx`)
+3. **CHECK if similar features already exist**
+4. **REFERENCE existing code in the plan** with full file paths
 
 ## Save Plans To (Ticket-Prefixed, Spec/Plan Split)
 
@@ -64,7 +62,9 @@ reconstructing a filename from a date:**
 - **More than one match → STOP and ask the user which spec this plan continues. Never pick
   one silently** — a wrong guess ties the plan to the wrong ticket/spec permanently.
 
-Read `references/plan-details.md` when you need why the date is the creation date, or the seven pre-ticket files that keep their names.
+`YYYY-MM-DD` is the date this file is created — not the date the ticket was minted.
+
+Read `references/plan-details.md` when you need the seven pre-ticket files that keep their names.
 
 ## Plan Document Header (MANDATORY)
 
@@ -93,46 +93,21 @@ resolution above — reuse the spec file's ticket if one exists):
    Write `.gaspol/progress/PROGRESS-<TICKET>.md` (and its parent dir) with the header fields,
    the four mandatory sections, a `### [ ] Phase <N>: <name>` **sub-block per phase** whose body
    is that phase's `**Steps:**` rendered as checkboxes followed by its `**Verification:**` block
-   verbatim, a `## Phase log` table with **one row per phase, every phase, from the start**
-   (`| A — <name> | TODO | `` `<no commit>` `` |`), and a `## Log` with exactly one line:
+   verbatim, a `## Phase log` table with **one row per phase, every phase, from the start**, and a `## Log` with exactly one line:
    `- <YYYY-MM-DD> plan ditulis — NEXT: Phase A` (or whatever the first phase is named).
    **Copy, do not summarise.** Both blocks already exist in the plan you just wrote, and
    `**Verification:**` is already `- [ ]` checkboxes — so the richer ledger costs nothing to
    produce and cannot drift from the plan it came from. A phase with **no** `**Verification:**`
    block means the plan is incomplete: **STOP and ask**, never invent one to fill the gap.
 
-Every plan document MUST start with this header:
+Every plan MUST start with the header in `references/plan-header.md`, copied verbatim. Read `references/plan-header.md` when you write the header.
 
-```markdown
-> **For Claude:** REQUIRED SKILL: Use gaspol-execute to implement this plan.
-> **CRITICAL:** This plan specifies real integrations. During execution,
-> NEVER substitute placeholders for real data sources without explicit
-> user approval. If a data source doesn't exist yet, STOP and ask.
-> **Progress ledger — HARD PER-PHASE GATE:** `.gaspol/progress/PROGRESS-<TICKET>.md` (TICKET = this plan's ticket, from the header below; created by `gaspol-plan` at plan-write time — see Plan Document Header step 7). After EACH phase and **BEFORE** starting the next, STOP and do BOTH: (a) tick that phase's `## Checklist` line, (b) append a `## Log` line ending with the handoff cursor. This is **blocking**, like a test gate: no next phase until both are written. **Never batch all updates at the end** — a crash mid-run must leave a truthful state, not a stale one. Update ONLY this file — never the shared `.gaspol/progress.md` (that keeps concurrent plans from clobbering each other). **Backward compatibility:** older ledgers at `.gaspol/progress/<slug>.md` or the shared `.gaspol/progress.md` are STILL READ when a plan's header names them — only NEW plans write the `PROGRESS-<TICKET>.md` path.
-> **Self-contained:** this plan is the COMPLETE spec. It must be executable by an agent with **no other context** — a fresh post-`/compact` session, or an external executor in a separate process that cannot see this chat or read a linked PDF. Every file path, contract, config key, and convention it needs is written here **verbatim**, not merely referenced. If it lives only in the conversation, copy it in.
-
-**Ticket:** IND-81
-**Ledger:** .gaspol/progress/PROGRESS-IND-81.md
-**Spec:** docs/plans/2026-08-20-IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
-**Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-**Format:** waves-v1 <!-- always present in a new plan: it is what tells `plan-waves` and the executors that every phase below carries `**Deps:**` and `**Complexity:**` -->
-
-**Verification commands:**
-- static: npx tsc --noEmit
-- unit: npm test
-
-## Goal
-
-[One paragraph describing what this plan achieves and why it matters]
-
-## Architecture Context
-
-[Key info pulled from CLAUDE.md: relevant tables, hooks, contexts, routes, design system tokens]
-
-## Tech Stack
-
-[Frameworks, libraries, patterns to use — reference existing choices from CLAUDE.md]
-```
+- The four blockquote paragraphs at the top of the template (`**For Claude:**`, `**CRITICAL:**` — NEVER substitute placeholders for real data sources without explicit user approval, the **Progress ledger — HARD PER-PHASE GATE**, and `**Self-contained:**`) are copied verbatim into every plan.
+- `**Ticket:**` and `**Ledger:**` are always written.
+- `**Spec:**` only when a spec preceded this plan; omit the line entirely when the plan is standalone.
+- `**Artifact:**` only once the post-plan offer's `[Render design artifact dulu]` option was taken and the artifact was approved; omit the whole line otherwise, and never write "n/a".
+- `**Format:** waves-v1` is always present in a new plan.
+- `**Verification commands:**` is written once per plan, as below.
 
 **Verification commands — written ONCE per plan, never per phase.** Run
 `skills/gaspol-execute/scripts/detect-stack <project-root>` once and copy its `static:`/`lint:`/
@@ -146,11 +121,10 @@ line (no comments on those lines, no blank line inside the block). Three variant
 
 ## Progress Ledger Format
 
-The ledger `gaspol-plan` creates at `.gaspol/progress/PROGRESS-<TICKET>.md` (step 7 above) MUST
-use exactly the template in `references/ledger-format.md`. Read it when you write the ledger in step 7; it also holds the section table and the older-ledger rule.
+The ledger created in step 7 MUST use exactly the template in `references/ledger-format.md`. Read `references/ledger-format.md` when you write the ledger in step 7.
 
 **Four mandatory sections, all ABOVE `## Log`:** `## Pre-flight`, `## Keputusan saat jalan`,
-`## Phase log`, `## Utang terbuka`.
+`## Phase log`, `## Utang terbuka`. **Every other section is added when it has content, never as an empty heading.**
 
 Four checklist states:
 
@@ -166,6 +140,8 @@ reads the file's last non-empty line to decide active-vs-done; if any block sits
 `## Log`, that detection breaks. This is a hard formatting requirement, not a style preference
 — never append a section after `## Log`.
 
+An **older flat** ledger — one `## Checklist` line per phase, no sub-blocks, none of the four sections — is still read exactly as it is: tick its line, append to its `## Log`, and leave its shape alone. Only a ledger you CREATE uses the new shape.
+
 ## Bite-Sized Task Granularity
 
 Each step should be **one action** (2-5 minutes estimated):
@@ -176,7 +152,7 @@ Each step should be **one action** (2-5 minutes estimated):
 4. Run tests, see them pass
 5. Commit
 
-If a step takes longer than 5 minutes to describe, it is too large. Break it down further.
+If a step takes longer than 5 minutes to describe, it is too large. Break it down further. A phase estimated over 15 minutes is too large: break it into smaller phases.
 
 ## Data Integration Map (MANDATORY in Every Plan)
 
@@ -187,6 +163,7 @@ Every plan MUST include a Data Integration Map table:
 
 | Feature | Data Source | Hook/API | Exists? | Action |
 |---------|-----------|----------|---------|--------|
+| SegmentCard | WorkspaceContext.segments | useWorkspace() | Yes | Use existing |
 ```
 
 This table is the **CONTRACT** between planner and executor:
@@ -199,31 +176,7 @@ A plan without a Data Integration Map is **INCOMPLETE**. Do not proceed to phase
 
 ## Phase Structure
 
-Each phase MUST follow this exact structure:
-
-```markdown
-### Phase A: [Phase Name]
-
-**Deps:** none                           <!-- or: A, B  (phase ids, comma separated, case-sensitive) -->
-**Complexity:** medium — [one-sentence reason]   <!-- light | medium | complex, then a dash and WHY -->
-**Estimated time:** [X minutes]
-
-**Files:**
-- Create: `src/components/SegmentCard.tsx`
-- Modify: `src/screens/Workspace/ScriptStep.tsx`
-- Test: `src/__tests__/SegmentCard.test.tsx`
-
-**Steps:**
-1. Write failing test for SegmentCard rendering. Expected error: `ReferenceError: SegmentCard is not defined`
-2. Run test, confirm it fails for the expected reason
-3. Implement SegmentCard with real data from useWorkspace()
-4. Run tests, confirm all pass
-5. Commit: "feat: add SegmentCard with workspace integration"
-
-**Verification:**
-- [ ] SegmentCard renders with real data from WorkspaceContext
-- [ ] SegmentCard shows the empty state when the workspace has no segments
-```
+Each phase MUST follow the exact structure in `references/phase-template.md`, copied verbatim. Read `references/phase-template.md` when you write a phase.
 
 **Deps and Complexity (MANDATORY, `waves-v1`):** every phase declares what it waits for and how
 hard it is, between the heading and `**Files:**`.
@@ -250,18 +203,15 @@ hard it is, between the heading and `**Files:**`.
 **Self-check before the plan is presented:** the number of lines matching
 `^1\. Write failing test for .+ Expected error: ` must equal the number of `### Phase` headings.
 Count both; also count the `**Deps:**` lines and the `**Complexity:**` lines, which must each
-equal the number of `### Phase` headings too. Fix any phase whose step 1 drifted ("Write failing check", "Write failing consistency
-test ...") before the offer.
+equal the number of `### Phase` headings too. Fix any phase whose step 1 drifted before the offer.
 
-**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column. Read `references/plan-details.md` when a phase involves UI work: it holds the table and the rule that `ui-ux-pro-max` is called at most once per ticket.
+**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column. `ui-ux-pro-max` is invoked at most once per ticket. Read `references/plan-details.md` when a phase involves UI work: it holds the table.
 
 **Security-Sensitive Phases:** When a phase touches **auth/authorization, secrets,
 user input or file uploads, a new API endpoint, payment, or sensitive data**, the
-phase's Verification block MUST include a security line (e.g. "inputs validated,
-queries parameterized, authz server-side, no secrets in source").
+phase's Verification block MUST include a security line.
 
-**Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior
-(classification, extraction, generation, RAG, routing), define evals at plan time via
+**Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior, define evals at plan time via
 **evals, not unit tests** — write `docs/evals/<feature>.md` (capability + regression + real
 fixtures) as the phase's success contract.
 
@@ -276,10 +226,11 @@ that phase** — at least one:
 - [ ] [specific functional check for this phase]
 ```
 
-What counts as specific, and what does not, is in `references/plan-details.md`; read it when you write a phase's Verification block or fill the `**Verification commands:**` block:
-
 - A phase with no Verification lines, or only generic ones, is **INCOMPLETE**: the executor will
   not know when the phase is done. `verification-lint` (see Execution Waves) enforces this.
+- An unfilled `real data from [specific source]` is generic and is refused.
+
+Read `references/plan-details.md` when you write a phase's Verification block or fill the `**Verification commands:**` block.
 
 ## Execution Waves (MANDATORY)
 
@@ -295,11 +246,9 @@ The path goes through `${CLAUDE_PLUGIN_ROOT:?…}`, never a relative path. Read 
 | Exit | Stdout line 1 | Do this |
 |---|---|---|
 | 0 | `plan-waves: OK — <n> phase(s), <m> wave(s)` | paste its `wave` / `lane` lines as an `## Execution Waves` section in the plan, and the same lines as a `## Waves` section in the ledger **above** `## Log` (`## Log` stays last) |
-| 1 | `plan-waves: BLOCKING — <problem>` | fix the plan (missing `Deps`/`Complexity`, bare label, unknown dep, cycle, duplicate id) and re-run |
+| 1 | `plan-waves: BLOCKING — <problem>` | fix the plan and re-run |
 | 3 | `plan-waves: UNKNOWN — <why>` | **STOP and ask.** The script or the plan could not be read; do not schedule by hand |
 | 4 | `plan-waves: N/A — no waves-v1 format header …` | the `**Format:** waves-v1` line is missing from a new plan: add it and re-run. Exit 4 is never a pass |
-
-The `phase …` lines in the same output are what the executors read for each phase's assignment.
 
 Then check that no phase's Verification block is only boilerplate:
 
@@ -330,10 +279,14 @@ execution modal, which is two questions for one decision:
 [Eksekusi otomatis]             → gaspol-auto, autonomous with hard-stop guardrails — ALWAYS offered
 [Eksekusi parallel]             → gaspol-parallel, only when `plan-waves` printed a wave with two or more lanes
 [Simpan buat sesi lain]         → stop here
-[Serahkan ke executor luar]     → only when an executor resolves (see below)
+[Serahkan ke executor luar]     → only when an executor resolves (see below this block)
 ```
 
-Read `references/execution-handoff.md` when you present this offer: it holds why `gaspol-auto` is always offered, the artifact contents, how an approved artifact is recorded and the external executor.
+Read `references/execution-handoff.md` when you present this offer.
+
+`[Serahkan ke executor luar]` is shown only when an executor resolves: `$GASPOL_EXECUTOR`, then the first line of `.gaspol/executor`; **neither set → leave this option out of the modal entirely.** Present the concrete command for approval before running. The external tool **NEVER commits/pushes** — the finished diff returns to this session (or the human) for review + commit — and review is never skipped.
+
+When `[Render design artifact dulu]` is chosen and the artifact is approved, record it in **two** places: `**Artifact:** <url>` in this plan file's header, and `design-artifact: approved — <url>` in the ledger, above `## Log`.
 
 ### Declining costs a reason, and the reason may not be empty
 
@@ -347,7 +300,7 @@ design-artifact: skipped — <reason>
 
 An empty reason is refused: ask again.
 
-`[Simpan buat sesi lain]` writes **NO line at all**. Nothing was skipped, because nothing executed
+`[Simpan buat sesi lain]` writes **NO line at all**. Nothing was skipped, because nothing executed.
 
 ## Red Flags (Self-Check Before Finishing)
 

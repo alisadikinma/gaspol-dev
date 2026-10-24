@@ -2,7 +2,7 @@
 
 `SKILL.md` states each ledger gate's condition and consequence. This file holds the template, the section table, the older-ledger rule and the reasons.
 
-The ledger `gaspol-plan` creates at `.gaspol/progress/PROGRESS-<TICKET>.md` (step 7 above) MUST
+The ledger `gaspol-plan` creates at `.gaspol/progress/PROGRESS-<TICKET>.md` (step 7 of `SKILL.md`) MUST
 use exactly this template:
 
 ```markdown

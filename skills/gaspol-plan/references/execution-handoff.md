@@ -1,6 +1,6 @@
 # Execution handoff: detail
 
-`SKILL.md` states the post-plan offer and the non-empty skip-reason rule. This file holds the reasons, the artifact notes and the external executor.
+`SKILL.md` states the post-plan offer, the non-empty skip-reason rule, the executor rules and the two-place recording. This file holds the reasons, the artifact notes and the executor details.
 
 `gaspol-auto` is offered on **every** plan. It is a documented execution mode that this skill
 previously never surfaced, so the only way to reach it was to already know it existed. Its own

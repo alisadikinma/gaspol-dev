@@ -2,7 +2,7 @@
 # test-skill-trim-plan.sh — gaspol-plan must stay under the compaction cut (IDS-23 Phase D).
 #
 # Claude Code keeps only the first 20,000 characters of a SKILL.md after /compact, so any gate
-# that sits past the cut vanishes. The target ceiling was 18,000 bytes. A trim is
+# that sits past the cut vanishes. The ceiling is 18,000 bytes, which leaves headroom. A trim is
 # only legitimate if every gate survives IN THE BODY, so the GATES table below pins one fixed
 # string per gate (the sentence that states its condition and consequence) and a size pass
 # without a gate pass is a failure.
@@ -13,14 +13,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SKILL_REL="skills/gaspol-plan/SKILL.md"
 SKILL="$REPO_ROOT/$SKILL_REL"
 SKILL_DIR="$REPO_ROOT/skills/gaspol-plan"
-# LIMIT is 20000, not the 18000 the plan asked for. Past the ledger template and the execution
-# handoff, what remains in the body is the plan header template (about 4.3 KB), the phase template,
-# the plan-waves and verification-lint exit tables (about 1.3 KB) and one sentence per gate. Getting
-# from about 19.9 KB to under 18 KB means moving a gate out of the body (the completeness rungs, the
-# Deps and Complexity rules, an exit table column), which is what this test exists to refuse. 20000
-# is the compaction cut itself, in characters, and the file is measured in bytes (every multi-byte
-# character counts more), so staying under it in bytes stays under it in characters.
-LIMIT=20000
+LIMIT=18000
 
 FAILURES=0
 fail() { echo "FAIL: $*" >&2; FAILURES=$((FAILURES + 1)); }
@@ -41,25 +34,24 @@ GATES=(
   'ticket-more-than-one-stop|**More than one match → STOP and ask the user which spec this plan continues. Never pick'
   'ticket-exit-2-ask|**Exit 2** — no `## gaspol Ticket Counter` section'
   'ticket-no-default-guess|(no default guess — never invent'
-  'header-mandatory|Every plan document MUST start with this header:'
   'header-never-substitute|NEVER substitute placeholders for real data sources without explicit'
-  'header-per-phase-gate|**Progress ledger — HARD PER-PHASE GATE:**'
-  'header-blocking|This is **blocking**, like a test gate: no next phase until both are written.'
-  'header-format-waves-v1|**Format:** waves-v1 <!-- always present in a new plan'
-  'header-verification-commands|**Verification commands:**'
+  'header-copied-verbatim|are copied verbatim into every plan.'
+  'header-hard-gate-named|the **Progress ledger — HARD PER-PHASE GATE**'
+  'header-verification-commands|**Verification commands — written ONCE per plan, never per phase.**'
   'ledger-at-plan-write|**Create the ledger file now, at plan-write time** — do not defer this to the executor.'
   'ledger-no-verification-stop|block means the plan is incomplete: **STOP and ask**, never invent one to fill the gap.'
   'detect-stack-unknown-resolve|for that level and resolve it with AskUserQuestion before the plan is presented as final.'
   'detect-stack-nothing|`detect-stack` prints nothing → write'
   'ledger-copy-not-summarise|**Copy, do not summarise.** Both blocks already exist in the plan you just wrote, and'
   'ledger-four-sections|**Four mandatory sections, all ABOVE `## Log`:**'
+  'ledger-step7-sections|the four mandatory sections, a `### [ ] Phase <N>: <name>` **sub-block per phase**'
   'ledger-log-last|**Structural rule — `## Log` is ALWAYS the last block in the file.**'
   'ledger-never-append|never append a section after `## Log`.'
   'ledger-reason-mandatory|a short reason is MANDATORY on the line + detail in the Log'
-  'dim-mandatory|## Data Integration Map (MANDATORY in Every Plan)'
+  'dim-mandatory|Every plan MUST include a Data Integration Map table:'
   'dim-stops|**If not possible:** Executor STOPS and asks the user. Never silently stub it out.'
   'dim-incomplete|A plan without a Data Integration Map is **INCOMPLETE**. Do not proceed to phases without it.'
-  'deps-complexity-mandatory|**Deps and Complexity (MANDATORY, `waves-v1`):**'
+  'deps-complexity-mandatory|**Deps and Complexity (MANDATORY, `waves-v1`):** every phase declares what it waits for and how'
   'bare-label-refused|Rule: a bare label with no reason is refused. `plan-waves` exits 1 on it'
   'tdd-step-1-gate|**TDD Step 1 Hard Gate (MANDATORY):** Every phase MUST have step 1 in this exact format:'
   'tdd-refused|phase without proper TDD step 1 will be refused at execution time (Step 2 hard gate)'
@@ -81,14 +73,44 @@ GATES=(
   'lint-exit-4-never-pass|header block is missing from a new plan: add it and re-run. Exit 4 is never a pass'
   'offer-one-question|present exactly one `AskUserQuestion` carrying'
   'offer-parallel-condition|only when `plan-waves` printed a wave with two or more lanes'
-  'offer-skipped-line|design-artifact: skipped — <reason>'
+  'offer-skipped-line|`[Eksekusi parallel]`, `[Serahkan ke executor luar]` — write one line to the ledger before handing'
   'offer-empty-reason-refused|An empty reason is refused: ask again.'
   'offer-save-later-no-line|`[Simpan buat sesi lain]` writes **NO line at all**.'
   'red-flags-check|Before presenting the plan, verify none of these red flags are present:'
   'red-flags-pointer|Read `references/plan-details.md` when you run this self-check: it holds the table.'
-  'ledger-pointer|use exactly the template in `references/ledger-format.md`. Read it when you write the ledger in step 7'
+  'ledger-pointer|MUST use exactly the template in `references/ledger-format.md`. Read `references/ledger-format.md` when you write the ledger in step 7.'
   'handoff-pointer|Read `references/execution-handoff.md` when you present this offer'
-  'verification-bullets-pointer|What counts as specific, and what does not, is in `references/plan-details.md`; read it when you write'
+  'verification-pointer|Read `references/plan-details.md` when you write a phase'"'"'s Verification block or fill the `**Verification commands:**` block.'
+  'phase-template-pointer|Each phase MUST follow the exact structure in `references/phase-template.md`, copied verbatim.'
+  'header-field-spec|`**Spec:**` only when a spec preceded this plan; omit the line entirely when the plan is standalone.'
+  'header-field-artifact|omit the whole line otherwise, and never write "n/a".'
+  'header-field-format|`**Format:** waves-v1` is always present in a new plan.'
+  'header-pointer|Every plan MUST start with the header in `references/plan-header.md`, copied verbatim.'
+  'date-is-creation-date|`YYYY-MM-DD` is the date this file is created — not the date the ticket was minted.'
+  'completeness-rung-error|**Error paths** — which failures can actually happen here? Name them. Each becomes a step, not a footnote.'
+  'completeness-rung-edge|**Edge cases** — enumerate the input space'
+  'completeness-rung-tests|**Tests** — step 1 of the phase is still the failing test; rungs 2 and 3 each need a covering case.'
+  'completeness-rung-happy|**Happy path** — which real integration does it deliver?'
+  'completeness-rung-observability|**Observability** — what does a 3am debugger need to see?'
+  'reuse-rule|prefer stdlib → native platform feature → already-installed dependency over new code, and plan no interface with one implementation'
+  'ticket-exactly-one|read its `**Ticket:**` header field and reuse that ticket. Do not mint a new one.'
+  'bite-sized-too-large|If a step takes longer than 5 minutes to describe, it is too large. Break it down further.'
+  'phase-too-large|A phase estimated over 15 minutes is too large: break it into smaller phases.'
+  'design-deliverable-must|the Phase table MUST include a Design Deliverable column'
+  'ui-ux-once|`ui-ux-pro-max` is invoked at most once per ticket.'
+  'evals-not-unit|**evals, not unit tests** — write `docs/evals/<feature>.md`'
+  'complexity-rubric-complex|complex = new logic; money, auth or security; many interlinked files; an interface other phases consume'
+  'self-check-deps-complexity|also count the `**Deps:**` lines and the `**Complexity:**` lines, which must each'
+  'verification-generic-refused|An unfilled `real data from [specific source]` is generic and is refused.'
+  'offer-auto-always|[Eksekusi otomatis]             → gaspol-auto, autonomous with hard-stop guardrails — ALWAYS offered'
+  'executor-left-out|**neither set → leave this option out of the modal entirely.**'
+  'executor-command-approval|the concrete command for approval before running.'
+  'executor-never-commits|The external tool **NEVER commits/pushes**'
+  'executor-review-not-skipped|and review is never skipped.'
+  'artifact-two-places|record it in **two** places'
+  'ledger-other-sections|**Every other section is added when it has content, never as an empty heading.**'
+  'ledger-old-shape-rule|tick its line, append to its `## Log`, and leave its shape alone. Only a ledger you CREATE uses the new shape.'
+  'save-later-complete|Nothing was skipped, because nothing executed.'
 )
 
 echo "test-skill-trim-plan: positive control (has must reject a string the file lacks)..."
@@ -118,16 +140,12 @@ for entry in "${GATES[@]}"; do
   fi
 done
 
-echo "test-skill-trim-plan: the header template, the plan-waves call and the verification-lint call are in the body..."
-python3 - "$SKILL" <<'PYEOF' || fail "the body lost the header template, the Verification commands block, or one of the two gate script calls"
+echo "test-skill-trim-plan: the plan-waves and verification-lint calls are in the body..."
+python3 - "$SKILL" <<'PYEOF' || fail "the body lost the plan-waves or verification-lint call"
 import re, sys, pathlib
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-blocks = re.findall(r"```markdown\n(.*?)```", text, re.S)
-hdr = [b for b in blocks if "**Format:** waves-v1" in b and "**Verification commands:**" in b and "**Ticket:**" in b]
-bad = []
-if len(hdr) != 1:
-    bad.append("expected exactly one header template block with Ticket, Format and Verification commands, saw %d" % len(hdr))
 bash = re.findall(r"```bash\n(.*?)```", text, re.S)
+bad = []
 for script in ("plan-waves", "verification-lint"):
     if not any("/skills/gaspol-plan/scripts/%s" % script in b for b in bash):
         bad.append("no bash block runs %s" % script)
@@ -136,10 +154,60 @@ for m in bad:
 sys.exit(1 if bad else 0)
 PYEOF
 
-echo "test-skill-trim-plan: every references/ file named in the body exists..."
-REFS=$(grep -oE 'references/[A-Za-z0-9_.-]+\.md' "$SKILL" | sort -u || true)
-if [ -z "$REFS" ]; then
-  fail "SKILL.md names no references/ file — the moved detail has no pointer"
+echo "test-skill-trim-plan: plan-header.md holds the header template, with the Artifact comment intact..."
+HDR="$SKILL_DIR/references/plan-header.md"
+python3 - "$HDR" <<'PYEOF' || fail "references/plan-header.md lost the header template or one of its parts"
+import re, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+if not p.is_file():
+    print("    references/plan-header.md does not exist", file=sys.stderr); sys.exit(1)
+text = p.read_text(encoding="utf-8")
+blocks = re.findall(r"```markdown\n(.*?)```", text, re.S)
+hdr = [b for b in blocks if "**Format:** waves-v1" in b and "**Verification commands:**" in b and "**Ticket:**" in b]
+bad = []
+if len(hdr) != 1:
+    bad.append("expected exactly one header template block, saw %d" % len(hdr))
+else:
+    b = hdr[0]
+    for need in ("NEVER substitute placeholders for real data sources without explicit",
+                 "HARD PER-PHASE GATE",
+                 "This is **blocking**, like a test gate: no next phase until both are written.",
+                 "**Self-contained:**",
+                 "**Spec:** docs/plans/",
+                 "omit the whole line otherwise, and never write \"n/a\" -- a declined artifact is recorded in the LEDGER as `design-artifact: skipped — <reason>`, not here",
+                 "present ONLY when the post-plan offer's [Render design artifact dulu] option was taken and the artifact was approved"):
+        if need not in b:
+            bad.append("header template lost: " + need)
+    lines = b.splitlines()
+    idx = {k: next((i for i, l in enumerate(lines) if l.startswith(k)), -1)
+           for k in ("**Spec:**", "**Artifact:**", "**Format:**")}
+    if min(idx.values()) < 0 or not (idx["**Format:**"] > idx["**Spec:**"] and idx["**Format:**"] > idx["**Artifact:**"]):
+        bad.append("Format must come after Spec and Artifact in the template")
+for m in bad:
+    print("    " + m, file=sys.stderr)
+sys.exit(1 if bad else 0)
+PYEOF
+
+echo "test-skill-trim-plan: phase-template.md holds the phase template in order..."
+python3 - "$SKILL_DIR/references/phase-template.md" <<'PYEOF' || fail "references/phase-template.md lost the phase template or its field order"
+import re, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+if not p.is_file():
+    print("    references/phase-template.md does not exist", file=sys.stderr); sys.exit(1)
+blocks = [b for b in re.findall(r"```markdown\n(.*?)```", p.read_text(encoding="utf-8"), re.S) if b.startswith("### Phase A: [Phase Name]")]
+if len(blocks) != 1:
+    print("    expected exactly one phase template block, saw %d" % len(blocks), file=sys.stderr); sys.exit(1)
+order = ["**Deps:**", "**Complexity:**", "**Estimated time:**", "**Files:**", "**Steps:**", "**Verification:**"]
+pos = [blocks[0].find(k) for k in order]
+if min(pos) < 0 or pos != sorted(pos):
+    print("    field order broken: %s" % pos, file=sys.stderr); sys.exit(1)
+PYEOF
+
+echo "test-skill-trim-plan: every backticked references/ path in the body exists, and each file has a 'Read ... when' pointer..."
+REFS=$(grep -oE '`references/[A-Za-z0-9_.-]+\.md`' "$SKILL" | tr -d '`' | sort -u || true)
+NREFS=$(printf '%s\n' "$REFS" | grep -c . || true)
+if [ "${NREFS:-0}" -lt 4 ]; then
+  fail "SKILL.md names only ${NREFS:-0} references/ path(s), expected at least 4 — the scan is broken or the pointers are gone"
 fi
 for ref in $REFS; do
   if [ -f "$SKILL_DIR/$ref" ]; then
@@ -147,18 +215,15 @@ for ref in $REFS; do
   else
     fail "SKILL.md names skills/gaspol-plan/$ref but the file does not exist"
   fi
-done
-
-echo "test-skill-trim-plan: the two moved sections have their reference files..."
-for ref in references/ledger-format.md references/execution-handoff.md; do
-  if [ -f "$SKILL_DIR/$ref" ]; then
-    pass "skills/gaspol-plan/$ref exists"
+  if grep -qF -- "Read \`$ref\` when" "$SKILL"; then
+    pass "SKILL.md says when to read $ref"
   else
-    fail "skills/gaspol-plan/$ref does not exist"
+    fail "SKILL.md has no 'Read \`$ref\` when ...' pointer"
   fi
-  if ! grep -qF -- "$ref" "$SKILL" 2>/dev/null; then
-    fail "SKILL.md never points at $ref"
-  fi
+done
+for f in "$SKILL_DIR"/references/*.md; do
+  rel="references/$(basename "$f")"
+  if printf '%s\n' "$REFS" | grep -qxF -- "$rel"; then :; else fail "$rel exists but SKILL.md never points at it"; fi
 done
 
 echo "test-skill-trim-plan: the moved text is really in the references..."
@@ -167,18 +232,11 @@ for pair in 'references/ledger-format.md|## Pre-flight' 'references/ledger-forma
   if has "$SKILL_DIR/$rf" "$needle"; then pass "$rf holds: $needle"; else fail "$rf lost: $needle"; fi
 done
 
-echo "test-skill-trim-plan: relative links in SKILL.md and references/ resolve..."
-LINKS=0
-for f in "$SKILL" "$SKILL_DIR"/references/*.md; do
-  [ -f "$f" ] || continue
+echo "test-skill-trim-plan: relative markdown links inside references/ resolve..."
+for f in "$SKILL_DIR"/references/*.md; do
   dir="$(dirname "$f")"
   for target in $(grep -oE '\]\([^)#]+\.md\)' "$f" | sed -E 's/^\]\(//; s/\)$//' | grep -vE '^https?:' || true); do
-    LINKS=$((LINKS + 1))
-    if [ -f "$dir/$target" ]; then
-      pass "$(basename "$f") link $target resolves"
-    else
-      fail "$(basename "$f") links to $target which does not resolve from $dir"
-    fi
+    if [ -f "$dir/$target" ]; then pass "$(basename "$f") link $target resolves"; else fail "$(basename "$f") links to $target which does not resolve"; fi
   done
 done
 

@@ -1,8 +1,16 @@
 # Plan details: reasons, examples and tables
 
-`SKILL.md` states each gate's condition and consequence. This file holds the reasons, examples and tables that were cut or moved out of it. Fragments are given with the words they followed in `SKILL.md`.
+`SKILL.md` states each gate's condition and consequence. This file holds the reasons, examples, tables and notes that were cut or moved out of it. Fragments are given with the words they followed in `SKILL.md`.
 
 ## Overview and Completeness Gate
+
+Followed the Overview opening sentence ("questionable taste."):
+
+Every plan includes:
+
+- A **Data Integration Map** (contract for real vs placeholder)
+- **Per-phase verification criteria** (no phase ships without passing checks)
+- **TDD-first steps** (write test, see fail, implement, see pass, commit)
 
 Opened the Completeness Gate section, before "For each phase, before you write it":
 
@@ -17,11 +25,15 @@ Followed "also registers it, in the same phase.":
 Scheduling "register everything" for the last phase leaves
 every phase before it red, and the run burns a fix round on a failure the plan itself caused.
 
-Sat between the Repo gates paragraph and the Boundary paragraph:
-
-**Reuse, not volume:** prefer stdlib → native platform feature → already-installed dependency over new code, and plan no interface with one implementation. Reuse cuts cleverness, never coverage.
-
 ## CLAUDE.md-First
+
+Followed "CHECK if similar features already exist":
+
+(avoid duplicating work)
+
+Followed "REFERENCE existing code in the plan with full file paths":
+
+(e.g., `src/contexts/WorkspaceContext.tsx`)
 
 Closed the section:
 
@@ -48,9 +60,9 @@ ticket in the name means it never matches.
 
 ## Plan Document Header
 
-Comment on the `**Artifact:**` line of the header template:
+Followed "a `## Phase log` table with **one row per phase, every phase, from the start**" in step 7:
 
-<!-- present ONLY when the post-plan offer's [Render design artifact dulu] option was taken and the artifact was approved; omit the whole line otherwise, and never write "n/a" -- a declined artifact is recorded in the LEDGER as `design-artifact: skipped — <reason>`, not here -->
+(`| A — <name> | TODO | `` `<no commit>` `` |`), and a `## Log`
 
 Followed "**Verification commands — written ONCE per plan, never per phase.**":
 
@@ -71,9 +83,8 @@ commands": this block IS the plan-declared commands.
 
 ## Data Integration Map
 
-Example rows that followed the table header in the template:
+Example rows that followed the SegmentCard row in the template:
 
-| SegmentCard | WorkspaceContext.segments | useWorkspace() | Yes | Use existing |
 | RetentionScore | scoringEngine | import from lib/knowledge | Yes | Import directly |
 | VoicePreview | generate-tts edge fn | needs useVoicePreview | No | Create new hook |
 | UserAvatar | Supabase auth | useAuth() | Yes | Use existing |
@@ -100,6 +111,11 @@ Followed "before the offer.":
 
 Catching it at execution pre-flight costs a plan edit mid-run.
 
+Followed "Fix any phase whose step 1 drifted":
+
+("Write failing check", "Write failing consistency
+test ...")
+
 Followed the Design Deliverable line:
 
 **Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column:
@@ -117,6 +133,15 @@ produced — palette, font pairing, layout blueprint, motion, accessibility — 
 brainstorm ran, or at the post-plan offer where none did. It was previously reachable from three
 separate places for one feature, which is three answers to the same question and no rule for which
 one wins.
+
+Followed "MUST include a security line":
+
+(e.g. "inputs validated,
+queries parameterized, authz server-side, no secrets in source")
+
+Followed "When a phase implements LLM/prompt/agent behavior":
+
+(classification, extraction, generation, RAG, routing)
 
 Followed "no secrets in source").":
 
@@ -159,6 +184,14 @@ in the script.
   own functional/manual checks still go in that phase's Verification block.
 
 ## Execution Waves
+
+Followed "fix the plan" in the plan-waves exit 1 row:
+
+(missing `Deps`/`Complexity`, bare label, unknown dep, cycle, duplicate id)
+
+Followed the plan-waves exit table:
+
+The `phase …` lines in the same output are what the executors read for each phase's assignment.
 
 Followed "never a relative path":
 
