@@ -199,7 +199,7 @@ Classify task novelty to decide research level:
     → Skip research, use precedent as baseline for approaches
 
   SEMI-NEW: KB hit but no project pattern, OR project pattern but no KB validation
-    → Light research (2-3 WebSearch queries, ~5 min) to verify industry current state
+    → Light research (2-3 `firecrawl_search` queries, ~5 min) to verify industry current state
     → Inline in Phase 2
 
   NEW: No KB hit AND no project pattern
@@ -219,7 +219,7 @@ Classification questions (internal — not asked to user):
 4. Is this a rapidly-evolving tech space? (AI tooling, edge runtime, new framework — high novelty, prefer research)
 
 If PRECEDENT: briefly note "Using precedent from [source]" and proceed to Phase 2 fast.
-If SEMI-NEW: do 2-3 WebSearch queries about industry current state, include findings in Phase 2.
+If SEMI-NEW: do 2-3 `firecrawl_search` queries about industry current state, include findings in Phase 2.
 If NEW: run the prior-art probe, report what it found (or that it found nothing), then AskUserQuestion "Deep research needed? (~20 min)" options: [Yes, research] / [Skip, use training memory — flag as potentially outdated] / [Ask more questions first].
 
 ## Phase 2: Exploring Approaches

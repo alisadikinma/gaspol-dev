@@ -3,7 +3,7 @@ name: gaspol-research
 description: "Use when evaluating external libraries, APIs, patterns, or approaches that are unfamiliar or where training data may be outdated. Performs structured deep research with multi-source citation, anti-hallucination safeguards, and freshness-aware caching to cross-project knowledge base."
 ---
 
-<!-- model-tier: exec — gathering is execution: each subagent fetches and summarises one source. Read by skills/gaspol-verify/scripts/model-gate. -->
+<!-- model-tier: exec — gathering is execution: Firecrawl finds and reads pages, notebooklm indexes and answers. Read by skills/gaspol-verify/scripts/model-gate. -->
 
 # gaspol-research
 
@@ -13,7 +13,7 @@ description: "Use when evaluating external libraries, APIs, patterns, or approac
 NO RESEARCH CLAIMS WITHOUT SOURCE CITATION + CACHE DECISION
 ```
 
-Every claim needs a URL or file:line reference. Every research output gets cached to KB with TTL. Never rely solely on training memory for industry-current state — verify via web fetch.
+Every claim needs a URL or file:line reference. Every research output gets cached to KB with TTL. Never rely solely on training memory for industry-current state — verify via `firecrawl_scrape`.
 
 ---
 
@@ -33,7 +33,7 @@ Training data has a cutoff. Industry moves fast. Research grounds approach propo
 ## When NOT to Use
 
 - Familiar domain with existing project precedent (check KB first)
-- Simple fact lookup (use WebSearch directly)
+- Simple fact lookup (use `firecrawl_search` directly)
 - Task is routine within well-known codebase patterns
 - Cache already has fresh (🟢 <90 days) research on the same topic
 
@@ -89,15 +89,36 @@ If cache hit found:
 
 If no cache, proceed to Phase 3.
 
-### Phase 3: Parallel Gather (Sonnet subagents)
+### Phase 3: Gather with Firecrawl, synthesize with notebooklm
 
-Dispatch 3-5 parallel subagents (model: sonnet) to gather from different source types:
+Two tools, no others. Firecrawl finds and reads pages. The `notebooklm` CLI indexes the sources and answers with citations. **There is no fallback to `WebSearch` or `WebFetch`**: if either tool is missing, research does not run.
 
-1. Official documentation (`WebFetch` home URL + key docs pages)
-2. GitHub repository analysis (stars, last commit, open issues trend)
-3. Comparables / benchmarks (search for "X vs Y", existing comparisons)
-4. Anti-pattern check (search for "problems with X", "X deprecated", "X alternatives")
-5. Real-world usage (search for case studies, migration stories)
+1. **Tool check.** Run `notebooklm doctor`, and confirm the Firecrawl MCP tools (`firecrawl_search`, `firecrawl_scrape`) are present in this session. Either one missing or unauthenticated: state `research-tools: UNKNOWN — <which one>`, **STOP and ask**, and name the fix (`notebooklm login`; enable the Firecrawl MCP). Never degrade to another search tool.
+2. **Notebook.** Run `notebooklm list`. If a notebook for this topic exists, reuse it (`notebooklm use <id>`). Otherwise run `notebooklm create "gaspol-research: <topic>" --use`.
+3. **Collect candidate URLs** with `firecrawl_search`, one query per lane:
+   - official documentation and home page
+   - GitHub repository (stars, last commit, open-issue trend)
+   - comparisons and benchmarks ("X vs Y")
+   - anti-pattern check ("problems with X", "X deprecated", "X alternatives")
+   - case studies and migration stories
+
+   Read freshness-critical pages (release notes, pricing, deprecation notices, repo metrics) with `firecrawl_scrape` and `maxAge: 0`, so a cached copy is never mistaken for current state.
+4. **Add sources.** For each candidate, run `notebooklm source add <public url>`, then `notebooklm source wait <source-id>` (the id is printed by `source add`).
+   - **Only PUBLIC URLs become sources.** NotebookLM is an external service. Never add project files, secrets, credentials, internal URLs, or private repo contents.
+5. **Synthesize.** Run `notebooklm ask "<prompt>"` with a prompt that demands a cited comparison: options, a matrix on the same dimensions per option, a recommendation tied to the constraints from Phase 1, and an inline citation for every claim.
+
+Only the `ask` answer and one status line per source enter the conversation. Page bodies stay in Firecrawl and NotebookLM.
+
+**Error paths — each is a step, not a footnote:**
+
+| Event | Action |
+|---|---|
+| `source add` fails for a URL (paywall, blocked, timeout) | Record `not added — <reason>` for that source and continue. If fewer sources remain than the Phase 5 minimum, report the gap and **STOP**. |
+| `notebooklm source wait` times out (exit 2) or fails (exit 1) | Report the sources still processing. Do not synthesize from a partial set silently. |
+| `ask` returns claims without citations | Reject the answer under the Phase 5 citation gate, re-ask once, then report the failure. |
+| Firecrawl credits exhausted or rate-limited | **STOP** and relay Firecrawl's own message verbatim. |
+| `notebooklm` reports expired auth | **STOP** and ask the user to run `notebooklm login`. |
+
 6. **Agent-skill marketplace** — `npx skills find "<topic>"` (skills.sh). "Somebody
    already packaged this as an agent skill" is a research finding like any other,
    and the cheapest recommendation available. Report it as a candidate with its
@@ -105,18 +126,18 @@ Dispatch 3-5 parallel subagents (model: sonnet) to gather from different source 
    `skills/_shared/prior-art-gate.md`). If the CLI is unavailable, say so — an unrun
    lane is reported as unrun, never as empty.
 
-Each subagent returns structured findings with URL citations.
+### Phase 4: Validate and Record the Answer
 
-### Phase 4: Synthesize (Opus orchestrator)
-
-Consolidate parallel findings into structured output:
+Validate the `notebooklm ask` answer and shape it into:
 
 - Context (what decision this informs)
 - Options considered (name, summary, sources)
 - Comparison matrix (feature/cost/community/maintenance)
 - Recommendation (with project-fit reasoning)
 - Open questions (things research couldn't resolve)
-- Sources (complete URL list with fetch dates)
+- Sources (complete URL list with fetch dates, including every `not added — <reason>` line)
+
+Do not add claims the answer did not make. A claim you want to add needs its own source first.
 
 ### Phase 5: Quality Gate Check
 
@@ -187,8 +208,8 @@ When called and cache exists:
 | >365 days | 🔴 EXPIRED | Mandatory re-research; archive old to `research/_archive/` |
 
 Mini-research (AMBER path):
-1. WebSearch each cached source URL domain → check last-updated date
-2. WebSearch "[topic] 2026" → check breaking changes
+1. `firecrawl_scrape` each cached source URL with `maxAge: 0` → check last-updated date
+2. `firecrawl_search` "[topic] 2026" → check breaking changes
 3. No change → bump `researched_at`, extend `expires_at`
 4. Change detected → full re-research, old cache marked `superseded_by: <new-id>`
 
@@ -196,7 +217,7 @@ Mini-research (AMBER path):
 
 ## Anti-Hallucination Measures
 
-1. **WebFetch actual pages** for claims critical to decision — don't cite from memory
+1. **`firecrawl_scrape` the actual page** (`maxAge: 0`) for claims critical to decision — don't cite from memory
 2. **GitHub metrics** must be fetched from actual repo page, not estimated
 3. **Orchestrator spot-check** — sample 2 random claims from cache output, verify URLs still resolve
 4. **Citation format enforced** — every claim ends with `([src](URL))` format
@@ -212,8 +233,8 @@ Mini-research (AMBER path):
 | Single-source research | Require ≥4 sources |
 | Only pro-X or only con-X sources | Balance with "X vs Y" and "problems with X" |
 | Cache hit used without age check | Show freshness tier to user |
-| Fabricated benchmark numbers | WebFetch actual comparison pages |
-| Training-data citation ("in 2024 React Hooks were popular") | Replace with current-year WebSearch |
+| Fabricated benchmark numbers | `firecrawl_scrape` the actual comparison pages |
+| Training-data citation ("in 2024 React Hooks were popular") | Replace with a current-year `firecrawl_search` |
 | Skipping quality gate check | All gates must pass before caching |
 | Recommending a build when a packaged skill already does it | Run the marketplace lane before recommending; report the candidate |
 
