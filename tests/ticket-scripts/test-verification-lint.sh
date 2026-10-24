@@ -296,11 +296,18 @@ INDENTED="$TMP/indented-plan.md"
 printf '  **Verification commands:**\n- unit: npm test\n\n### Phase A: x\n\n**Verification:**\n- [ ] a check\n' > "$INDENTED"
 expect "an indented header line is not the header" 4 "verification-lint: N/A — " "$INDENTED"
 
+# task-brief strips only space, tab and CR from the end of a line. Python's bare rstrip() also
+# strips NBSP and other Unicode spaces, so a header line ending in NBSP was a header for the
+# lint and not for task-brief, and the brief silently lost the commands.
+NBSP="$TMP/nbsp-plan.md"
+printf '**Verification commands:**\xc2\xa0\n- unit: npm test\n\n### Phase A: x\n\n**Verification:**\n- [ ] a check\n' > "$NBSP"
+expect "a header line ending in NBSP is not the header" 4 "verification-lint: N/A — " "$NBSP"
+
 echo "test-verification-lint: a malformed phase heading is refused, never skipped..."
 # A heading that LOOKS like a phase but fails the strict form used to fall into the
 # "other heading" branch, so a phase made of generic lines was never checked.
 n=0
-for bad in '### Phase: Cleanup' '### Phase-B cleanup' '### phase a' '### Phase'; do
+for bad in '### Phase: Cleanup' '### Phase-B cleanup' '### phase a' '### Phase' '### Phase1: x' '### PhaseB x' '### Phase_B x'; do
     n=$((n + 1))
     MAL="$TMP/malformed-$n-plan.md"
     {
@@ -310,10 +317,16 @@ for bad in '### Phase: Cleanup' '### Phase-B cleanup' '### phase a' '### Phase';
     } > "$MAL"
     expect "malformed heading '$bad'" 3 "verification-lint: UNKNOWN — malformed phase heading" "$MAL"
     case "$OUT$ERR" in
-        *Cleanup*|*"phase a"*|*Phase-B*) fail "malformed heading '$bad': the heading text was echoed: $OUT $ERR" ;;
+        *Cleanup*|*"phase a"*|*Phase-B*|*Phase1*|*PhaseB*|*Phase_B*) fail "malformed heading '$bad': the heading text was echoed: $OUT $ERR" ;;
     esac
 done
 # "Phases overview" and other non-phase headings stay ordinary headings.
+PLURAL="$TMP/plural-heading-plan.md"
+{
+    printf '%s\n' "$HEADER"
+    printf '### Phases\n\ntext\n\n### Phase A: good\n\n**Verification:**\n- [ ] the parser rejects an empty heading\n'
+} > "$PLURAL"
+expect "'### Phases' alone is not a phase heading" 0 "verification-lint: OK — 1 phase(s)" "$PLURAL"
 OTHER="$TMP/other-heading-plan.md"
 {
     printf '%s\n' "$HEADER"

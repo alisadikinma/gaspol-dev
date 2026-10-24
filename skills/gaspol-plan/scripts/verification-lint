@@ -52,12 +52,17 @@ import sys
 PREFIX = "verification-lint: "
 
 HEADER_LINE = "**Verification commands:**"
+# The only trailing characters ignored, shared with task-brief (awk `[ \t\r]+$`). A bare
+# rstrip() would also drop NBSP and other Unicode spaces, and the two scripts would disagree.
+BLANKS = " \t\r"
 VERIF_LINE = "**Verification:**"
 GENERIC_PREFIXES = ("static:", "lint:", "unit:", "build:", "detect-stack:")
 HEADING_RE = re.compile(r"^### Phase\s+(\S+)")
 # Anything that reads as a phase heading but fails HEADING_RE is refused, not skipped: a
 # skipped heading is a phase nobody checked (`### Phase: x`, `### Phase-B`, `### phase a`).
-LOOSE_HEADING_RE = re.compile(r"^###\s+phase\b", re.IGNORECASE)
+# No \b: it fails to match when "Phase" is glued to a letter, digit or underscore (`### Phase1`,
+# `### PhaseB`, `### Phase_B`). Only the plural word `phases` is exempted.
+LOOSE_HEADING_RE = re.compile(r"^###\s+phase(?!s\b)", re.IGNORECASE)
 ITEM_RE = re.compile(r"^\s*- \[[ xX]\]\s*(.*)$")
 LABELLED_RE = re.compile(r"^(static|lint|unit|build|detect-stack):\s*(.*)$")
 RULE_RE = re.compile(r"^---\s*$")
@@ -127,12 +132,12 @@ def read_header(lines):
         if in_fence:
             continue
         if not found:
-            found = line.rstrip() == HEADER_LINE
+            found = line.rstrip(BLANKS) == HEADER_LINE
             continue
         if not line.startswith("- "):
             break
         count += 1
-        text = line[2:].replace("`", "").strip()
+        text = line[2:].replace("`", "").strip(BLANKS)
         labelled = LABELLED_RE.match(text)
         if labelled:
             label, command = labelled.group(1), labelled.group(2).strip()
