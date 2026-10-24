@@ -23,11 +23,19 @@ exact allow-list match (a phase id matching [A-Za-z0-9]+, a complexity label fro
 set). The free-text reason after the dash is checked for presence and then discarded; it is
 never printed, so it can never reach a terminal, a shell, or a later `eval`.
 
-Wave and lane lines are produced by a later phase of IDS-22; the wave count in the OK line
-is the number of dependency levels.
+Scheduling is not reimplemented here: the phases become a task list and
+skills/gaspol-parallel/scripts/dag-lanes (the repo's one scheduler) turns it into waves and
+file-isolated lanes. It is run as a subprocess with an argv list and shell=False, located
+from this file's realpath and never from $PWD, because the working directory during a
+skill run is the target project, which may ship its own script of that name.
+
+On exit 0 the stdout lines after the verdict are, in order: one `wave <N> lane <M>: <id> ...`
+line per lane, then one `phase <id> complexity=.. model=.. effort=.. review=..` per phase.
 """
+import json
 import os
 import re
+import subprocess
 import sys
 
 PREFIX = "plan-waves: "
@@ -184,24 +192,60 @@ def parse_complexity(pid, value):
     return label
 
 
-def count_levels(order, deps_of):
-    """Number of dependency levels. Unknown deps and cycles are Phase B's concern."""
-    memo = {}
+def dag_lanes_path():
+    here = os.path.dirname(os.path.realpath(__file__))
+    return os.path.normpath(
+        os.path.join(here, "..", "..", "gaspol-parallel", "scripts", "dag-lanes"))
 
-    def level(pid, visiting):
-        if pid in memo:
-            return memo[pid]
-        if pid in visiting:
-            return 1
-        visiting = visiting | {pid}
-        best = 1
-        for dep in deps_of.get(pid, []):
-            if dep in deps_of:
-                best = max(best, 1 + level(dep, visiting))
-        memo[pid] = best
-        return best
 
-    return max((level(pid, frozenset()) for pid in order), default=0)
+def safe_quote(text):
+    """Keep only characters a phase id or dag-lanes message can legitimately contain."""
+    return re.sub(r"[^A-Za-z0-9 :,'_.\[\]-]", "?", text)[:200]
+
+
+def schedule(order, deps_of, files_of):
+    """Run dag-lanes; return list of waves, each a list of lanes, each a list of ids."""
+    tool = dag_lanes_path()
+    if not os.path.isfile(tool):
+        unknown("scheduler not found: skills/gaspol-parallel/scripts/dag-lanes")
+    if not os.access(tool, os.X_OK):
+        unknown("scheduler is not executable: skills/gaspol-parallel/scripts/dag-lanes")
+    payload = json.dumps({"tasks": [
+        {"id": pid, "deps": deps_of[pid], "files": files_of[pid]} for pid in order]})
+    try:
+        proc = subprocess.run([tool], input=payload.encode("utf-8"),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              shell=False, timeout=30)
+    except (OSError, subprocess.SubprocessError) as err:
+        unknown("scheduler could not run: " + safe_quote(type(err).__name__))
+    stdout = proc.stdout.decode("utf-8", "replace")
+    stderr = proc.stderr.decode("utf-8", "replace")
+    if proc.returncode == 1:
+        message = stderr.strip().split("\n")[0] if stderr.strip() else "dag-lanes rejected the graph"
+        blocking("dag-lanes: " + safe_quote(message.replace("dag-lanes:", "").strip()))
+    if proc.returncode != 0:
+        unknown("scheduler crashed (exit %d)" % proc.returncode)
+
+    lines = stdout.split("\n")
+    if "JSON" not in lines or lines.index("JSON") + 1 >= len(lines):
+        unknown("scheduler printed no JSON block")
+    try:
+        waves = json.loads(lines[lines.index("JSON") + 1])["waves"]
+    except (ValueError, KeyError, TypeError):
+        unknown("scheduler printed unparseable JSON")
+    known = set(order)
+    seen = set()
+    ok = isinstance(waves, list)
+    for wave in waves if ok else []:
+        ok = ok and isinstance(wave, list) and bool(wave)
+        for lane in wave if isinstance(wave, list) else []:
+            ok = ok and isinstance(lane, list) and bool(lane)
+            for pid in lane if isinstance(lane, list) else []:
+                ok = ok and isinstance(pid, str) and pid in known and pid not in seen
+                seen.add(pid)
+    if not ok or seen != known:
+        unknown("scheduler JSON does not cover exactly the plan's phases")
+    return waves
 
 
 def main(argv):
@@ -218,6 +262,7 @@ def main(argv):
     seen = set()
     order = []
     deps_of = {}
+    files_of = {}
     labels = {}
     for ph in phases:
         pid = ph["id"]
@@ -226,9 +271,24 @@ def main(argv):
         seen.add(pid)
         deps_of[pid] = parse_deps(pid, ph["deps"])
         labels[pid] = parse_complexity(pid, ph["complexity"])
+        files_of[pid] = [path for _kind, path in ph["files"]]
         order.append(pid)
 
-    say(PREFIX + "OK — %d phase(s), %d wave(s)" % (len(order), count_levels(order, deps_of)))
+    # Cheap graph checks first, so the message names the phase. A cycle is left to
+    # dag-lanes, which finds it and names the loop.
+    for pid in order:
+        if pid in deps_of[pid]:
+            blocking("phase %s depends on itself" % pid)
+        for dep in deps_of[pid]:
+            if dep not in seen:
+                blocking("phase %s depends on unknown phase %s" % (pid, dep))
+
+    waves = schedule(order, deps_of, files_of)
+
+    say(PREFIX + "OK \u2014 %d phase(s), %d wave(s)" % (len(order), len(waves)))
+    for wi, wave in enumerate(waves, 1):
+        for li, lane in enumerate(wave, 1):
+            say("wave %d lane %d: %s" % (wi, li, " ".join(lane)))
     for pid in order:
         model, effort, review = MAPPING[labels[pid]]
         say("phase %s complexity=%s model=%s effort=%s review=%s"

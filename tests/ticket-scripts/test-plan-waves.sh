@@ -93,7 +93,7 @@ C_LIGHT='**Complexity:** light — one file, no decision'
 C_MED='**Complexity:** medium — several files, known pattern'
 C_CPLX='**Complexity:** complex — new logic other phases consume'
 
-echo "test-plan-waves: Phase A cases"
+echo "test-plan-waves: Phase A cases (parse and validate)"
 
 # 1. valid plan: exit 0, phase lines carry the mapping
 new_plan; header
@@ -106,7 +106,9 @@ has_line "phase A complexity=light model=sonnet effort=low review=none" "valid p
 has_line "phase B complexity=medium model=sonnet effort=medium review=none" "valid plan"
 has_line "phase C complexity=complex model=sonnet effort=high review=opus" "valid plan"
 [ "$(printf '%s\n' "$OUT" | grep -c '^phase ')" = 3 ] || fail "valid plan: want exactly 3 phase lines"
-[ "$(printf '%s\n' "$OUT" | grep -c '^wave ')" = 0 ] || fail "valid plan: wave lines are Phase B, none expected yet"
+has_line "wave 1 lane 1: A" "valid plan"
+has_line "wave 2 lane 1: B" "valid plan"
+has_line "wave 3 lane 1: C" "valid plan"
 
 # 2. no Format header: exit 4, never a pass
 new_plan
@@ -291,4 +293,154 @@ phase A "$D_NONE" "$C_LIGHT"
 run_tool
 expect 4 "other format value" "N/A"
 
-echo "test-plan-waves: all Phase A cases passed"
+
+echo "test-plan-waves: Phase B cases (wave scheduling via dag-lanes)"
+
+# phasef <id> <deps-line> <complexity-line> <file...> — like phase(), with chosen Files bullets
+phasef() {
+    local id="$1" deps="$2" cplx="$3"
+    shift 3
+    emit "### Phase $id: thing $id" '' "$deps" "$cplx" '**Files:**'
+    local f
+    for f in "$@"; do emit '- Modify: `'"$f"'`'; done
+    emit '' '**Steps:**' '1. do it' ''
+}
+
+# B1. the RED case: B depends on A, C independent
+new_plan; header
+phasef A "$D_NONE" "$C_LIGHT" src/a.py
+phasef B '**Deps:** A' "$C_LIGHT" src/b.py
+phasef C "$D_NONE" "$C_LIGHT" src/c.py
+run_tool
+expect 0 "A->B plus independent C" "OK — 3 phase(s), 2 wave(s)"
+has_line "wave 1 lane 1: A" "A->B plus C"
+has_line "wave 1 lane 2: C" "A->B plus C"
+has_line "wave 2 lane 1: B" "A->B plus C"
+
+# B2. line order: wave lines first, then phase lines, in plan order
+first_wave="$(printf '%s\n' "$OUT" | grep -n '^wave ' | head -n 1 | cut -d: -f1)"
+first_phase="$(printf '%s\n' "$OUT" | grep -n '^phase ' | head -n 1 | cut -d: -f1)"
+[ "$first_wave" -lt "$first_phase" ] || fail "line order: wave lines must precede phase lines"
+[ "$(printf '%s\n' "$OUT" | grep '^phase ' | cut -d' ' -f2 | tr -d '\n')" = "ABC" ] \
+    || fail "line order: phase lines must follow plan order"
+
+# B3. dependency chain: three waves
+new_plan; header
+phasef A "$D_NONE" "$C_LIGHT" src/a.py
+phasef B '**Deps:** A' "$C_LIGHT" src/b.py
+phasef C '**Deps:** B' "$C_LIGHT" src/c.py
+run_tool
+expect 0 "dependency chain" "OK — 3 phase(s), 3 wave(s)"
+has_line "wave 3 lane 1: C" "dependency chain"
+
+# B4. two phases sharing a file in the same wave: one lane, in plan order
+new_plan; header
+phasef A "$D_NONE" "$C_LIGHT" src/shared.py
+phasef B "$D_NONE" "$C_LIGHT" src/other.py src/shared.py
+phasef C "$D_NONE" "$C_LIGHT" src/c.py
+run_tool
+expect 0 "shared file, one lane" "OK — 3 phase(s), 1 wave(s)"
+has_line "wave 1 lane 1: A B" "shared file, one lane"
+has_line "wave 1 lane 2: C" "shared file, one lane"
+
+# B5. cycle A <-> B
+new_plan; header
+phasef A '**Deps:** B' "$C_LIGHT" src/a.py
+phasef B '**Deps:** A' "$C_LIGHT" src/b.py
+run_tool
+expect 1 "cycle" "BLOCKING"
+case "$(printf '%s\n' "$OUT" | head -n 1)" in *cycle*) : ;; *) fail "cycle: line 1 must say cycle" ;; esac
+
+# B6. unknown dep names the phase and the missing id
+new_plan; header
+phasef A '**Deps:** Q' "$C_LIGHT" src/a.py
+run_tool
+expect 1 "unknown dep" "BLOCKING"
+case "$(printf '%s\n' "$OUT" | head -n 1)" in *"phase A "*Q*) : ;; *) fail "unknown dep: line 1 must name phase A and Q" ;; esac
+
+# B7. self-dep
+new_plan; header
+phasef A '**Deps:** A' "$C_LIGHT" src/a.py
+run_tool
+expect 1 "self-dep" "BLOCKING"
+case "$(printf '%s\n' "$OUT" | head -n 1)" in *"phase A "*) : ;; *) fail "self-dep: line 1 must name phase A" ;; esac
+
+# B8. dag-lanes unreachable: a copy of plan-waves in a tree with no sibling dag-lanes
+ORPHAN="$WORK/orphan/skills/gaspol-plan/scripts"
+mkdir -p "$ORPHAN"
+cp "$TOOL" "$ORPHAN/plan-waves"
+new_plan; header
+phasef A "$D_NONE" "$C_LIGHT" src/a.py
+set +e
+OUT="$("$ORPHAN/plan-waves" "$PLAN" 2>"$WORK/stderr")"; RC=$?
+set -e
+ERR="$(cat "$WORK/stderr")"
+expect 3 "dag-lanes missing" "UNKNOWN"
+
+# B9. dag-lanes present but not executable, crashing, or printing garbage
+FAKE="$WORK/fake/skills/gaspol-parallel/scripts"
+mkdir -p "$FAKE" "$WORK/fake/skills/gaspol-plan/scripts"
+cp "$TOOL" "$WORK/fake/skills/gaspol-plan/scripts/plan-waves"
+run_fake() {
+    set +e
+    OUT="$("$WORK/fake/skills/gaspol-plan/scripts/plan-waves" "$PLAN" 2>"$WORK/stderr")"; RC=$?
+    set -e
+    ERR="$(cat "$WORK/stderr")"
+}
+printf '#!/bin/sh\necho hello\n' > "$FAKE/dag-lanes"; chmod 644 "$FAKE/dag-lanes"
+run_fake
+expect 3 "dag-lanes not executable" "UNKNOWN"
+printf '#!/bin/sh\necho "boom" >&2\nexit 2\n' > "$FAKE/dag-lanes"; chmod 755 "$FAKE/dag-lanes"
+run_fake
+expect 3 "dag-lanes crashed" "UNKNOWN"
+printf '#!/bin/sh\necho "no json here"\nexit 0\n' > "$FAKE/dag-lanes"
+run_fake
+expect 3 "dag-lanes printed no JSON" "UNKNOWN"
+printf '#!/bin/sh\necho JSON\necho "{not json"\nexit 0\n' > "$FAKE/dag-lanes"
+run_fake
+expect 3 "dag-lanes printed malformed JSON" "UNKNOWN"
+printf '#!/bin/sh\necho JSON\necho "{\\"waves\\": 7}"\nexit 0\n' > "$FAKE/dag-lanes"
+run_fake
+expect 3 "dag-lanes printed wrong JSON shape" "UNKNOWN"
+
+# B10. empty Files is allowed
+new_plan; header
+emit '### Phase A: no files' '' "$D_NONE" "$C_LIGHT" '**Files:**' '' '**Steps:**' '1. x' ''
+phasef B "$D_NONE" "$C_LIGHT" src/b.py
+run_tool
+expect 0 "empty Files allowed" "OK — 2 phase(s), 1 wave(s)"
+
+# B11. a phase with no Files line at all is also allowed
+new_plan; header
+emit '### Phase A: no files line' '' "$D_NONE" "$C_LIGHT" '' '**Steps:**' '1. x' ''
+run_tool
+expect 0 "no Files line allowed" "OK — 1 phase(s), 1 wave(s)"
+
+# B12. twelve phases schedule without error: a chain of four with eight leaves
+new_plan; header
+phasef A "$D_NONE" "$C_LIGHT" src/a.py
+phasef B '**Deps:** A' "$C_LIGHT" src/b.py
+phasef C '**Deps:** B' "$C_LIGHT" src/c.py
+phasef D '**Deps:** C' "$C_LIGHT" src/d.py
+for id in E F G H I J K L; do phasef "$id" '**Deps:** D' "$C_LIGHT" "src/$id.py"; done
+run_tool
+expect 0 "twelve phases" "OK — 12 phase(s), 5 wave(s)"
+[ "$(printf '%s\n' "$OUT" | grep -c '^phase ')" = 12 ] || fail "twelve phases: want 12 phase lines"
+has_line "wave 5 lane 8: L" "twelve phases"
+
+# B13. live fixture: this ticket's own plan. A fixture green only on synthetic plans
+#      proves nothing about the plan it ships with.
+LIVE="$REPO_ROOT/docs/plans/2026-10-24-IDS-22-parallel-waves-and-complexity-plan.md"
+run_tool "$LIVE"
+expect 0 "live fixture: IDS-22 plan" "OK — 6 phase(s), 4 wave(s)"
+[ "$(printf '%s\n' "$OUT" | grep -c '^phase ')" = 6 ] || fail "live fixture: want 6 phase lines"
+has_line "wave 1 lane 1: A" "live fixture"
+has_line "wave 2 lane 1: B" "live fixture"
+has_line "wave 3 lane 1: C" "live fixture"
+has_line "wave 3 lane 2: D" "live fixture"
+has_line "wave 3 lane 3: E" "live fixture"
+has_line "wave 4 lane 1: F" "live fixture"
+has_line "phase D complexity=complex model=sonnet effort=high review=opus" "live fixture"
+has_line "phase F complexity=light model=sonnet effort=low review=none" "live fixture"
+
+echo "test-plan-waves: all Phase A and Phase B cases passed"
