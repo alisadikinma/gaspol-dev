@@ -1621,9 +1621,9 @@ Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated repor
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-20
+Last ticket: IDS-21
 
 ---
 
-**Version:** 1.29.1
+**Version:** 1.29.2
 **Last Updated:** August 2026
