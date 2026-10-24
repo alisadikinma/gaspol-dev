@@ -20,6 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FIN="$REPO_ROOT/skills/gaspol-finish/SKILL.md"
+FINREF="$REPO_ROOT/skills/gaspol-finish/references/offers.md"   # IDS-23: Step 0 history moved here
 PAR="$REPO_ROOT/skills/gaspol-parallel/SKILL.md"
 LOOP="$REPO_ROOT/skills/_shared/fix-loop.md"
 
@@ -78,7 +79,8 @@ echo "test-finish-fix-loop: the Step 0 preamble is GONE, and its reason is recor
 # record the next assertion demands.
 grep -q "^### Step 0" "$FIN" \
     && fail "gaspol-finish still carries a Step 0 section — IDS-17 deleted it as a duplicate of gaspol-verify Layer 1"
-claim "$FIN" "finish" "preserved by position" || exit 1
+claim "$FINREF" "finish references" "preserved by position" || exit 1
+claim "$FIN" "finish" "references/offers.md" || exit 1
 # The deletion must not silently take the ordering rule with it: the Fix Loop
 # used to point at Step 0's checks, and a pointer to a deleted section is worse
 # than none because it reads as if the check still runs.
