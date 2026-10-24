@@ -1,7 +1,7 @@
 # Layer 4: design compliance detail
 
 `SKILL.md` states each gate's condition and consequence. This file holds the evidence formats,
-the token-contract tables and the reasons. Where the two disagree, `SKILL.md` wins.
+the token-contract tables and the reasons.
 
 ## Integration evidence format
 

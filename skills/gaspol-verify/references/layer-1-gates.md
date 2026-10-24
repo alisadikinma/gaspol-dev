@@ -1,7 +1,7 @@
 # Layer 1 gates: detail
 
 `SKILL.md` states each gate's condition and consequence. This file holds the state tables, the
-line formats and the reasons. Where the two disagree, `SKILL.md` wins.
+line formats and the reasons.
 
 ## detect-stack: the three result shapes
 
@@ -177,3 +177,7 @@ EVAL VERIFICATION (feature: ticket-classifier):
 ```
 
 If no LLM/non-deterministic feature is involved, note "Evals: N/A" and proceed.
+
+## Why these gates exist
+
+Every rule in `SKILL.md` prevents an observed failure: "Done!" over 5 TODOs and 3 hardcoded arrays; "All integrated!" from a component that imported zero hooks; "Plan followed!" with 2 of 8 phases skipped; "Tests pass!" because every test had `test.skip()`; "Build clean!" while `tsc --noEmit` showed 14 errors hidden by `any` casts.
