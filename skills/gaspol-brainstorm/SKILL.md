@@ -441,9 +441,17 @@ Before finalizing:
   brainstorm).
 - `gaspol-plan` reads this file's `**Ticket:**` field and reuses it — it writes a SEPARATE
   `<TICKET>-<kebab-topic>-plan.md` file; it does not append to this one.
-- **Spec self-review (before handing off):** scan the written design for placeholders,
-  internal contradictions, ambiguity, and scope creep — fix inline. A spec that ships its
-  own ambiguity guarantees a wrong implementation.
+- **Builder check (before handing off):** the author cannot see the holes in its own spec, so a
+  fresh reader looks for them. Once the spec file is written, dispatch ONE `general-purpose`
+  subagent with `model: "opus"` written at the call site (`model-tier: judge`). Its prompt is
+  `references/builder-check-prompt.md`; give it only the spec path and the target project's
+  domain, no conversation context. The reply is either ranked questions plus one-line
+  "looks unnecessary" parts, or exactly `nothing important left`. Answer what the spec or
+  CLAUDE.md already answers and fix the spec inline. Decide minor points yourself and mark them
+  as your own decisions. Bring questions that change what gets built to the owner in ONE
+  `AskUserQuestion`. Run **one round** only: no re-dispatch loop (`skills/_shared/fix-loop.md`).
+  This runs on the architectural path only, because only that path writes a spec. The cost:
+  this is model judgement, not a guarantee.
 - **User reviews the written spec:** ask the user to read the spec file before proceeding
   ("I've written the design to `<path>` — take a look before we plan"). Revise on requested
   changes; only proceed to gaspol-plan once they approve the written spec.
