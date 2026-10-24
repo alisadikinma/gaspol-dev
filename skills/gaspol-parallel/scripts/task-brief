@@ -47,11 +47,17 @@ BLOCK="$(awk -v want="$N" '
 # travels in the brief. Fenced code is skipped, so a template quoted inside a
 # phase is not mistaken for the header. A plan without the block yields nothing,
 # and the brief is exactly what it was before.
+# The same rule as skills/gaspol-plan/scripts/verification-lint, which strips trailing
+# whitespace and CR before matching the header line: the two must agree on whether a plan
+# HAS the header, or the lint passes a plan whose briefs silently lose the commands. The
+# copied lines lose their trailing CR/blanks too. POSIX awk only (BSD-safe).
 HEADER_BLOCK="$(awk '
-    /^[[:space:]]*(```|~~~)/ { if (inblock) exit; infence = !infence; next }
+    BEGIN { strip = "[ \t" sprintf("%c", 13) "]+$" }
+    { line = $0; sub(strip, "", line) }
+    line ~ /^[[:space:]]*(```|~~~)/ { if (inblock) exit; infence = !infence; next }
     infence { next }
-    !inblock && $0 == "**Verification commands:**" { inblock = 1; print; next }
-    inblock && /^- / { print; next }
+    !inblock && line == "**Verification commands:**" { inblock = 1; print line; next }
+    inblock && line ~ /^- / { print line; next }
     inblock { exit }
 ' "$PLAN")"
 

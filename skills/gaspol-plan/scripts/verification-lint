@@ -21,9 +21,12 @@ This script checks that each phase actually does.
 The rules, exactly:
   * The header block starts at the line `**Verification commands:**` and is the following
     consecutive lines that start with `- ` (it ends at the first blank line or any other line).
+  * Both line matches ignore trailing blanks and CR, and task-brief applies the same rule, so the
+    two cannot disagree on whether a plan has the header.
   * A phase starts at `### Phase <id>` and ends at the next `### ` (or `## `) heading, a `---`
     rule, or end of file. Fenced code blocks are skipped, so a template quoted in a fence is
-    not a phase.
+    not a phase. A heading that reads as a phase but is malformed (`### Phase: x`, `### phase a`)
+    is UNKNOWN, never skipped.
   * Inside a phase, the Verification lines are the `- [ ]` / `- [x]` items after the
     `**Verification:**` line.
   * A Verification line is GENERIC when, with backticks removed, (i) it contains a command
@@ -52,6 +55,9 @@ HEADER_LINE = "**Verification commands:**"
 VERIF_LINE = "**Verification:**"
 GENERIC_PREFIXES = ("static:", "lint:", "unit:", "build:", "detect-stack:")
 HEADING_RE = re.compile(r"^### Phase\s+(\S+)")
+# Anything that reads as a phase heading but fails HEADING_RE is refused, not skipped: a
+# skipped heading is a phase nobody checked (`### Phase: x`, `### Phase-B`, `### phase a`).
+LOOSE_HEADING_RE = re.compile(r"^###\s+phase\b", re.IGNORECASE)
 ITEM_RE = re.compile(r"^\s*- \[[ xX]\]\s*(.*)$")
 LABELLED_RE = re.compile(r"^(static|lint|unit|build|detect-stack):\s*(.*)$")
 RULE_RE = re.compile(r"^---\s*$")
@@ -121,7 +127,7 @@ def read_header(lines):
         if in_fence:
             continue
         if not found:
-            found = line.strip() == HEADER_LINE
+            found = line.rstrip() == HEADER_LINE
             continue
         if not line.startswith("- "):
             break
@@ -159,6 +165,8 @@ def parse_phases(lines):
                     unknown("a `### Phase` heading has an id outside [A-Za-z0-9]+")
                 current = {"id": pid, "items": []}
                 phases.append(current)
+            elif LOOSE_HEADING_RE.match(line):
+                unknown("malformed phase heading")
             else:
                 current = None
             in_verif = False

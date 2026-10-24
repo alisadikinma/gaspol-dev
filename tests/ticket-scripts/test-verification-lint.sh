@@ -290,6 +290,37 @@ EOF
 } > "$FENCED"
 expect "a phase heading inside a fence is ignored" 0 "verification-lint: OK — 1 phase(s)" "$FENCED"
 
+# task-brief matches the header line after stripping TRAILING blanks only; the lint must
+# not be more lenient on the left, or the two disagree on whether a plan has the header.
+INDENTED="$TMP/indented-plan.md"
+printf '  **Verification commands:**\n- unit: npm test\n\n### Phase A: x\n\n**Verification:**\n- [ ] a check\n' > "$INDENTED"
+expect "an indented header line is not the header" 4 "verification-lint: N/A — " "$INDENTED"
+
+echo "test-verification-lint: a malformed phase heading is refused, never skipped..."
+# A heading that LOOKS like a phase but fails the strict form used to fall into the
+# "other heading" branch, so a phase made of generic lines was never checked.
+n=0
+for bad in '### Phase: Cleanup' '### Phase-B cleanup' '### phase a' '### Phase'; do
+    n=$((n + 1))
+    MAL="$TMP/malformed-$n-plan.md"
+    {
+        printf '%s\n' "$HEADER"
+        printf '### Phase A: good\n\n**Verification:**\n- [ ] the parser rejects an empty heading\n\n'
+        printf '%s\n\n**Verification:**\n- [ ] `npm test` passes\n' "$bad"
+    } > "$MAL"
+    expect "malformed heading '$bad'" 3 "verification-lint: UNKNOWN — malformed phase heading" "$MAL"
+    case "$OUT$ERR" in
+        *Cleanup*|*"phase a"*|*Phase-B*) fail "malformed heading '$bad': the heading text was echoed: $OUT $ERR" ;;
+    esac
+done
+# "Phases overview" and other non-phase headings stay ordinary headings.
+OTHER="$TMP/other-heading-plan.md"
+{
+    printf '%s\n' "$HEADER"
+    printf '### Phases overview\n\ntext\n\n### Phase A: good\n\n**Verification:**\n- [ ] the parser rejects an empty heading\n'
+} > "$OTHER"
+expect "'### Phases overview' is not a phase heading" 0 "verification-lint: OK — 1 phase(s)" "$OTHER"
+
 echo "test-verification-lint: plan text is never echoed or executed..."
 EVIL="$TMP/evil-plan.md"
 {
