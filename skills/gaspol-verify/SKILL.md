@@ -26,10 +26,10 @@ NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
 Every claim of completion, success, or readiness passes through these five steps in order. No shortcuts.
 
 1. **IDENTIFY** -- What specific command proves this claim? Write it down before running it. If you cannot name a command, you cannot make the claim.
-2. **RUN** -- Execute the FULL command. Not a subset.
+2. **RUN** -- Execute the FULL command. Not a subset. Not a dry run. Not from cache.
 3. **READ** -- Read the COMPLETE output. Check the exit code. Count failures, warnings, and errors. Do not stop at the first green line.
 4. **VERIFY** -- Does the output confirm the specific claim? "0 failures" confirms "tests pass." "Build complete" with 12 warnings does NOT confirm "build is clean."
-5. **ONLY THEN** -- Make the claim. Quote the evidence.
+5. **ONLY THEN** -- Make the claim. Quote the evidence. Show the output.
 
 ---
 
