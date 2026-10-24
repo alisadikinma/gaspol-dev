@@ -118,6 +118,28 @@ grep -qE '^### \[[ x>~]\] Phase ' "$TEMPLATE" \
     || fail "the template shows no '### [ ] Phase <N>: <name>' sub-heading"
 echo "  ok — the template shows a per-phase sub-block"
 
+# 9 — IDS-23: the example Phase A checklist holds phase-specific lines only. The
+#     generic commands are written once in the plan header's `**Verification
+#     commands:**` block and recorded once in `## Pre-flight`; copying them into
+#     every phase's checklist is what buried the phase-specific checks.
+echo "test-ledger-template: 9. the template copies no generic verification lines..."
+for generic in 'npx tsc --noEmit passes' 'npm test passes' 'No placeholder/TODO comments in new code'; do
+    # backticks stripped: the template writes `npx tsc --noEmit` passes
+    if tr -d '`' < "$TEMPLATE" | grep -qF "$generic"; then
+        fail "ledger template still copies generic verification lines (found: $generic)"
+    fi
+done
+echo "  ok — no generic line in the example checklist"
+
+# 10 — the commands are recorded exactly once, in the Pre-flight table.
+echo "test-ledger-template: 10. detect-stack row stays in ## Pre-flight..."
+PREFLIGHT="$(awk '/^## Pre-flight/ {on=1; next} /^## / {on=0} on' "$TEMPLATE")"
+case "$PREFLIGHT" in
+    *'| detect-stack |'*) : ;;
+    *) fail "the ## Pre-flight table lost its detect-stack row — that is where the commands are recorded once" ;;
+esac
+echo "  ok — the detect-stack row is in ## Pre-flight"
+
 # Positive control: the extractor must actually be reading a real template, or
 # every assertion above is vacuous against an empty file.
 echo "test-ledger-template: positive control — the extractor read something real..."
@@ -126,4 +148,4 @@ LINES="$(wc -l < "$TEMPLATE" | tr -d ' ')"
     || fail "the extracted template is only $LINES lines — the extractor is broken, so a clean result proves nothing"
 echo "  ok — extracted $LINES lines"
 
-echo "test-ledger-template: PASS (8 assertions)"
+echo "test-ledger-template: PASS (10 assertions)"

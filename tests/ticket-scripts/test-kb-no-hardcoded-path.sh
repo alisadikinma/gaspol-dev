@@ -74,7 +74,10 @@ echo "test-kb-no-hardcoded-path: every resolver invocation goes through the plug
 # for execution, so a substituted script both runs and answers. The per-script control
 # below was added in the SAME phase as the first real invocation (gaspol-plan/SKILL.md),
 # because a control added earlier would have been red.
-ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff|ledger-gate|model-gate)|gaspol-plan/scripts/plan-waves)'
+# WIDENED AGAIN in IDS-23 to seven. verification-lint's exit code decides whether a plan may be
+# offered for execution, so a substituted script both runs and answers. Its per-script control
+# was added in the same phase as its first invocation (gaspol-plan/SKILL.md Execution Waves).
+ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff|ledger-gate|model-gate)|gaspol-plan/scripts/(plan-waves|verification-lint))'
 UNANCHORED="$(grep -rnE "^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*=\"[\$][(]\"?$ANCHORED_SCRIPTS" \
         "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)"
 [ -z "$UNANCHORED" ] || { echo "$UNANCHORED" >&2; fail "a resolver invocation uses a relative path — prefix it with \"\$CLAUDE_PLUGIN_ROOT/\", the same anchor hooks/hooks.json already uses"; }
@@ -96,7 +99,7 @@ ANCHORED=$({ grep -rhoE 'CLAUDE_PLUGIN_ROOT[^"]*/'"$ANCHORED_SCRIPTS" \
     || fail "the scan found only ${ANCHORED:-0} anchored invocation(s), expected at least 15 — it is broken, so a clean result proves nothing"
 # And each script must be seen individually: a combined count stays healthy on
 # kb-root's eight alone while a newly added pattern matches nothing.
-for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff gaspol-verify/scripts/ledger-gate gaspol-verify/scripts/model-gate gaspol-plan/scripts/plan-waves; do
+for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff gaspol-verify/scripts/ledger-gate gaspol-verify/scripts/model-gate gaspol-plan/scripts/plan-waves gaspol-plan/scripts/verification-lint; do
     # skills/ and agents/ ONLY -- deliberately NOT docs/ or README.md, unlike the
     # combined count above. IDS-19 found this control passing for a script with
     # ZERO real invocations, satisfied entirely by a plan document in docs/plans

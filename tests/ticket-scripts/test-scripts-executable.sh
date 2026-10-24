@@ -38,6 +38,7 @@ DIRECT=(
     skills/gaspol-verify/scripts/ledger-gate
     skills/gaspol-verify/scripts/model-gate
     skills/gaspol-plan/scripts/plan-waves
+    skills/gaspol-plan/scripts/verification-lint
     skills/gaspol-brainstorm/visual-companion/scripts/start-server.sh
     skills/gaspol-brainstorm/visual-companion/scripts/stop-server.sh
     skills/gaspol-brainstorm/visual-companion/scripts/smoke-test.sh

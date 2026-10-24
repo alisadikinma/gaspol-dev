@@ -210,7 +210,8 @@ def main(argv):
                  if not any(not is_generic(item, commands) for item in ph["items"])]
     if offenders:
         finish(1, "BLOCKING — phase %s has no phase-specific verification" % offenders[0],
-               "phase(s) with only generic or no Verification lines: " + ", ".join(offenders))
+               "; ".join("phase %s has only generic or no Verification lines" % pid
+                         for pid in offenders))
 
     say(PREFIX + "OK — %d phase(s)" % len(phases))
     return 0

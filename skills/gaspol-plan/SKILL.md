@@ -139,6 +139,10 @@ Every plan document MUST start with this header:
 **Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- present ONLY when the post-plan offer's [Render design artifact dulu] option was taken and the artifact was approved; omit the whole line otherwise, and never write "n/a" -- a declined artifact is recorded in the LEDGER as `design-artifact: skipped — <reason>`, not here -->
 **Format:** waves-v1 <!-- always present in a new plan: it is what tells `plan-waves` and the executors that every phase below carries `**Deps:**` and `**Complexity:**` -->
 
+**Verification commands:**
+- static: npx tsc --noEmit
+- unit: npm test
+
 ## Goal
 
 [One paragraph describing what this plan achieves and why it matters]
@@ -151,6 +155,23 @@ Every plan document MUST start with this header:
 
 [Frameworks, libraries, patterns to use — reference existing choices from CLAUDE.md]
 ```
+
+**Verification commands — written ONCE per plan, never per phase.** The block is the plan's one
+statement of the generic checks (compile, lint, unit, build) that apply to every phase. Run
+`skills/gaspol-execute/scripts/detect-stack <project-root>` once and copy its `static:`/`lint:`/
+`unit:`/`build:` lines **verbatim** as `- ` lines directly under the `**Verification commands:**`
+line (no comments on those lines, no blank line inside the block). The example above is what
+`detect-stack` prints for a Node/TypeScript project; on a Laravel repo it reads `php artisan test`,
+on a Python repo `pytest`. Three variants, no others:
+
+- `detect-stack` prints commands → the `static:`/`unit:` list, copied verbatim.
+- `detect-stack` prints `<level>: UNKNOWN` → write `- <level>: UNKNOWN — ask user before Verification can run`
+  for that level and resolve it with AskUserQuestion before the plan is presented as final.
+- `detect-stack` prints nothing → write `- detect-stack: no stack markers for this project — verification is plan-declared only`.
+
+`task-brief` copies this block into every phase brief, because a dispatched implementer is handed
+the brief and never the plan. `gaspol-verify` and `gaspol-execute` keep reading "plan-declared
+commands": this block IS the plan-declared commands.
 
 ## Progress Ledger Format
 
@@ -182,9 +203,8 @@ use exactly this template:
 - [x] Write failing test for detect-stack on a Node project. Expected error: `command not found`
 - [x] Run test, confirm it fails for the expected reason
 - [x] Implement the marker-file reader
-- [x] `npx tsc --noEmit` passes
-- [x] `npm test` passes
-- [x] No placeholder/TODO comments in new code
+- [x] a Node project prints one `static:` and one `unit:` line
+- [x] a directory with no marker files prints nothing and exits 0
 
 ### [>] Phase B: glob ledger case-insensitive
 - [ ] Write failing test for a lowercase-prefixed ledger being found. Expected error: `not found`
@@ -210,6 +230,10 @@ use exactly this template:
 ## Log
 - 2026-08-20 Phase A done — `bash tests/ticket-scripts/test-detect-stack.sh` exit 0 — NEXT: Phase B
 ```
+
+**The generic commands are recorded once, in `## Pre-flight`** (the `detect-stack` row), not copied
+into every phase. A phase's checklist holds that phase's own checks only; the compile and unit
+commands come from the plan's `**Verification commands:**` header block.
 
 **The Checklist body is COPIED from the plan, never summarised.** Each phase's `**Steps:**` become
 checkboxes and its `**Verification:**` block is appended verbatim — it is already `- [ ]`. Nothing
@@ -321,16 +345,12 @@ Each phase MUST follow this exact structure:
 5. Commit: "feat: add SegmentCard with workspace integration"
 
 **Verification:**
-- [ ] `npx tsc --noEmit` passes            <!-- the static: line detect-stack printed for THIS project -->
-- [ ] `npm test` passes                    <!-- the unit: line detect-stack printed for THIS project -->
 - [ ] SegmentCard renders with real data from WorkspaceContext
-- [ ] No placeholder/TODO comments in new code
+- [ ] SegmentCard shows the empty state when the workspace has no segments
 ```
 
-The two command lines above are what `detect-stack` happens to print for a Node/TypeScript
-project. They are **filled in from its output**, never typed from memory — on a Laravel repo the
-same block reads `php artisan test`, on a Python repo `pytest`, and where `detect-stack` prints
-`UNKNOWN` the plan must STOP and ask rather than guess.
+The block holds only checks specific to this phase. The compile and unit commands are not
+repeated here: they live once in the plan header's `**Verification commands:**` block.
 
 **Deps and Complexity (MANDATORY, `waves-v1`):** every phase declares what it waits for and how
 hard it is, between the heading and `**Files:**`.
@@ -394,40 +414,41 @@ verify non-deterministic output; `gaspol-verify` runs these evals and reports pa
 
 ## Verification Criteria per Phase (MANDATORY)
 
-Every phase MUST end with a Verification block. At minimum, include:
+Every phase MUST end with a Verification block, and the block holds **only checks specific to
+that phase** — at least one:
 
 ```markdown
 **Verification:**
-- [ ] [static: command from detect-stack — e.g. `npx tsc --noEmit`, `mypy .`, `go vet ./...`] passes
-- [ ] [unit: command from detect-stack] passes
-- [ ] Component renders with real data from [specific source]
-- [ ] No placeholder/TODO comments in new code
+- [ ] Component renders with real data from WorkspaceContext
 - [ ] [specific functional check for this phase]
 ```
 
-The bracketed command slots above are placeholders **in the template only** — fill them from
-`detect-stack` output when writing the plan, never ship a plan with the brackets intact and
-never hardcode `tsc`/`npm` on a project that does not use them.
+What counts as specific, and what does not:
 
-**Fill the technical-check line from `detect-stack`, not a guessed command.** Before writing
-each phase's Verification block, run `skills/gaspol-execute/scripts/detect-stack
-<project-root>` (once per plan is enough — the stack doesn't change phase to phase) and copy
-the resulting `static:`/`lint:`/`unit:`/`build:` lines **verbatim** into that phase's block
-(e.g. `- [ ] static: npx tsc --noEmit passes`). Rationale: the plan must be self-contained for
-an executor with **no other context** — a fresh post-`/compact` session or an external
-executor in a separate process can't run `detect-stack` itself or read this skill file, so the
-resolved commands have to live in the plan text, not only in the script.
+- **Generic, so it does not belong here:** the compile/lint/unit/build commands (they are in the
+  header's `**Verification commands:**` block), `static:`/`unit:` lines, and any "no placeholder
+  or TODO comments" line — `gaspol-verify` Layer 3 owns that check.
+- **Specific:** a behaviour, an exit code, a value, or an edge case only this phase introduces.
+  "real data from [source]" counts only when it names a concrete source (`useWorkspace()`, the
+  `segments` table). An unfilled `real data from [specific source]` is generic and is refused.
+- A phase with no Verification lines, or only generic ones, is **INCOMPLETE**: the executor will
+  not know when the phase is done. `verification-lint` (see Execution Waves) enforces this.
+
+**Fill the header block from `detect-stack`, not a guessed command.** Run
+`skills/gaspol-execute/scripts/detect-stack <project-root>` once per plan (the stack doesn't change
+phase to phase) and write its lines into the `**Verification commands:**` header block, verbatim.
+Rationale: the plan must be self-contained for an executor with **no other context** — a fresh
+post-`/compact` session or an external executor in a separate process can't run `detect-stack`
+itself or read this skill file, so the resolved commands have to live in the plan text, not only
+in the script.
 - `detect-stack` prints `<level>: UNKNOWN` for a level → do not write that command into the
-  plan. Instead write the verification line as an explicit open question: `- [ ]
-  <level> command: UNKNOWN — ask user before Verification can run`, and resolve it with
-  AskUserQuestion before the plan is presented as final.
+  plan. Write `- <level>: UNKNOWN — ask user before Verification can run` in the header block,
+  and resolve it with AskUserQuestion before the plan is presented as final.
 - `detect-stack` prints zero lines (no stack markers, e.g. a docs-only or pure-markdown
-  project) → the Verification block has no automated technical check to derive; write the
-  phase's own functional/manual checks and note `- [ ] detect-stack: no stack markers for
-  this project — verification is plan-declared only` so the executor doesn't go looking for
-  a script that will never fire.
-
-A phase without verification criteria is **INCOMPLETE**. The executor will not know when the phase is done.
+  project) → there is no automated technical check to derive; write
+  `- detect-stack: no stack markers for this project — verification is plan-declared only` in the
+  header block so the executor doesn't go looking for a script that will never fire. Each phase's
+  own functional/manual checks still go in that phase's Verification block.
 
 ## Execution Waves (MANDATORY)
 
@@ -450,6 +471,21 @@ otherwise answer in place of ours. Read the exit code (on exit 3, STOP and ask):
 | 4 | `plan-waves: N/A — no waves-v1 format header …` | the `**Format:** waves-v1` line is missing from a new plan: add it and re-run. Exit 4 is never a pass |
 
 The `phase …` lines in the same output are what the executors read for each phase's assignment.
+
+Then check that no phase's Verification block is only boilerplate:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-plan/scripts/verification-lint" <plan-file>
+```
+
+Same anchoring rule as above. Read the exit code:
+
+| Exit | Stdout line 1 | Do this |
+|---|---|---|
+| 0 | `verification-lint: OK — <n> phase(s)` | continue |
+| 1 | `verification-lint: BLOCKING — phase <id> has no phase-specific verification` | fix the plan: add a check specific to that phase, then re-run |
+| 3 | `verification-lint: UNKNOWN — <why>` | **STOP and ask.** The plan could not be read or parsed; do not skip the lint |
+| 4 | `verification-lint: N/A — no Verification commands header …` | the `**Verification commands:**` header block is missing from a new plan: add it and re-run. Exit 4 is never a pass |
 
 ## Execution Handoff
 
@@ -553,6 +589,7 @@ Before presenting the plan, verify none of these red flags are present:
 | Plan only makes sense with the chat context | A fresh-session or external executor runs blind and will guess | Inline every contract/convention verbatim — the plan alone must suffice |
 | No `Progress ledger:` line in the header | Executor writes the shared global ledger, colliding with concurrent plans | Add `Progress ledger: .gaspol/progress/PROGRESS-<TICKET>.md` to the header |
 | A phase lacks `**Deps:**` or `**Complexity:**`, or the complexity has no reason | `plan-waves` refuses the plan, and executors get no assignment | Add both lines; give the reason after the dash |
+| The same compile/unit/placeholder lines repeated in every phase's Verification block | The phase-specific checks drown in boilerplate and a phase can pass with nothing of its own | Write the commands once in the header's `**Verification commands:**` block; keep only phase-specific lines per phase, then run `verification-lint` |
 | Waves written by hand, or `plan-waves` never run | The table can disagree with the phases and nothing notices | Run `plan-waves`, paste its lines |
 | Ledger not created at plan-write time | Executor has to re-derive the phase list instead of ticking boxes | Create `.gaspol/progress/PROGRESS-<TICKET>.md` with the full `## Checklist` before presenting the plan |
 
