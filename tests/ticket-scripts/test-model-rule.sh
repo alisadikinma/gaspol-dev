@@ -125,4 +125,56 @@ near "$RUBRIC" "haiku" "definitely-not-in-this-file-xyzzy" \
     && fail "the proximity helper matched a string that is not in the file — every assertion using it is vacuous"
 echo "  ok — near() can fail"
 
+echo "test-model-rule: complexity sets effort and review, not tier (IDS-22)..."
+# plan-waves is the single source of the complexity -> model/effort/review mapping.
+# The rubric may RECORD the table (and says plan-waves wins); the implementer prompt and
+# gaspol-parallel must POINT at plan-waves output and never restate the table, or the
+# three copies drift the way the model declarations did before IDS-20.
+IMPL="$REPO_ROOT/skills/gaspol-execute/implementer-prompt.md"
+PAR="$REPO_ROOT/skills/gaspol-parallel/SKILL.md"
+[ -f "$IMPL" ] || fail "skills/gaspol-execute/implementer-prompt.md is missing"
+[ -f "$PAR" ] || fail "skills/gaspol-parallel/SKILL.md is missing"
+
+grep -qF 'Complexity sets effort and review, not tier' "$RUBRIC" \
+    || fail "docs/rubric-model-switching.md has no complexity/effort table"
+cx=$(awk '/^## Complexity sets effort and review, not tier/{f=1;next} /^## /{f=0} f' "$RUBRIC")
+[ -n "$cx" ] || fail "docs/rubric-model-switching.md has no complexity/effort table"
+for row in light medium complex; do
+    printf '%s\n' "$cx" | grep -qE "^\| *\`?$row\`? *\|" \
+        || fail "the rubric's complexity table has no '$row' row"
+done
+printf '%s\n' "$cx" | grep -qF 'plan-waves' \
+    || fail "the rubric does not name plan-waves as the single source of truth"
+printf '%s\n' "$cx" | grep -qiE 'never infer|not infer' \
+    || fail "the rubric does not say the orchestrator never infers model and effort"
+printf '%s\n' "$cx" | grep -qiE 'opus review' \
+    || fail "the rubric does not state that a complex phase pays an Opus review"
+note "the rubric records the complexity table, names plan-waves, states the cost"
+
+if grep -nF 'Override to `opus`' "$IMPL" >/dev/null; then
+    fail "implementer-prompt.md still says 'Override to \`opus\`' — the rule is sonnet with effort from the plan"
+fi
+grep -qF 'phase' "$IMPL" && grep -qE 'effort' "$IMPL" \
+    || fail "implementer-prompt.md does not say effort comes from the plan's phase line"
+agent_ex=$(awk '/^Agent\(\{/{f=1} f{print} /^\}\)/{f=0}' "$IMPL")
+[ -n "$agent_ex" ] || fail "positive control: implementer-prompt.md Agent call example not found"
+printf '%s\n' "$agent_ex" | grep -qE '^ *effort:' \
+    || fail "implementer-prompt.md Agent example carries no effort"
+near "$IMPL" "override" "written reason" \
+    || fail "implementer-prompt.md allows an override without demanding a written reason"
+note "implementer-prompt.md: sonnet, effort from the plan, override needs a reason"
+
+grep -qF 'plan-waves' "$PAR" && grep -qF 'waves-v1' "$PAR" \
+    || fail "gaspol-parallel/SKILL.md does not take waves-v1 plans from plan-waves"
+near "$PAR" "always specify the model" "plan-waves" 600 \
+    || fail "gaspol-parallel 'Always specify the model' paragraph does not defer to plan-waves for waves-v1 plans"
+near "$PAR" "plan intake" "plan-waves" 1200 \
+    || fail "gaspol-parallel Plan Intake does not take deps/files/model/effort from plan-waves"
+for f in "$IMPL" "$PAR"; do
+    if grep -qE '^\| *`?(light|medium|complex)`? *\|' "$f"; then
+        fail "$(basename "$f") restates the complexity table — only plan-waves and the rubric may"
+    fi
+done
+note "gaspol-parallel defers to plan-waves and restates no table"
+
 echo "test-model-rule: PASS"

@@ -58,6 +58,26 @@ gate stops working — the reason `tests/ticket-scripts/test-gate-mutations.sh` 
 tier; it is a deleted one, and reporting it as unknown invites a case-by-case exemption. This file
 is the one place allowed to name it, and only to record that it is gone.
 
+## Complexity sets effort and review, not tier
+
+A `waves-v1` plan labels every phase `light`, `medium` or `complex`. That label changes the
+**effort** the implementer runs at and whether an Opus **review** follows. It never changes the
+tier: every implementer is still `sonnet`.
+
+| complexity | model | effort | review |
+|---|---|---|---|
+| `light` | `sonnet` | low | none |
+| `medium` | `sonnet` | medium | none |
+| `complex` | `sonnet` | high | `opus` |
+
+`plan-waves` is the single source of truth for this mapping; if this table and its output ever
+disagree, its output wins and this table is the one to correct. The orchestrator passes `model`
+and `effort` from the plan's `phase` line and never infers them from the task's size or its own
+impression.
+
+**What that costs:** a `complex` phase now pays an Opus review each, on top of its implementation.
+That is the price of putting the judging tier on the work most likely to be wrong.
+
 ## Which concrete models the aliases mean
 
 Skills and agent frontmatter use the **short aliases** `opus` and `sonnet`, which point at the

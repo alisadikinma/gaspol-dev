@@ -6,7 +6,8 @@ Use this template when dispatching implementer subagents via `gaspol-parallel`. 
 
 Default model for implementer dispatch: **`sonnet`** (feature implementation = Sonnet per rubric).
 
-Override to `opus` when: architectural decisions inside the task, complex debugging, or spec-level reasoning required.
+The model is always `sonnet`. The `effort` comes from the plan's `phase <id> complexity=... model=... effort=... review=...` line (the output of `plan-waves`); pass it exactly and never infer it. Difficulty raises effort and adds an Opus review through the plan, it does not change the model.
+An override above `sonnet` MUST carry a written reason at the call site (the rubric's override rule). A silent override is how the rule becomes advice again.
 There is no lower tier to override to: the rubric is two tiers, and mechanical work
 (rename, format, docs-only) is still execution, so it is still `sonnet`.
 
@@ -16,7 +17,8 @@ Agent({
   subagent_type: "general-purpose",
   description: "Implement Phase X",
   prompt: "<filled template>",
-  model: "sonnet"
+  model: "sonnet",
+  effort: "<effort from the plan's phase line>"
 })
 ```
 
