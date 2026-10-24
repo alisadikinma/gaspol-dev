@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""plan-waves — validate the `waves-v1` fields of a plan and print each phase's
+model / effort / review mapping (IDS-22).
+
+Usage:  plan-waves <plan-file>
+
+Exit contract (same shape as ledger-gate and model-gate): ONE `plan-waves: <verdict>`
+line on stdout on every path, detail on stderr.
+
+  0  plan-waves: OK — <n> phase(s), <m> wave(s)      then one `phase ...` line per phase
+  1  plan-waves: BLOCKING — <first problem>          first line names the offending phase id
+  3  plan-waves: UNKNOWN — <why>                     unreadable / empty / non-UTF-8 / zero phases
+  4  plan-waves: N/A — no waves-v1 format header; treat as sequential, all medium
+                                                     legacy plan, never counted as a pass
+
+Why model-gate does not do this: model-gate scans skills/ and agents/ and never reads
+a plan, so the plan's own fields need a reader of their own.
+
+Why plan text is only ever PARSED and COMPARED, never executed or interpolated: a plan is
+written by an agent from user text and often quotes shell snippets, backticks and `$(...)`.
+Everything this script prints is either a fixed string or a value that already passed an
+exact allow-list match (a phase id matching [A-Za-z0-9]+, a complexity label from a closed
+set). The free-text reason after the dash is checked for presence and then discarded; it is
+never printed, so it can never reach a terminal, a shell, or a later `eval`.
+
+Wave and lane lines are produced by a later phase of IDS-22; the wave count in the OK line
+is the number of dependency levels.
+"""
+import os
+import re
+import sys
+
+PREFIX = "plan-waves: "
+
+# Single source of the complexity mapping. Every other file refers to this script's
+# `phase ...` output and never restates the table.
+MAPPING = {
+    "light": ("sonnet", "low", "none"),
+    "medium": ("sonnet", "medium", "none"),
+    "complex": ("sonnet", "high", "opus"),
+}
+
+FORMAT_RE = re.compile(r"^\*\*Format:\*\*\s*(\S+)\s*$")
+HEADING_RE = re.compile(r"^### Phase ([A-Za-z0-9]+):")
+DEPS_RE = re.compile(r"^\*\*Deps:\*\*(.*)$")
+COMPLEXITY_RE = re.compile(r"^\*\*Complexity:\*\*(.*)$")
+FILES_RE = re.compile(r"^\*\*Files:\*\*\s*$")
+FILE_BULLET_RE = re.compile(r"^\s*-\s*(Create|Modify|Test):\s*`([^`]+)`")
+ID_RE = re.compile(r"^[A-Za-z0-9]+$")
+
+
+def say(text):
+    """Write one stdout line as UTF-8 regardless of the terminal's locale."""
+    sys.stdout.buffer.write((text + "\n").encode("utf-8"))
+
+
+def warn(text):
+    sys.stderr.buffer.write((text + "\n").encode("utf-8"))
+
+
+def finish(code, verdict, detail=None):
+    say(PREFIX + verdict)
+    if detail:
+        warn("plan-waves: " + detail)
+    sys.exit(code)
+
+
+def unknown(why):
+    finish(3, "UNKNOWN — " + why, why)
+
+
+def blocking(problem):
+    finish(1, "BLOCKING — " + problem, problem)
+
+
+def read_plan(path):
+    if not path:
+        unknown("usage: plan-waves <plan-file>")
+    if os.path.isdir(path):
+        unknown("not a file: " + path)
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError as err:
+        unknown("cannot read plan: " + (err.strerror or "read error"))
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        unknown("plan is not valid UTF-8")
+    if not text.strip():
+        unknown("plan file is empty")
+    return text
+
+
+def parse(text):
+    """Return (has_format_header, phases). Fenced blocks are skipped entirely."""
+    has_format = False
+    phases = []
+    current = None
+    in_fence = False
+    in_files = False
+
+    for line in text.split("\n"):
+        line = line.rstrip("\r")
+        stripped = line.lstrip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+
+        heading = HEADING_RE.match(line)
+        if heading:
+            current = {"id": heading.group(1), "deps": None, "complexity": None,
+                       "files": []}
+            phases.append(current)
+            in_files = False
+            continue
+        if line.startswith("### ") or line.startswith("## "):
+            current = None
+            in_files = False
+            continue
+
+        if current is None:
+            if not phases:
+                fmt = FORMAT_RE.match(line)
+                if fmt and fmt.group(1) == "waves-v1":
+                    has_format = True
+            continue
+
+        deps = DEPS_RE.match(line)
+        if deps and current["deps"] is None:
+            current["deps"] = deps.group(1).strip()
+            continue
+        cplx = COMPLEXITY_RE.match(line)
+        if cplx and current["complexity"] is None:
+            current["complexity"] = cplx.group(1).strip()
+            continue
+        if FILES_RE.match(line):
+            in_files = True
+            continue
+        if in_files:
+            bullet = FILE_BULLET_RE.match(line)
+            if bullet:
+                current["files"].append((bullet.group(1), bullet.group(2)))
+            elif line.strip() and not line.lstrip().startswith("-"):
+                in_files = False
+
+    return has_format, phases
+
+
+def parse_deps(pid, value):
+    if value is None:
+        blocking("phase %s has no **Deps:** line" % pid)
+    if value == "":
+        blocking("phase %s has an empty **Deps:** value (write `none` or phase ids)" % pid)
+    if value == "none":
+        return []
+    ids = [tok.strip() for tok in value.split(",")]
+    for tok in ids:
+        if not ID_RE.match(tok) or tok == "none":
+            blocking("phase %s has an invalid **Deps:** entry (want `none` or "
+                     "comma-separated phase ids)" % pid)
+    return ids
+
+
+def parse_complexity(pid, value):
+    if value is None:
+        blocking("phase %s has no **Complexity:** line" % pid)
+    parts = value.split(None, 1)
+    label = parts[0] if parts else ""
+    if label not in MAPPING:
+        blocking("phase %s has complexity that is not light, medium or complex" % pid)
+    rest = parts[1].strip() if len(parts) > 1 else ""
+    if rest.startswith("—"):
+        reason = rest[1:].strip()
+    elif rest.startswith("-") and (len(rest) == 1 or rest[1].isspace()):
+        reason = rest[1:].strip()
+    else:
+        reason = ""
+    if not reason:
+        blocking("phase %s has a bare complexity label; a reason after the dash is "
+                 "required" % pid)
+    return label
+
+
+def count_levels(order, deps_of):
+    """Number of dependency levels. Unknown deps and cycles are Phase B's concern."""
+    memo = {}
+
+    def level(pid, visiting):
+        if pid in memo:
+            return memo[pid]
+        if pid in visiting:
+            return 1
+        visiting = visiting | {pid}
+        best = 1
+        for dep in deps_of.get(pid, []):
+            if dep in deps_of:
+                best = max(best, 1 + level(dep, visiting))
+        memo[pid] = best
+        return best
+
+    return max((level(pid, frozenset()) for pid in order), default=0)
+
+
+def main(argv):
+    path = argv[1] if len(argv) == 2 else ""
+    text = read_plan(path)
+    has_format, phases = parse(text)
+
+    if not has_format:
+        finish(4, "N/A — no waves-v1 format header; treat as sequential, all medium",
+               "no `**Format:** waves-v1` line found; this plan is treated as legacy")
+    if not phases:
+        unknown("waves-v1 header present but no `### Phase <id>:` heading was parsed")
+
+    seen = set()
+    order = []
+    deps_of = {}
+    labels = {}
+    for ph in phases:
+        pid = ph["id"]
+        if pid in seen:
+            blocking("phase %s is declared more than once" % pid)
+        seen.add(pid)
+        deps_of[pid] = parse_deps(pid, ph["deps"])
+        labels[pid] = parse_complexity(pid, ph["complexity"])
+        order.append(pid)
+
+    say(PREFIX + "OK — %d phase(s), %d wave(s)" % (len(order), count_levels(order, deps_of)))
+    for pid in order:
+        model, effort, review = MAPPING[labels[pid]]
+        say("phase %s complexity=%s model=%s effort=%s review=%s"
+            % (pid, labels[pid], model, effort, review))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

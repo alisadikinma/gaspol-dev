@@ -50,15 +50,14 @@ IDS-20 stands: execution is Sonnet, Opus judges. Complexity changes **effort and
 | complex | sonnet | high | Opus review per phase, mandatory |
 
 The orchestrator reads the plan's `complexity` and passes `model` and `effort` on each dispatch.
-It does not infer them. Plans written after this ticket carry a `**Format:** waves-v1` header line. `model-gate`
-gains a check: in a `waves-v1` plan, a phase without `complexity` (or with a bare label and no
+It does not infer them. Plans written after this ticket carry a `**Format:** waves-v1` header line. A new script `skills/gaspol-plan/scripts/plan-waves` validates the `waves-v1` fields, because `model-gate` scans `skills/` and `agents/` and never reads a plan. In a `waves-v1` plan, a phase without `complexity` (or with a bare label and no
 reason) is BLOCKING. Plans without that header are exempt (see section 5).
 
 ### 4. `gaspol-auto` runs waves
 
 - Pre-flight reads the wave table.
 - A wave with ≥2 phases: create a worktree via `gaspol-worktree`, dispatch one sub-agent per
-  phase concurrently, wait for all, merge lanes, then start the next wave.
+  phase concurrently, wait for all, then start the next wave. One isolation worktree; lanes touch disjoint files; the orchestrator, not the sub-agents, commits each phase by its declared files.
 - Existing hard-stops unchanged. One lane failing stops the wave; nothing from the next wave starts.
 - A one-phase wave runs the way phases run today.
 
@@ -81,6 +80,7 @@ A plan with no `deps` / `complexity` is treated as fully sequential, all `medium
   a semantic dependency (phase B calls a function phase A changes) is caught only if `deps` is right.
 - Complex phases cost an Opus review each. Chosen over "review only on failure" by the owner.
 - Complexity is a judgement by the planner, not a measurement.
+- Full static/build ladder runs once per wave, after the wave, because lanes share one tree.
 
 ## Does NOT close
 
