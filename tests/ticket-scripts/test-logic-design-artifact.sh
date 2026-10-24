@@ -161,7 +161,7 @@ has "$BRAIN" "will OFFER\|will offer" \
 
 echo "test-logic-design-artifact: Phase 3 produces decisions, not the mockup file..."
 
-has "$BRAIN" "design DECISIONS\|design decisions as text\|decisions as text" \
+has "$REPO_ROOT/skills/gaspol-brainstorm/references/phase-detail.md" "design DECISIONS\|design decisions as text\|decisions as text" \
     "Phase 3 must state it produces design decisions as text; the mockup file is rendered once, later, at the offer"
 
 echo "test-logic-design-artifact: gaspol-execute reads four artifact states (IDS-16)..."

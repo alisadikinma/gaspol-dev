@@ -137,7 +137,7 @@ test_design_delegation() {
     "skills/gaspol-verify/rules/reasoning-gaspol.md"
 
   assert_grep "brainstorm Phase 3 still points at the surviving taste layer" \
-    "anti-ai-slop.md" skills/gaspol-brainstorm/SKILL.md
+    "anti-ai-slop.md" skills/gaspol-brainstorm/references/phase-3-design.md
 
   # The replacement must be reachable from BOTH routing tables, or the skill is
   # simply missing rather than delegated.

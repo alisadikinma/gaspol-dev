@@ -66,11 +66,6 @@ BEFORE asking clarifying questions, query the knowledge store for precedent.
 Runs on the ARCHITECTURAL and BOUNDED paths. Only "kb_mode": "off" disables it.
 ```
 
-**Why bounded now runs it too (IDS-8).** This phase used to be architectural-only. Bounded fixes are
-the majority of day-to-day work and are exactly where a documented gotcha gets re-hit — the
-mechanism behind "we solved this already and did it wrong again". A grep over an index-free set of
-notes is cheap; re-making a recorded mistake is not.
-
 **Spike stays exempt**, deliberately. A feasibility probe answers a question and keeps no code, so
 there is no precedent to apply to it. Widening this gate to *every* path would be a different,
 unrequested change.
@@ -82,38 +77,9 @@ unrequested change.
 1. **Pull latest KB (synced mode only)** — if a remote is configured (`kb_remote` / `$GASPOL_KB_REMOTE`): `git -C <KB_ROOT> pull --quiet` (skip gracefully if offline). In local-only mode there is no remote to pull — skip straight to the grep.
 2. **Extract tags from user intent** — domain keywords (auth, image-gen, dashboard, state-mgmt, etc.)
 3. **Grep the notes** — `KB="$("$CLAUDE_PLUGIN_ROOT/skills/_shared/kb-root")" || exit 1` then `grep -rilE "<tag1>|<tag2>" "$KB"/*.md`. Assign `$KB` first: unassigned it expands to `/*.md`, scanning the filesystem root. There is no index: gaspol writes flat notes carrying their own `# Title` and `tags: [...]`, and an index nothing writes is worse than none.
-4. **Filter by status** — show `proposed` **and** `accepted`. `proposed` is not a lesser tier here: gaspol writes `proposed` exclusively (promotion belongs to the human gate), so filtering it out would hide every capture from the query built to find it. Mark the tier when surfacing so the user can weigh a promoted note above a pending one.
-5. **Freshness check** — for research/ entries, check age tier (🟢 FRESH / 🟡 AMBER / 🟠 STALE / 🔴 EXPIRED)
 6. **Surface to user via AskUserQuestion** (if matches found):
+Read `references/phase-0-5-precedent.md` when you surface matches (template, status filter, freshness) or want the rationale.
 
-```
-Found relevant past work:
-  • [image-generation-ui](ui-patterns/image-generation-ui.md)
-    Tags: [image-gen, gallery, 3-pane]
-    Source: <project> 2026-03 — 🟢 accepted
-    Hook: 3-pane layout (prompt + preview + history) works best
-
-  • [ADR-2026-02-10: state-mgmt-zustand](design-decisions/...)
-    Tags: [state-management, react]
-    🟢 accepted, last_validated: 2026-03-15
-
-[Apply precedent — use as reference]
-[Override with reason — capture divergence ADR]
-[Skip precedent — start fresh]
-```
-
-If user chooses "Override with reason":
-- Prompt for 1-2 sentence reason
-- Call `gaspol-adr` to capture divergence ADR with `diverges_from: <precedent-id>`
-- Old precedent NOT superseded — both coexist
-
-If user chooses "Skip precedent":
-- Proceed without applying past patterns
-- No ADR captured
-
-If no KB matches, proceed silently to Phase 1.
-
-Saves additional 10-30k tokens per session by avoiding re-exploration of solved problems.
 
 ## Phase 1: Understanding the Idea
 
@@ -160,13 +126,7 @@ and state the classification to the user.
 bounded, bounded → architectural) — stop, say so, and step up. Nothing ever downgrades
 mid-task; once a heavier path is warranted you don't talk yourself back down.
 
-**Red flags (classification-dodging):**
-
-| Rationalization | Why It's Wrong |
-|----------------|----------------|
-| "This is too simple to need a design" | Simple means a short design, not no design. |
-| "I'll call it bounded and skip the spec" | Reaching for a label to dodge the spec IS the doubt — take the heavier path instead. |
-| "I understand this kind of app so it's bounded" | Bounded measures the repo in front of you, not your familiarity with the pattern. |
+Read `references/phase-detail.md` when you are tempted to relabel the path (classification-dodging red flags).
 
 The HARD-GATE above applies to **all three paths** without exception — it scales in
 artifact weight (spec file / short in-chat design / probe plan), never in whether
@@ -212,41 +172,16 @@ Classify task novelty to decide research level:
     → Wait for research output before Phase 2
 ```
 
-Classification questions (internal — not asked to user):
-1. Did Phase 0.5 surface any KB matches? (if yes → PRECEDENT candidate)
-2. Does project CLAUDE.md document a similar pattern? (if yes → PRECEDENT candidate)
-3. Is this a familiar domain? (image-gen, auth, dashboard — low novelty)
-4. Is this a rapidly-evolving tech space? (AI tooling, edge runtime, new framework — high novelty, prefer research)
+Read `references/phase-detail.md` when you classify novelty (the internal questions and the action per class).
 
-If PRECEDENT: briefly note "Using precedent from [source]" and proceed to Phase 2 fast.
-If SEMI-NEW: do 2-3 `firecrawl_search` queries about industry current state, include findings in Phase 2.
-If NEW: run the prior-art probe, report what it found (or that it found nothing), then AskUserQuestion "Deep research needed? (~20 min)" options: [Yes, research] / [Skip, use training memory — flag as potentially outdated] / [Ask more questions first].
 
 ## Phase 2: Exploring Approaches
 
 - Propose 2-3 approaches with trade-offs
 - Lead with your recommendation
 - Keep YAGNI -- ruthlessly cut unnecessary complexity
-- Reference existing code from CLAUDE.md: "Per CLAUDE.md, we already have WorkspaceContext..."
-- Reference research cache: "Per research/zustand-vs-redux.md (🟢 FRESH 32d), Zustand recommended for apps <10k LoC..."
-- Reference KB precedent: "Per [precedent ADR-2026-02-10], project uses Zustand..."
+Read `references/phase-detail.md` when you write an approach (reference examples and the source-citation template).
 
-**Source citation MANDATORY** per approach (when research done):
-```markdown
-### Approach A: Use Zustand
-
-Sources:
-- Official docs: https://zustand.docs.pmnd.rs (fetched YYYY-MM-DD)
-- Real-world: https://github.com/pmndrs/zustand (23k stars, maintained)
-- Research cache: ../research/<slug>.md (verdict: prefer-zustand-for-small-apps)
-
-Fit for this project:
-- [Reference CLAUDE.md constraint]
-- [Reference project stack]
-
-Trade-offs:
-- Grounded in research, not generic
-```
 
 ## Phase 2.5: Design Gate (architectural path only — which design lane, never whether)
 
@@ -272,123 +207,24 @@ If clearly non-UI (pure backend/API/DB/business logic):
     It is an offer, not a gate: declining writes the reason to the ledger.
 ```
 
-**Skipping Phase 3 is not skipping design.** Phase 3 is the *UI* design phase; the logic lane's
-artifact is offered later, at plan stage, because it describes the flow the plan lays out.
+Read `references/phase-detail.md` when Phase 3 triggers are unclear (keyword and file extension lists).
 
-**Phase 3 produces design DECISIONS as text** — palette, font pairing, layout blueprint, motion,
-accessibility. It does not render the mockup file. That happens once, later, in `gaspol-plan`'s
-post-plan offer, which mounts it as the artifact's Design tab. One render point, so the same
-question cannot get three different answers.
-
-Design triggers (Phase 3 fires if any match):
-
-**UI keyword detection:**
-- button, form, modal, card, view, screen, page, layout, dashboard, component, navbar, sidebar, menu, dropdown
-- tampilan, halaman, tombol, kartu, bentuk (Indonesian)
-
-**Visual indicator detection:**
-- UX, style, color, warna, font, typography, animation, animasi, responsive, mobile, desktop, dark mode, light mode, theme, tema
-
-**File extension detection (from approach/plan):**
-- `.tsx`, `.jsx`, `.vue`, `.svelte`, `.astro`, `.css`, `.scss`, `.sass`, `.module.css`, `.tailwind.config.*`
 
 ## Phase 3: Design Intelligence (AUTO-TRIGGERED for UI work)
 
 **Detection:** Phase 2.5 gate determined UI work needed → invoke the **`ui-ux-pro-max`** skill.
 
-Design intelligence is delegated to the `ui-ux-pro-max` plugin (84 styles, 192 palettes, 74 font pairings, 98 UX guidelines, 25 chart types across 22 stacks). gaspol no longer forks that data.
-
 **If it is not installed:** tell the user to run `claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill`, then continue the brainstorm without it — design quality degrades, nothing breaks. gaspol declares **no** hard dependency on it, deliberately: `plugin.json`'s `dependencies` field is all-or-nothing, and a yanked third-party entry would disable every other gaspol skill.
 
-**Two gaspol-specific layers survive the delegation** and still apply on top of whatever `ui-ux-pro-max` returns — `ui-ux-pro-max` has no equivalent for either:
-- `skills/gaspol-verify/rules/anti-ai-slop.md` — banned-vs-use-instead tables for typography, colour, layout, motion
-- `skills/gaspol-verify/rules/reasoning-gaspol.md` — respect the target project's CLAUDE.md tokens, query the KB for precedent
-
 **Skip Phase 3 for:** backend/API logic, database schema, Edge Functions, business logic without UI (determined by Phase 2.5 gate).
-
-Invocation:
-
-```
-Invoke ui-ux-pro-max with:
-  - Task description (from Phase 1-2 understanding)
-  - Project CLAUDE.md path
-  - Stack (detected from package.json or CLAUDE.md)
-  - User constraints (from Phase 1 questions)
-```
-
-Expected back:
-1. Aesthetic direction (with sources from its style database)
-2. Color palette (respecting CLAUDE.md tokens)
-3. Typography (from its font-pairing database or CLAUDE.md)
-4. Component examples (code in detected stack)
-5. Layout blueprint (ASCII or spec)
-6. Motion plan
-7. Accessibility notes
-8. Anti-AI-slop self-check confirmed
-
-Present design recommendations 200-300 word sections, AskUserQuestion confirm after each.
-
-### Freeze the approved palette into DESIGN.md (v1.17)
-
-Once the user has **approved** the palette and typography, offer to write them to `DESIGN.md`
-at the project root. This is the point where the design is agreed and no code exists yet — the
-cheapest possible moment to fix the contract. **One** reason implementations drift from the
-mockup is that the palette never got written down anywhere a tool could read.
-
-**Scope boundary:** this pins TOKENS — colour and typography — not layout geometry. The
-wrong-layout half of mockup drift is not addressed by a DESIGN.md and stays open (IDS-6's
-deferred Part B). Do not present a DESIGN.md as solving mockup mismatch.
-
-Format — YAML frontmatter, then whatever prose you want below it:
-
-```markdown
----
-colors:
-  primary: "#2563EB"
-  text:    "#1F2937"
-  surface: "#FFFFFF"
-fonts:
-  heading: "Poppins"
-  body:    "Inter"
----
-```
-
-Name at least one foreground token (`text`, `ink`, `body`, `foreground`) and one background
-token (`surface`, `background`, `canvas`) — that pairing is what lets `gaspol-verify` grade
-WCAG AA contrast instead of reporting `no declared pairing`.
-
-`gaspol-verify` Layer 4 reads this file and blocks on off-contract structural colours. Format
-origin: Google Stitch DESIGN.md; 73 worked examples at
-<https://github.com/voltagent/awesome-design-md> — **referenced, never vendored** (see the
-v1.14 fork deletion).
 
 Offer it with **AskUserQuestion**: `[Write DESIGN.md]` / `[Not now — keep the gate off]` /
 `[I'll write it myself]`. Never write
 it without asking, and never write it before the palette is approved — a contract frozen around
 a design the user has not agreed to is worse than none.
 
-### Visual Companion (just-in-time — v1.7)
+Read `references/phase-3-design.md` when you present design recommendations, write DESIGN.md (format, scope), or offer the visual companion (guide: `visual-companion.md`).
 
-A browser-based companion for showing mockups, diagrams, and visual options during
-brainstorming/design. It is a **tool, not a mode** — see
-[visual-companion.md](visual-companion.md) for the full guide.
-
-- **Offer just-in-time, NEVER upfront.** Wait until a question would genuinely be clearer
-  *shown* than *told* — a real mockup/layout/diagram question, not merely a UI topic. The
-  first time that happens, offer it as **its own message** (nothing else): "This next part
-  might be easier if I show you — I can put mockups/diagrams in a browser tab as we go. It's
-  token-intensive. Want me to?" If no visual question ever arises, never offer it.
-- **On approval:** start the server with
-  `skills/gaspol-brainstorm/visual-companion/scripts/start-server.sh --project-dir <repo> --open`
-  (it backgrounds itself, writes session files under `.gaspol/brainstorm/`, and returns a JSON
-  line with the keyed URL — always share the COMPLETE URL incl. `?key=…`). Add `.gaspol/` to
-  `.gitignore` if absent.
-- **Per-question decision** (even after acceptance): use the browser only when the content IS
-  visual (mockups, wireframes, layout/style comparisons, diagrams); use the terminal for
-  conceptual/tradeoff/requirements questions. "A UI topic" ≠ "a visual question".
-- **Design fusion:** feed `ui-ux-pro-max`'s output (aesthetic direction, palette,
-  layout blueprint, 162+ rules) into the mockup HTML you write to the screen dir — gaspol has
-  both the design *knowledge* and the interactive *loop*.
 
 ## Phase 4: Implementation Feasibility Check (NEW)
 
@@ -459,24 +295,4 @@ Before finalizing:
 - If yes --> use gaspol-plan to create the implementation plan (separate `-plan.md` file,
   same ticket)
 
-## Key Principles
-
-- One question at a time — ALWAYS via **AskUserQuestion** tool (popup modal, not plain text)
-- Multiple choice with selectable options (3-5 options, always include "Something else")
-- YAGNI ruthlessly
-- CLAUDE.md-first (saves tokens)
-- Data-driven aesthetics for UI (use design search)
-- Anti-generic (no AI slop)
-- Project-constrained (respect documented design system)
-- Implementation feasibility (flag placeholders early)
-
-## Integration
-
-- **Triggered by:** User message indicating creative work (replaces old kickstart — skill removed in v1.2)
-- **Auto-triggers:** 
-  - `gaspol-research` (Phase 1.5 when novelty = NEW)
-  - `ui-ux-pro-max` plugin skill (Phase 2.5/3 for UI work)
-  - `gaspol-adr` (Phase 2 when user picks approach from 2+ options)
-- **Reads from KB:** `<KB_ROOT>` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
-- **Writes to KB:** via `gaspol-adr` (decisions) and `gaspol-research` (research verdicts)
-- **Leads to:** `gaspol-plan` (after design approved — writes a separate `-plan.md` file, same ticket)
+Read `references/phase-detail.md` when you want the Key Principles or the Integration list.
