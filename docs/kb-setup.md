@@ -11,8 +11,8 @@
 
 
 The cross-project Knowledge Base (KB) is what makes gaspol *compound* — `gaspol-adr`
-and `gaspol-learn` **write** to it, `gaspol-brainstorm` Phase 0.5 and `gaspol-research`
-**read** from it, `gaspol-kb-audit` **maintains** it.
+and `gaspol-research` **write** to it, `gaspol-brainstorm` Phase 0.5
+**reads** from it, `gaspol-kb-audit` **maintains** it.
 
 **As of v1.3.1 the KB works out of the box — no GitHub repo required.** GitHub sync is
 an optional upgrade for cross-machine use.

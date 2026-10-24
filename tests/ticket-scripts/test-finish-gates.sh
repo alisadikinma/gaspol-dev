@@ -178,7 +178,7 @@ else
   fail "/security-review is still named in gaspol-finish (offered, not deleted)"
 fi
 
-# The four MANDATORY chain steps stay unconditional. gaspol-learn left this list
+# The four MANDATORY chain steps stay unconditional. the pattern-capture skill (deleted in IDS-21) left this list
 # in IDS-17 -- it is offered now, and an offer is by definition conditional.
 for step in gaspol-verify gaspol-review gaspol-sync-docs; do
   if grep -q "$step" skills/gaspol-finish/SKILL.md; then

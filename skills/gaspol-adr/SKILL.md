@@ -237,7 +237,6 @@ Found relevant past decisions:
 | `gaspol-plan` | Captures architectural forks within phases |
 | `gaspol-research` | Research verdicts feed into ADR "References" section |
 | the store's own promoter (outside gaspol) | Promotes and retires ADRs; gaspol writes `proposed` and records `last_validated`, it does not police staleness |
-| `gaspol-learn` | ADRs as captured patterns in KB |
 
 ---
 

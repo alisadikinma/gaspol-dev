@@ -77,13 +77,6 @@ When querying KB, filter by `status`:
 - `superseded` → don't surface as primary precedent, note "superseded by <newer-id>"
 - `deprecated` → don't surface at all
 
-### Rule G7: Learn After Ship
-
-After the design output ships via gaspol-finish, gaspol-learn captures the pattern with the `ui-patterns` tag:
-- Tags extracted from decision context
-- Status: `proposed` (until validated in future project)
-- Source: current project name + component path
-
 ## Anti-AI-Slop Integration
 
 ### Rule G8: Hard-Enforcement via Self-Check

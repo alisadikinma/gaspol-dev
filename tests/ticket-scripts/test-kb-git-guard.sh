@@ -31,7 +31,7 @@ echo "test-kb-git-guard: nothing stages the whole tree..."
 # mis-set kb_local points at. The pathspec is what bounds the blast radius.
 #
 # ANCHORED AT LINE START, not fence-scoped. A fence parser was written first and
-# silently desynced -- gaspol-learn/SKILL.md has an odd number of ``` markers, so
+# silently desynced -- a since-deleted capture skill (IDS-21) had an odd number of ``` markers, so
 # its real bash block counted as OUTSIDE a block and a planted `add .` passed. A
 # parser that can desync is worse than no parser, because it fails OPEN.
 # Anchoring needs no state: a line that RUNS starts the line, while the prose that
@@ -59,7 +59,8 @@ grep -qiE 'read[s]? (stay|remain)|reading (is|stays)' "$KBPATH" \
     || fail "the guard does not say reads stay allowed — refusing reads too would silently disable precedent lookup, which is the capability this ticket is trying to strengthen"
 
 echo "test-kb-git-guard: every syncing skill references the guard..."
-for s in gaspol-learn gaspol-adr gaspol-research; do
+# IDS-21: gaspol-adr and gaspol-research are the remaining KB writers.
+for s in gaspol-adr gaspol-research; do
     f="$REPO_ROOT/skills/$s/SKILL.md"
     grep -qE 'show-toplevel|git guard|does not own' "$f" \
         || fail "$s/SKILL.md runs git against the KB but never mentions the ownership guard — the guard has to be where the git command is, not only in a file someone might read"

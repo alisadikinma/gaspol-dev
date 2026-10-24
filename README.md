@@ -22,7 +22,7 @@ You plan a feature carefully. Claude executes it. And then you find:
 - A backend change with nothing to review until the diff lands — too late to say "that's the wrong flow"
 - Green tests, and an app that does not start
 
-**gaspol-dev fixes this.** 17 skills + 4 agents that enforce process discipline, catch placeholders,
+**gaspol-dev fixes this.** 16 skills + 4 agents that enforce process discipline, catch placeholders,
 **run** the checks instead of reading the code, demand a reviewable design before any code, and gate
 completion with evidence — a screenshot and an exit code, never an adjective.
 
@@ -87,7 +87,7 @@ When you do pick "finish", `gaspol-finish` runs four steps **in order**, none co
 | 3 | `gaspol-review` at Tier 1 — findings must survive adversarial refutation to count | **BLOCKS** on Critical |
 | 4 | `gaspol-sync-docs` — CLAUDE.md must appear in the branch diff, not just be claimed | — |
 
-Then two more are **offered** in a single modal — `/security-review` (the CLI built-in) and `gaspol-learn` (pattern capture to the KB). Declining either records nothing. When `/security-review` is taken and reports anything, it still blocks every merge option until resolved, and `gaspol-execute` still runs it **unconditionally** mid-build on any phase touching auth, secrets, user input, a new endpoint, payment, or sensitive data.
+Then one more is **offered** — `/security-review` (the CLI built-in). Declining records nothing. When `/security-review` is taken and reports anything, it still blocks every merge option until resolved, and `gaspol-execute` still runs it **unconditionally** mid-build on any phase touching auth, secrets, user input, a new endpoint, payment, or sensitive data.
 
 Finally the ledger is closed with a truthful cursor, other open ledgers are surfaced, and — because **merging is not publishing** — you're told to push, and for a plugin repo to run `claude plugin update <plugin>@<marketplace>` and restart.
 
@@ -255,7 +255,7 @@ than a pass/fail verdict.
 
 ---
 
-## The 17 skills (organized by workflow)
+## The 16 skills (organized by workflow)
 
 ### Planning
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + three-path classification (spike / bounded / architectural)
@@ -278,7 +278,6 @@ than a pass/fail verdict.
 - **gaspol-finish** — The four-step chain above plus two offers, ledger close, and the publication gate — and reaching it at all is the user's choice
 
 ### Learning & Maintenance
-- **gaspol-learn** — Quality-gated pattern capture, **offered** at the end of finish rather than fired automatically (6 validation checks, user confirms each entry)
 - **gaspol-sync-docs** — CLAUDE.md sync (3 modes: post-implementation / audit / session learning)
 
 ### Bootstrap
@@ -324,8 +323,6 @@ gaspol: Phase 1.5 classified NEW (no KB, no project pattern). Invoking gaspol-re
 [20 min of research — Zustand vs Redux, image-gen APIs, 3-pane layouts]
 gaspol: Approach chosen: 3-pane (prompt + preview + history). ADR-2026-03-15 captured.
 ...feature ships via gaspol-finish...
-gaspol-learn: Candidate pattern "image-gen-3-pane-layout". Capture? [Yes with tags: image-gen, gallery, 3-pane]
-gaspol-learn: Saved to ui-patterns/image-generation-ui.md (status: proposed)
 
 [3 months later: new project, same domain — 2026-06]
 You: /gaspol-brainstorm AI video editor UI
@@ -476,7 +473,7 @@ git clone https://github.com/alisadikinma/gaspol-dev ~/.claude/plugins/gaspol-de
 
 ### KB: zero setup (local-only default)
 
-Since **v1.3.1 the KB works out of the box.** On first use, `gaspol-adr` / `gaspol-learn` auto-create `~/.claude/gaspol-knowledge/` locally and start capturing — no GitHub repo, no config file. Cross-project learning works on this machine immediately. Full reference: [docs/kb-setup.md](docs/kb-setup.md).
+Since **v1.3.1 the KB works out of the box.** On first use, `gaspol-adr` / `gaspol-research` auto-create `~/.claude/gaspol-knowledge/` locally and start capturing — no GitHub repo, no config file. Cross-project learning works on this machine immediately. Full reference: [docs/kb-setup.md](docs/kb-setup.md).
 
 | Mode | When | Behaviour |
 |---|---|---|

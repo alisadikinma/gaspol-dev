@@ -305,8 +305,7 @@ same three questions:
 - Are errors caught and propagated, or swallowed and reshaped into a lie?
 
 **Step 3 — capture what you learned.** A gotcha you had to rediscover is a gotcha the project's
-CLAUDE.md was missing: offer to add it via `gaspol-sync-docs`, and if it generalises past this
-codebase, capture it via `gaspol-learn`.
+CLAUDE.md was missing: offer to add it via `gaspol-sync-docs`.
 
 ## Integration
 

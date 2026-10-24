@@ -180,7 +180,7 @@ run_gate "$REPO/sub/dir"
 expect 1 "case 16: run from a subdirectory, resolves against the repo root"
 
 # 17 — a file the heuristics cannot classify declares its own tier. Added after
-#      the first real run reported UNKNOWN for gaspol-learn and gaspol-research,
+#      the first real run reported UNKNOWN for two judging-adjacent skills (gaspol-research and one since deleted in IDS-21),
 #      both correct and both merely unlabelled. Growing the keyword list would
 #      drift; defaulting the unmatched case to exec would silently demand sonnet
 #      of a judging surface nobody named carefully.

@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **17 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
+Claude Code plugin providing **16 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
 
 ## Architecture
 
@@ -48,7 +48,7 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
-| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 17 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
+| `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 16 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
 | `docs/rubric-model-switching.md` | **UPDATED (v1.29)** — the model RULE, no longer an auto-rubric to choose from. Two tiers: Opus judges, Sonnet works. Records which concrete ids the aliases mean, with a date, and states what the alias choice gives up |
 | `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
@@ -80,12 +80,11 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
 | `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
-| `skills/gaspol-finish/SKILL.md` | **UPDATED (v1.26)** — four mandatory steps (verify, plan-verifier, review Tier 1, sync-docs) plus two recordless offers (`/security-review`, `gaspol-learn`). Step 0 deleted as a duplicate of `gaspol-verify` Layer 1, with the reason kept in the file; `gaspol-verify`'s already-ran-this-session skip permission revoked, because with Step 0 gone it is the only step that runs the suite |
+| `skills/gaspol-finish/SKILL.md` | **UPDATED (v1.26)** — four mandatory steps (verify, plan-verifier, review Tier 1, sync-docs) plus one recordless offer (`/security-review`). Step 0 deleted as a duplicate of `gaspol-verify` Layer 1, with the reason kept in the file; `gaspol-verify`'s already-ran-this-session skip permission revoked, because with Step 0 gone it is the only step that runs the suite |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
 | `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
-| `skills/gaspol-learn/SKILL.md` | **NEW** — Quality-gated post-ship pattern capture to KB |
 | `skills/gaspol-auto/SKILL.md` | **NEW** — Autonomous execution with hard-stop guardrails |
 | `agents/code-reviewer.md` | Code review between commits (model: sonnet) |
 | `agents/code-simplifier.md` | Simplify and refine code for clarity (model: sonnet) |
@@ -143,7 +142,6 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
 | Research external library/API/pattern | `gaspol-research` |
 | Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
-| Capture patterns after shipping | `gaspol-learn` (**offered** by finish since v1.26, not automatic) |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
@@ -205,9 +203,8 @@ FINISH OFFER — skills/_shared/finish-offer.md — the chain STOPS being automa
 ```
 
 **The last arrow is a choice, not a step.** Everything above the finish offer chains
-automatically; nothing below it happens unless the user picks it. `gaspol-learn` is offered
-inside `gaspol-finish` rather than chained after it, so a branch that is never finished never
-reaches it.
+automatically; nothing below it happens unless the user picks it. `/security-review` is offered
+inside `gaspol-finish` rather than chained after it.
 
 Parallel branches:
 - `gaspol-worktree` — Phase 0 isolation invoked BEFORE concurrent dispatch (required for independent-domains, recommended for overlapping plan-phases); teardown owned by `gaspol-finish`
@@ -256,7 +253,7 @@ a shell export only exists for processes that inherited that shell.
 
 Env var override (for CI or power users): `GASPOL_KB_REMOTE=git@github.com:...`
 
-Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-learn`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
+Skills that touch KB (`gaspol-research`, `gaspol-adr`, `gaspol-brainstorm` Phase 0.5) resolve mode per [docs/kb-setup.md](docs/kb-setup.md): default to **local-only** (resolve the root via `skills/_shared/kb-root`, create the bare directory if the default applies — **never** `git init`, never category dirs, never an index — write locally, no remote needed); upgrade to **synced** when `kb_remote` is configured; only disable on explicit `"kb_mode": "off"`. Remote URL is read from config — never hardcoded. The KB is no longer a prerequisite — it just works.
 
 Structure — **flat, since v1.18** (see "One Knowledge Store" below, which supersedes this
 paragraph wherever they disagree):
@@ -277,7 +274,7 @@ Default query filter: `proposed` **and** `accepted` — filtering to `accepted` 
 every gaspol capture from the query built to find it. Freshness tiers for research: 🟢 FRESH <90d /
 🟡 AMBER 90-180d / 🟠 STALE 180-365d / 🔴 EXPIRED >365d.
 
-Compounding effect: a shipped feature → `gaspol-learn` captures patterns **when the finish offer is accepted** (v1.26 — it is no longer automatic) → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs. The compounding is real but now depends on the user saying yes, which is a weaker guarantee than the automatic capture it replaced.
+Compounding effect: a decision or research verdict → `gaspol-adr` / `gaspol-research` writes it to the KB → next project with same domain surfaces precedent in brainstorm Phase 0.5 → skip re-exploration → faster, more consistent outputs. `gaspol-learn` (post-ship pattern capture) was deleted in v1.30.0 (IDS-21) — owner judged it had no function; KB writes remain via `gaspol-adr` and `gaspol-research`.
 
 ### Anti-Placeholder Enforcement
 
@@ -1059,7 +1056,7 @@ Applied via:
   judge: `code-reviewer`, `code-simplifier`, `plan-verifier`, `spec-reviewer`
 - Agent tool dispatch with a `model` param per call
 - A file the gate cannot classify by name declares its own tier with a `model-tier:` line;
-  `gaspol-learn` and `gaspol-research` both carry one
+  `gaspol-research` carries one
 
 **An override that drops a judging task below Opus, or raises an execution task above Sonnet,
 MUST carry a written reason at the call site.** A silent override is how a rule becomes advice
@@ -1253,7 +1250,7 @@ Two other skills went in the same ticket, for their own reasons:
 
 **Deliberately kept**, and the reasoning matters more than the list: `using-gaspol` is the
 auto-trigger backbone the session hook loads; deleting it would make the *coding* skills fire less
-often, which is the opposite of narrowing to coding. `gaspol-adr`, `gaspol-learn` and
+often, which is the opposite of narrowing to coding. `gaspol-adr` and
 `gaspol-research` are the knowledge base's only writers, and `gaspol-brainstorm` Phase 0.5 is its
 reader — remove the writers and the reader becomes a gate that scans an empty folder every session,
 paying a cost that can never return anything.
@@ -1420,7 +1417,7 @@ Response pattern: READ → UNDERSTAND → VERIFY → EVALUATE → RESPOND → IM
 
 When feedback is unclear: STOP. Do not guess. Ask for clarification with specific interpretation options.
 
-### Finishing Work (gaspol-finish) — four mandatory steps + two offers, and reaching it is itself an OFFER (v1.26, IDS-17)
+### Finishing Work (gaspol-finish) — four mandatory steps + one offer, and reaching it is itself an OFFER (v1.26, IDS-17)
 
 **Finishing is no longer implied.** `gaspol-execute` (after its last phase), `gaspol-parallel`
 (Phase 3) and `gaspol-auto` (post-run report) all present the same three-option modal, whose text
@@ -1455,12 +1452,11 @@ conditional on the diff):
 4. Run `gaspol-sync-docs` (update CLAUDE.md) — evidence-gated: on a structural change CLAUDE.md
    must appear in the branch diff.
 
-Then **one** `AskUserQuestion` carrying both offers:
+Then **one** `AskUserQuestion` carrying the offer (`[Jalankan /security-review]` / `[Lewati]`):
 
 | Offered | Declining |
 |---|---|
 | `/security-review` (built-in) | records nothing |
-| `gaspol-learn` (pattern capture) | records nothing |
 
 **Why `/security-review` became an offer, and what it cost.** Owner decision: not every ticket
 changes anything security-related, so running it on every branch spends time where there is
@@ -1471,8 +1467,7 @@ the store as its own note. `tests/ticket-scripts/test-finish-gates.sh` carried a
 written specifically to block this; it was removed and replaced by a comment naming the ticket and
 the note, because a deleted assertion with no explanation is how the next person restores it by
 accident. The cost, stated rather than glossed: **a declined review leaves no trace anywhere.**
-Both offers are recordless for symmetry — two optional steps under two different accountability
-rules is a distinction nobody remembers a month later.
+The offer is recordless (IDS-21 removed the second offer, so there is no symmetry to keep).
 
 **`gaspol-execute` Step 3.6 still runs `/security-review`** automatically on its own triggers —
 auth, secrets, user input or file uploads, a new API endpoint, payment, sensitive data. Making the
@@ -1586,7 +1581,6 @@ Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated repor
 | Cache stale but used as-is | Freshness tier not checked — research entries need age filter |
 | Generic "Inter font" recommendation | anti-AI-slop rules bypassed — check `skills/gaspol-verify/rules/anti-ai-slop.md` |
 | Design not integrated in plan | Phase 2.5 gate skipped — UI detection may need explicit AskUserQuestion |
-| KB growing with junk | `gaspol-learn` quality gate not enforced — require min 200 words, tags, no duplicates |
 
 ## Conventions for Contributors
 

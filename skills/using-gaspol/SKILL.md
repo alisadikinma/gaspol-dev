@@ -75,7 +75,6 @@ Use the **Skill** tool. When you invoke a skill, its full content is loaded — 
 | Update CLAUDE.md after changes | `gaspol-sync-docs` |
 | Research a library/API/pattern | `gaspol-research` |
 | An architectural decision at a fork | `gaspol-adr` |
-| Capture patterns after shipping | `gaspol-learn` |
 
 ## Skill Priority (when several could apply)
 

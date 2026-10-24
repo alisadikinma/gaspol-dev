@@ -33,7 +33,7 @@ Finishing is not just merging. It is the final quality gate that ensures the wor
 Before presenting any options, complete this chain **in order, all four steps**. Do not skip
 steps. None of the four is optional or conditional on the diff's contents.
 
-Two further checks — the built-in `/security-review` and `gaspol-learn` — are **offered** after
+One further check — the built-in `/security-review` — is **offered** after
 step 4 rather than run automatically. See *The Offers* below.
 
 **Where Step 0 went (IDS-17).** This chain used to open with a Step 0 that ran `detect-stack`
@@ -44,11 +44,13 @@ future edit makes step 1 conditional, that ordering is lost and Step 0 has to co
 
 ### Step 1: Run gaspol-verify (all 4 layers)
 
-Invoke `gaspol-verify` now. **Every time, even if it already ran and passed earlier in this
-session** — the permission to skip it on a repeat was removed in IDS-17. With Step 0 gone this is
-the only step in the chain that runs the test suite, and an optional step whose backstop was
-deleted collapses into nothing running at all. It is also the cheapest step, so re-running it
-costs the chain almost nothing while a stale pass costs it everything.
+Invoke `gaspol-verify` now, **unless the ledger holds a `verified: PASS @ <sha>` line whose
+`<sha>` equals `git rev-parse HEAD` and the working tree is clean.** `gaspol-verify` and
+`gaspol-auto` write that line when their run passes. The same SHA means the code is byte-identical
+to what was verified, so a second run proves nothing new and costs a full suite. The permission to
+skip on a repeat was removed in IDS-17 because "it passed earlier" had no anchor; the SHA is that
+anchor. A different SHA, a missing line, or any uncommitted change means run it again. Read the
+line from the ledger; never accept it from memory.
 
 This ensures:
 - All tests pass
@@ -76,8 +78,10 @@ in a skills repository markdown **is** the executed surface, so "docs only" neve
 introduce a vulnerability". It now lives as a divergence note in the knowledge store, and
 `gaspol-execute` Step 3.6 still runs the review unconditionally on its own triggers.
 
-In every other case, dispatch the upgraded `plan-verifier` agent (step-level, evidence-based)
-to audit the implementation against the plan. See `agents/plan-verifier.md`.
+If the ledger holds a `plan-verifier: CLEAN @ <sha>` line whose `<sha>` equals the current HEAD,
+reuse that verdict (still do the 3-item spot-check below). In every other case, dispatch the
+upgraded `plan-verifier` agent (step-level, evidence-based) to audit the implementation against
+the plan. See `agents/plan-verifier.md`.
 
 **This step is BLOCKING.** You CANNOT present merge/PR options until the verdict is `CLEAN`.
 
@@ -105,7 +109,13 @@ change. **The re-run is bounded and scoped — see The Fix Loop below.**
 
 ### Step 3: Run gaspol-review AT TIER 1 -- BLOCKING on any surviving Critical finding
 
-Run `gaspol-review`, dispatched at **Tier 1** per its own Step 2 tiered-dispatch table
+**Skip this step when Step 2 returned CLEAN for the current HEAD and the user did not ask for a
+review.** `plan-verifier` has already read the whole diff against the spec and the plan; a second
+reader of the same diff spends a full agent pass on overlap. Record
+`gaspol-review: skipped — plan-verifier CLEAN @ <sha>` in the ledger. This step stays mandatory
+when Step 2 was skipped (no plan, so nothing else read the diff) or when the user asks.
+
+Otherwise run `gaspol-review`, dispatched at **Tier 1** per its own Step 2 tiered-dispatch table
 (`skills/gaspol-review/SKILL.md`): Tier 0 (`agents/code-reviewer.md`, 1 call) plus the
 `plan-artifact-reviewer.md` lane (2 agent calls total, run concurrently). `gaspol-finish` is one
 of the two named Tier 1 triggers in that table — do NOT escalate to Tier 2 from this call site;
@@ -151,17 +161,14 @@ This ensures:
 
 ## The Offers — presented after step 4, in ONE AskUserQuestion
 
-Two checks that used to be mandatory chain steps are now offered. Present both in a **single**
-modal, not two consecutive ones:
+A check that used to be a mandatory chain step is now offered, via one `AskUserQuestion`
+with options:
 
 ```text
-/security-review : [Jalankan]  [Lewati]
-gaspol-learn     : [Jalankan]  [Lewati]
+[Jalankan /security-review]  [Lewati]
 ```
 
-**Declining records nothing.** No ledger line, no reason demanded, for either. That is a
-deliberate, symmetric choice by the owner (IDS-17): two optional steps with two different
-accountability rules is a distinction nobody remembers a month later. It is also a real
+**Declining records nothing.** No ledger line, no reason demanded (IDS-17). That is a real
 reduction — a skipped review leaves no trace anywhere — and it is recorded here rather than
 discovered later.
 
@@ -183,12 +190,6 @@ authz, XSS sinks, CSRF); **never record it as passed when it did not run.**
 automatically on its own triggers — a phase touching auth, secrets, user input, a new endpoint,
 payment, or sensitive data. Making the finish-time pass an offer did not turn the check off; it
 removed the second, unconditional run.
-
-### `gaspol-learn` (pattern capture)
-
-Quality-gated capture into the knowledge store; the user confirms each entry before it is
-written. Offered rather than automatic for the same reason: most branches produce no pattern
-worth keeping, and a prompt that fires every time gets answered reflexively.
 
 ### The Fix Loop — every BLOCKING gate in this chain is bounded
 
@@ -240,7 +241,6 @@ Verification Chain Status:
 
 Offers:
 [ ] /security-review: declined  (or: RUN — PASSED / RUN — findings resolved)
-[x] gaspol-learn:     RUN — 1 pattern captured  (or: declined)
 ```
 
 **If plan-verifier (step 2) returned BLOCKING**, the chain is incomplete. Do NOT present options.
@@ -436,9 +436,8 @@ Changes:
 | `gaspol-verify` | Step 1 of verification chain |
 | `plan-verifier` agent | Step-level evidence-based BLOCKING audit (Step 2 of chain) |
 | `gaspol-review` | Tier 1 dispatch, BLOCKING on surviving Critical findings (Step 3 of chain) |
-| `/security-review` (CLI built-in) | **Offered** after step 4, not a chain step; when run, gates on any finding |
+| `/security-review` (CLI built-in) | **Offered** after step 4, not a chain step; declining records nothing; when run, gates on any finding |
 | `gaspol-sync-docs` | Step 4 of verification chain |
-| `gaspol-learn` | Offered after step 4 (pattern capture); declining records nothing |
 | `gaspol-execute` | Presents the finish offer ([_shared/finish-offer.md](../_shared/finish-offer.md)) — reaching this skill is the user's choice, not automatic |
 | `gaspol-tdd` | Tests must pass before finishing |
 | `gaspol-worktree` | Created the isolated workspace upstream; finish owns teardown — `git worktree remove` runs here AFTER the merge/PR decision, never before |

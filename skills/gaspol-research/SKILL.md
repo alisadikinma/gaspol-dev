@@ -226,7 +226,6 @@ Mini-research (AMBER path):
 | `gaspol-brainstorm` Phase 1.5 | Auto-invoked when novelty = NEW |
 | `gaspol-adr` | Research verdict captured as ADR input |
 | freshness tiers (in this skill) | Every cached entry carries its age tier; a stale entry is re-fetched at read time rather than swept on a schedule |
-| `gaspol-learn` | Research output captured to KB (this skill does it directly) |
 
 ---
 

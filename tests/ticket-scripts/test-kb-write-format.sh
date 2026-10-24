@@ -24,7 +24,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-LEARN="$REPO_ROOT/skills/gaspol-learn/SKILL.md"
+# IDS-21: the pattern-capture skill and its assertions were removed with it.
 ADR="$REPO_ROOT/skills/gaspol-adr/SKILL.md"
 RESEARCH="$REPO_ROOT/skills/gaspol-research/SKILL.md"
 
@@ -33,23 +33,25 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 echo "test-kb-write-format: no skill writes into a category DIRECTORY..."
 # The four category dirs are what made gaspol a separate store. Routing to a
 # final home is superbrain-promote's job and it already has the table for it.
-for f in "$LEARN" "$ADR" "$RESEARCH"; do
+for f in "$ADR" "$RESEARCH"; do
     if grep -nE '<KB_ROOT>/(architecture|design-decisions|research|reusable-snippets|ui-patterns)/' "$f" >/dev/null; then
         grep -nE '<KB_ROOT>/(architecture|design-decisions|research|reusable-snippets|ui-patterns)/' "$f" | sed 's/^/    /' >&2
         fail "$(basename "$(dirname "$f")") still writes into a category directory — that shape is a second store, and superbrain-promote's scan will not see it"
     fi
 done
-grep -qE '<KB_ROOT>/<category>/' "$LEARN" \
-    && fail "gaspol-learn still writes <KB_ROOT>/<category>/<slug>.md instead of a flat quarantine note"
+for f in "$ADR" "$RESEARCH"; do
+    grep -qE '<KB_ROOT>/<category>/' "$f" \
+        && fail "$(basename "$(dirname "$f")") still writes <KB_ROOT>/<category>/<slug>.md instead of a flat quarantine note"
+done
 
 echo "test-kb-write-format: the flat quarantine filename is specified..."
-for f in "$LEARN" "$ADR" "$RESEARCH"; do
+for f in "$ADR" "$RESEARCH"; do
     grep -qE '<KB_ROOT>/(YYYY-MM-DD|\$\(date)' "$f" \
         || fail "$(basename "$(dirname "$f")") does not specify the flat dated filename <KB_ROOT>/YYYY-MM-DD-<slug>.md"
 done
 
 echo "test-kb-write-format: the note shape matches what the promoter scans..."
-for f in "$LEARN" "$ADR" "$RESEARCH"; do
+for f in "$ADR" "$RESEARCH"; do
     n=$(basename "$(dirname "$f")")
     grep -qF 'status: proposed' "$f" \
         || fail "$n does not mandate 'status: proposed' — the promoter's scan keys on frontmatter"
@@ -60,28 +62,20 @@ for f in "$LEARN" "$ADR" "$RESEARCH"; do
 done
 
 echo "test-kb-write-format: gaspol never grades its own capture as accepted..."
-for f in "$LEARN" "$ADR" "$RESEARCH"; do
+for f in "$ADR" "$RESEARCH"; do
     n=$(basename "$(dirname "$f")")
     grep -qiE 'never .{0,40}accepted|not .{0,20}accepted|proposed.{0,60}never accepted' "$f" \
         || fail "$n does not state that gaspol writes are never 'accepted' — promotion belongs to superbrain-promote, and a skill that promotes itself has removed the gate"
 done
 
-# --- the gate that must survive the restructure -----------------------------
-echo "test-kb-write-format: the quality gate survived..."
-# BOTH halves, separately. A single "does 200 appear anywhere" check passed a
-# sabotage that halved the threshold, because the OTHER gate line still carried
-# the digits. Weakening either half must fail.
-grep -qE '(≥|>=) ?200 ?word' "$LEARN" \
-    || fail "the ACCEPT threshold (body ≥200 words) is gone or weakened — it is the ONLY thing gaspol adds that memory-extract.sh does not, so losing it turns this merge into a pure downgrade"
-grep -qiE '< ?200 ?word.*reject|reject.*< ?200 ?word' "$LEARN" \
-    || fail "the REJECT rule for a body under 200 words is gone — a threshold with no rejection is a suggestion, not a gate"
-grep -c '200' "$LEARN" | grep -qE '^[2-9]|^[0-9]{2,}' \
-    || fail "fewer than two 200-word gate references remain — the accept threshold and the reject rule are separate lines and both must survive"
+# IDS-21: the 200-word quality gate lived only in the deleted capture skill, so it went with it.
 
 # --- sole-promoter rule stated where a reader will meet it ------------------
 echo "test-kb-write-format: the sole-promoter rule is written down..."
-grep -qi 'superbrain-promote\|sole promoter\|single .{0,20}gate' "$LEARN" \
-    || fail "gaspol-learn does not name the promoter it feeds — without that, the next editor will 'helpfully' write straight into the curated core"
+for f in "$ADR" "$RESEARCH"; do
+    grep -qi 'superbrain-promote\|sole promoter\|single .{0,20}gate' "$f" \
+        || fail "$(basename "$(dirname "$f")") does not name the promoter it feeds — without that, the next editor will 'helpfully' write straight into the curated core"
+done
 
 # --- coherence: nobody reads an index nobody writes -------------------------
 # Removing the INDEX.md write while leaving thirteen readers in place would be

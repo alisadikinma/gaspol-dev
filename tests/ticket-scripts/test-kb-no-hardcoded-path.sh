@@ -147,7 +147,8 @@ INLINE=$(grep -rln 'GASPOL_KB_LOCAL:-' $SCAN_PATHS 2>/dev/null \
     || fail "inlined two-rung resolver still present in: $INLINE — it skips the config rung, which is the only durable way to relocate the store"
 
 echo "test-kb-no-hardcoded-path: the KB skills point AT the resolver..."
-for s in gaspol-learn gaspol-adr gaspol-research gaspol-brainstorm; do
+# IDS-21: the pattern-capture skill was deleted from this list.
+for s in gaspol-adr gaspol-research gaspol-brainstorm; do
     grep -q "kb-path.md" "$SKILLS/$s/SKILL.md" \
         || fail "$s/SKILL.md does not reference _shared/kb-path.md — removing the literal path without pointing anywhere leaves the skill with no way to find the store at all"
 done

@@ -38,7 +38,6 @@ Enforced by `skills/gaspol-verify/scripts/model-gate`, invoked from `gaspol-veri
 | Test writing | `sonnet` | mechanical but precise |
 | Research gathering (per-source) | `sonnet` | fetch and summarise one source |
 | ADR capture (`gaspol-adr`) | `sonnet` | structured template filling |
-| Learn capture (`gaspol-learn`) | `sonnet` | extracts and files patterns; does not judge code |
 | Design system reasoning | `sonnet` | apply rules, match templates |
 | Documentation sync (`gaspol-sync-docs`) | `sonnet` | **was `haiku` until IDS-20** — see below |
 | Simple refactor / rename / format | `sonnet` | **was `haiku` until IDS-20** — see below |
@@ -113,8 +112,7 @@ declares its own tier:
 <!-- model-tier: exec — gathering is execution: each subagent fetches and summarises one source -->
 ```
 
-Use it rather than renaming a file to satisfy a pattern. `skills/gaspol-learn/SKILL.md` and
-`skills/gaspol-research/SKILL.md` both carry one.
+Use it rather than renaming a file to satisfy a pattern. `skills/gaspol-research/SKILL.md` carries one.
 
 ### Override precedence
 

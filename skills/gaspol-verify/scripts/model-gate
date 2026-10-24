@@ -72,7 +72,7 @@ detail() { echo "    $*" >&2; }
 #
 # Order: path, then the same line, then a tier the FILE declares about itself.
 # The third exists because the first real run reported UNKNOWN for
-# gaspol-learn and gaspol-research -- both correct, both merely unlabelled. The
+# two judging-adjacent skills (one since deleted) -- correct, merely unlabelled. The
 # alternatives were worse: growing EXEC_PAT with "gather", "capture", "analyze"
 # and so on is a keyword list that drifts, and defaulting the unmatched case to
 # exec would silently demand sonnet of a judging surface whose name nobody

@@ -9,7 +9,7 @@
 # whose own inline comment named three states while the code had two. Exit 4
 # ("nothing configured") is the FIRST RUN of the plugin on any fresh machine, and
 # it aborted the capture — contradicting kb-root's docstring, docs/kb-setup.md's
-# auto-init block, and gaspol-learn's own Red Flags row in the same commit.
+# auto-init block, and a capture skill's own Red Flags row in the same commit.
 #
 # It survived because every existing test exercised kb-root STANDALONE. The
 # resolver was right; its three callers were wrong. So this test extracts the
@@ -32,13 +32,14 @@ cd "$REPO_ROOT"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-SKILLS=(gaspol-learn gaspol-adr gaspol-research)
-# learn and adr WRITE, so state 4 must auto-init the default store and capture
+# IDS-21: the pattern-capture skill was deleted; adr and research remain.
+SKILLS=(gaspol-adr gaspol-research)
+# adr WRITES, so state 4 must auto-init the default store and capture
 # locally. research only READS, so it reports and continues without creating an
 # empty directory nobody asked for. Plain case, not `declare -A`: the macOS
 # system bash is 3.2 and has no associative arrays, and a test that only runs on
 # the author's machine is not a gate.
-must_create() { case "$1" in gaspol-learn|gaspol-adr) echo yes ;; *) echo no ;; esac; }
+must_create() { case "$1" in gaspol-adr) echo yes ;; *) echo no ;; esac; }
 
 # The ONE fenced bash block whose FIRST line is the plugin-root guard. Anchored
 # on that opening line rather than on "contains kb-root anywhere", because this

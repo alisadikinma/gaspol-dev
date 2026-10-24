@@ -16,7 +16,7 @@ SKILLS=(
     "gaspol-review"
     "gaspol-worktree"
 )
-# NOTE: gaspol-adr and gaspol-learn are SECOND-ORDER skills
+# NOTE: gaspol-adr is a SECOND-ORDER skill (the pattern-capture skill was deleted in IDS-21)
 # (auto-triggered downstream by execute/finish/plan/verify). A cold naive
 # build-prompt correctly routes to gaspol-brainstorm first, so they are
 # intentionally NOT cold-prompt triggering-tested.

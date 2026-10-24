@@ -373,4 +373,3 @@ The agent itself must be aware this spot-check happens — that's the deterrent 
 | `gaspol-finish` | Blocks merge/PR options until plan-verifier returns CLEAN |
 | `gaspol-verify` | Layer 2 (plan fidelity) uses this agent |
 | `gaspol-adr` | Divergence items trigger ADR capture (why diverged) |
-| `gaspol-learn` | Miss items may inform KB gaps (reusable snippet missing?) |

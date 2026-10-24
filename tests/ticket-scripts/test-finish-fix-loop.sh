@@ -99,11 +99,12 @@ for step in "gaspol-verify" "plan-verifier" "gaspol-review" "gaspol-sync-docs"; 
         || fail "gaspol-finish no longer names '$step' — these four are the mandatory chain, not candidates for the next trim"
 done
 
-echo "test-finish-fix-loop: /security-review and gaspol-learn are OFFERED, not chain steps..."
+echo "test-finish-fix-loop: /security-review is OFFERED, not a chain step..."
 # Owner decision (IDS-17): not every ticket touches anything security-related,
 # so running the review unconditionally on every branch spends time for nothing.
 # It stays present and offered -- an offer nobody is shown is just a deletion.
-for offered in "/security-review" "gaspol-learn"; do
+# IDS-21: the second offer (pattern capture) was deleted; /security-review is the only one left.
+for offered in "/security-review"; do
     grep -qF "$offered" "$FIN" \
         || fail "gaspol-finish no longer names '$offered' — it became an OFFER, not a deletion"
 done

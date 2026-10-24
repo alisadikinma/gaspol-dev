@@ -25,7 +25,6 @@ gaspol-dev active — Process discipline for real code, not placeholders.
 | **sync project docs / guidelines** | `gaspol-sync-docs` |
 | **research a lib / API / pattern** | `gaspol-research` |
 | **architectural decision** | `gaspol-adr` |
-| **capture patterns after shipping** | `gaspol-learn` |
 
 ---
 

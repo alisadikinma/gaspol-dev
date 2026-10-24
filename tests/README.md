@@ -23,7 +23,7 @@ Add a case by dropping `prompts/<skill-name>.txt` (a naive intent prompt that
 never mentions the skill) and listing the skill in `run-all.sh`.
 
 **Second-order (auto-triggered) skills are NOT in this suite.**
-`gaspol-adr` and `gaspol-learn` are
+`gaspol-adr` is
 triggered *downstream* by another skill (brainstorm/plan/execute/finish/verify), not
 by a cold naive prompt. A build-framed prompt like "add a login endpoint, let's build
 it" correctly routes to `gaspol-brainstorm` first — so cold-prompt triggering tests for

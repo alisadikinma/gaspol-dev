@@ -31,7 +31,6 @@ ROUTING — match the user's intent, invoke BEFORE acting:
   sync CLAUDE.md .............................. gaspol-sync-docs
   research a lib / API / pattern .............. gaspol-research
   architectural decision ...................... gaspol-adr
-  capture patterns after shipping ............. gaspol-learn
 
 REMINDERS:
   • Read the target project's CLAUDE.md FIRST before exploring its codebase.

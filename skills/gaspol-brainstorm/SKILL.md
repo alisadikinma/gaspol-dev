@@ -470,5 +470,5 @@ Before finalizing:
   - `ui-ux-pro-max` plugin skill (Phase 2.5/3 for UI work)
   - `gaspol-adr` (Phase 2 when user picks approach from 2+ options)
 - **Reads from KB:** `<KB_ROOT>` via Phase 0.5 (ui-patterns, design-decisions, research, reusable-snippets)
-- **Writes to KB:** via `gaspol-adr` (decisions) and `gaspol-learn` (patterns — offered by `gaspol-finish`, run only if accepted)
+- **Writes to KB:** via `gaspol-adr` (decisions) and `gaspol-research` (research verdicts)
 - **Leads to:** `gaspol-plan` (after design approved — writes a separate `-plan.md` file, same ticket)
