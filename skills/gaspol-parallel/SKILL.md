@@ -110,7 +110,12 @@ Select based on mode:
    - Full requirements text
    - Dependencies on other tasks (if any)
    - Acceptance criteria
-3. Determine execution order based on dependencies
+
+   When the plan carries `**Format:** waves-v1`, take deps, files, model and effort from the
+   output of `skills/gaspol-plan/scripts/plan-waves` instead of re-deriving them (invoke it
+   anchored: `"${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-plan/scripts/plan-waves" <plan>`).
+   Its `wave`/`lane` lines are the order and its `phase` lines are the settings.
+3. Determine execution order based on dependencies (for a `waves-v1` plan this is the `wave` lines)
 4. Confirm task list with user before starting
 
 ### Mode `independent-domains` — Phase 1: Domain Identification + DAG Lane Scheduling
@@ -215,8 +220,10 @@ nothing else.
 Key rules:
 - Include anti-placeholder rules (see below)
 - Include self-review checklist
-- **Always specify the model explicitly**, scaled to task class (see
-  `docs/rubric-model-switching.md`): mechanical/transcription → cheap; integration/judgment →
+- **Always specify the model explicitly.** For a `waves-v1` plan, pass `model` and `effort`
+  exactly as the `phase` line from `plan-waves` gives them; do not infer them. The class-based
+  guidance that follows applies only to legacy plans and `independent-domains` mode. Scaled to
+  task class (see `docs/rubric-model-switching.md`): mechanical/transcription → cheap; integration/judgment →
   standard; architecture/review → most capable. An unspecified model defaults to the wrong
   tier. **Turn count beats token price** — a cheap model that takes 2-3× the turns costs more
   wall-clock and context than the right-tier model; floor implementers working from prose at

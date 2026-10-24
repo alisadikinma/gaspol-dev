@@ -69,7 +69,12 @@ echo "test-kb-no-hardcoded-path: every resolver invocation goes through the plug
 # the question -- the same hazard class, not a lesser one.
 # WIDENED AGAIN in IDS-20 to five. model-gate's exit code decides whether a
 # branch may be verified, so a substituted script both runs and answers.
-ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff|ledger-gate|model-gate))'
+# WIDENED AGAIN in IDS-22 to six. plan-waves' stdout is the schedule gaspol-auto and
+# gaspol-parallel dispatch from, and its exit code decides whether a plan may be offered
+# for execution, so a substituted script both runs and answers. The per-script control
+# below was added in the SAME phase as the first real invocation (gaspol-plan/SKILL.md),
+# because a control added earlier would have been red.
+ANCHORED_SCRIPTS='skills/(_shared/kb-root|gaspol-verify/scripts/(spec-pointer|blast-radius-diff|ledger-gate|model-gate)|gaspol-plan/scripts/plan-waves)'
 UNANCHORED="$(grep -rnE "^[[:space:]]*[A-Za-z_][A-Za-z_0-9]*=\"[\$][(]\"?$ANCHORED_SCRIPTS" \
         "$REPO_ROOT"/skills "$REPO_ROOT/agents" "$REPO_ROOT/docs" "$REPO_ROOT/README.md" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true)"
 [ -z "$UNANCHORED" ] || { echo "$UNANCHORED" >&2; fail "a resolver invocation uses a relative path — prefix it with \"\$CLAUDE_PLUGIN_ROOT/\", the same anchor hooks/hooks.json already uses"; }
@@ -91,7 +96,7 @@ ANCHORED=$({ grep -rhoE 'CLAUDE_PLUGIN_ROOT[^"]*/'"$ANCHORED_SCRIPTS" \
     || fail "the scan found only ${ANCHORED:-0} anchored invocation(s), expected at least 15 — it is broken, so a clean result proves nothing"
 # And each script must be seen individually: a combined count stays healthy on
 # kb-root's eight alone while a newly added pattern matches nothing.
-for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff gaspol-verify/scripts/ledger-gate gaspol-verify/scripts/model-gate; do
+for s in _shared/kb-root gaspol-verify/scripts/spec-pointer gaspol-verify/scripts/blast-radius-diff gaspol-verify/scripts/ledger-gate gaspol-verify/scripts/model-gate gaspol-plan/scripts/plan-waves; do
     # skills/ and agents/ ONLY -- deliberately NOT docs/ or README.md, unlike the
     # combined count above. IDS-19 found this control passing for a script with
     # ZERO real invocations, satisfied entirely by a plan document in docs/plans

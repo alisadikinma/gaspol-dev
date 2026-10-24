@@ -137,6 +137,7 @@ Every plan document MUST start with this header:
 **Ledger:** .gaspol/progress/PROGRESS-IND-81.md
 **Spec:** docs/plans/2026-08-20-IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
 **Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- present ONLY when the post-plan offer's [Render design artifact dulu] option was taken and the artifact was approved; omit the whole line otherwise, and never write "n/a" -- a declined artifact is recorded in the LEDGER as `design-artifact: skipped — <reason>`, not here -->
+**Format:** waves-v1 <!-- always present in a new plan: it is what tells `plan-waves` and the executors that every phase below carries `**Deps:**` and `**Complexity:**` -->
 
 ## Goal
 
@@ -303,6 +304,8 @@ Each phase MUST follow this exact structure:
 ```markdown
 ### Phase A: [Phase Name]
 
+**Deps:** none                           <!-- or: A, B  (phase ids, comma separated, case-sensitive) -->
+**Complexity:** medium — [one-sentence reason]   <!-- light | medium | complex, then a dash and WHY -->
 **Estimated time:** [X minutes]
 
 **Files:**
@@ -329,6 +332,24 @@ project. They are **filled in from its output**, never typed from memory — on 
 same block reads `php artisan test`, on a Python repo `pytest`, and where `detect-stack` prints
 `UNKNOWN` the plan must STOP and ask rather than guess.
 
+**Deps and Complexity (MANDATORY, `waves-v1`):** every phase declares what it waits for and how
+hard it is, between the heading and `**Files:**`.
+
+- `**Deps:**` is `none` or the ids of the phases that must finish first. Declare a dependency
+  when a phase calls, imports or tests something another phase creates or changes. Files are
+  checked by the scheduler, but a semantic dependency is caught only if you declare it.
+- `**Complexity:**` is `light`, `medium` or `complex`, then an em dash `—` (a spaced hyphen ` - `
+  is also accepted) and a one-sentence reason. Rubric:
+  - light = one file, no design decision
+  - medium = several files, pattern already in the repo
+  - complex = new logic; money, auth or security; many interlinked files; an interface other phases consume
+- Rule: a bare label with no reason is refused. `plan-waves` exits 1 on it, the same way a state
+  label with nothing after the dash is `(if possible)` wearing a new name. The label decides how much
+  effort and review the phase gets, so the reason is the part a human can check.
+- Complexity is a judgement by the planner, not a measurement. At dispatch time the orchestrator reads the `phase …` lines
+  that `plan-waves` prints and passes each phase's assignment on; this skill does not restate
+  what each label maps to, so there is one place to change it.
+
 **TDD Step 1 Hard Gate (MANDATORY):** Every phase MUST have step 1 in this exact format:
 ```
 1. Write failing test for [specific behavior]. Expected error: [error class/message].
@@ -338,7 +359,8 @@ same block reads `php artisan test`, on a Python repo `pytest`, and where `detec
 
 **Self-check before the plan is presented:** the number of lines matching
 `^1\. Write failing test for .+ Expected error: ` must equal the number of `### Phase` headings.
-Count both; fix any phase whose step 1 drifted ("Write failing check", "Write failing consistency
+Count both; also count the `**Deps:**` lines and the `**Complexity:**` lines, which must each
+equal the number of `### Phase` headings too. Fix any phase whose step 1 drifted ("Write failing check", "Write failing consistency
 test ...") before the offer. Catching it at execution pre-flight costs a plan edit mid-run.
 
 **Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column:
@@ -407,6 +429,28 @@ resolved commands have to live in the plan text, not only in the script.
 
 A phase without verification criteria is **INCOMPLETE**. The executor will not know when the phase is done.
 
+## Execution Waves (MANDATORY)
+
+After writing all phases, and **before** the offer below is presented, compute the schedule, and never hand-schedule it: the same script that checks the fields builds the
+waves, so the table cannot disagree with the plan.
+
+```bash
+"${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-plan/scripts/plan-waves" <plan-file>
+```
+
+The path goes through `${CLAUDE_PLUGIN_ROOT:?…}`, never a relative path: a skill runs with the
+target project as its working directory, and a project that ships its own `plan-waves` would
+otherwise answer in place of ours. Read the exit code (on exit 3, STOP and ask):
+
+| Exit | Stdout line 1 | Do this |
+|---|---|---|
+| 0 | `plan-waves: OK — <n> phase(s), <m> wave(s)` | paste its `wave` / `lane` lines as an `## Execution Waves` section in the plan, and the same lines as a `## Waves` section in the ledger **above** `## Log` (`## Log` stays last) |
+| 1 | `plan-waves: BLOCKING — <problem>` | fix the plan (missing `Deps`/`Complexity`, bare label, unknown dep, cycle, duplicate id) and re-run |
+| 3 | `plan-waves: UNKNOWN — <why>` | **STOP and ask.** The script or the plan could not be read; do not schedule by hand |
+| 4 | `plan-waves: N/A — no waves-v1 format header …` | the `**Format:** waves-v1` line is missing from a new plan: add it and re-run. Exit 4 is never a pass |
+
+The `phase …` lines in the same output are what the executors read for each phase's assignment.
+
 ## Execution Handoff
 
 **Step 0 — the post-plan offer** — presented once, right here, and nowhere else:
@@ -419,7 +463,7 @@ execution modal, which is two questions for one decision:
 [Render design artifact dulu]   → render it, then present this same modal without this option
 [Eksekusi di sesi ini]          → gaspol-execute, per-phase checkpoints
 [Eksekusi otomatis]             → gaspol-auto, autonomous with hard-stop guardrails — ALWAYS offered
-[Eksekusi parallel]             → gaspol-parallel, only when the plan has independent phases
+[Eksekusi parallel]             → gaspol-parallel, only when `plan-waves` printed a wave with two or more lanes
 [Simpan buat sesi lain]         → stop here
 [Serahkan ke executor luar]     → only when an executor resolves (see below)
 ```
@@ -508,6 +552,8 @@ Before presenting the plan, verify none of these red flags are present:
 | Placeholder language ("TODO: wire up later") | Violates anti-placeholder contract | Specify the real integration now |
 | Plan only makes sense with the chat context | A fresh-session or external executor runs blind and will guess | Inline every contract/convention verbatim — the plan alone must suffice |
 | No `Progress ledger:` line in the header | Executor writes the shared global ledger, colliding with concurrent plans | Add `Progress ledger: .gaspol/progress/PROGRESS-<TICKET>.md` to the header |
+| A phase lacks `**Deps:**` or `**Complexity:**`, or the complexity has no reason | `plan-waves` refuses the plan, and executors get no assignment | Add both lines; give the reason after the dash |
+| Waves written by hand, or `plan-waves` never run | The table can disagree with the phases and nothing notices | Run `plan-waves`, paste its lines |
 | Ledger not created at plan-write time | Executor has to re-derive the phase list instead of ticking boxes | Create `.gaspol/progress/PROGRESS-<TICKET>.md` with the full `## Checklist` before presenting the plan |
 
 ## Integration with Other Skills

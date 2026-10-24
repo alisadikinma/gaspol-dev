@@ -72,22 +72,51 @@ Before ANY phase executes:
 
 4. **Plan TDD gate** — Verify every phase in plan has "Write failing test..." as step 1 (same check gaspol-execute enforces).
 
-Only after all 4 pre-flight checks pass, proceed.
+5. **Wave table** — Ask the plan for its execution waves and per-phase settings:
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-plan/scripts/plan-waves" <plan>
+   ```
+   - **exit 0** — keep the `wave <N> lane <M>: <id> ...` lines and the `phase <id> complexity=... model=... effort=... review=...` lines. The Execution Loop reads them.
+   - **exit 1** — BLOCKING. The plan is invalid: refuse to start and show the `plan-waves: BLOCKING — ...` line. The plan goes back to `gaspol-plan`.
+   - **exit 3** — UNKNOWN. STOP and ask. Never guess a wave table.
+   - **exit 4** — legacy plan, no `waves-v1` header. Run sequentially, one phase per wave, every phase treated as medium, and record `waves: none — legacy plan` in the ledger. This is not a pass.
+
+Only after all 5 pre-flight checks pass, proceed.
 
 ### Execution Loop
 
-For each phase in plan (sequential):
+Iterate **each wave** from the `wave <N> lane <M>: <id> <id>` lines, in wave order. Do not start a wave until the one before it is complete, committed and ledgered. Read each phase's settings from its `phase <id> complexity=<c> model=<m> effort=<e> review=<r>` line. The table that maps complexity to those values lives in `plan-waves`; do not recompute it here.
 
-1. **Implement the phase.** Dispatch an implementer (model: sonnet per rubric) with phase text + CLAUDE.md context + anti-placeholder rules + TDD step 1 hard gate **only when the phase is large** (estimated over 15 minutes or touching more than 5 files) or runs in parallel. A smaller phase is implemented in the orchestrating session: every dispatch re-reads the plan and the project context before writing a line, which on a small phase costs more tokens and time than the phase itself. Same TDD gate either way.
-2. **Wait for completion** — implementer runs RED → GREEN → REFACTOR → commit
-3. **Post-phase silent check**:
-   - Run tiered auto-review classifier (from Phase F logic)
-   - If REVIEW and findings surfaced → mini-pause (see Hard Stop below if Critical)
-4. **Ledger tick (BLOCKING)** — the orchestrating session runs `gaspol-execute`'s
-   tick-then-append gate (Checkpoint Rule 6): Checklist ticked, `## Phase log` row set to the
-   status and real commit SHA (in backticks, `` `86f058d` ``; `` `<no commit>` `` until committed), one `## Log` line with the `NEXT:` cursor. No ledger write, no
-   next phase. Autonomous means no prompt between phases, never no record between phases.
-5. **Continue to next phase** (NO per-phase user prompt — that's the autonomous part)
+**Dispatch rules** (every implementer gets phase text + CLAUDE.md context + anti-placeholder rules + the TDD step 1 hard gate):
+
+- Pass `model` and `effort` exactly as the phase line gives them.
+- A `complexity=complex` phase is always dispatched, never done in-session.
+- A `light` or `medium` phase in a single-phase wave keeps the old rule: implement it in the orchestrating session unless it is large (estimated over 15 minutes or touching more than 5 files). A dispatch re-reads the plan and the project context before writing a line, which on a small phase costs more than the phase itself.
+- Every phase in a multi-lane wave is dispatched.
+
+**A wave with one lane of one phase** behaves as before:
+
+1. Implement the phase (dispatch rules above). The implementer runs RED → GREEN → REFACTOR → commit.
+2. Run the phase ladder per `skills/_shared/verification-loop.md`.
+3. Review when the phase line says `review=opus` (see Complex-phase review below).
+4. Ledger tick (below).
+
+**A wave with two or more lanes:**
+
+1. Invoke `gaspol-worktree` once. Its Step 0 detection decides whether a worktree already exists; do not create a second one.
+2. Dispatch one implementer per lane, all in a single message so the lanes run concurrently. Phases inside one lane run one after another, in the order the lane line lists them.
+3. Sub-agents write code and tests and run only the tests for their own files. Sub-agents do not commit.
+4. After all lanes return, the orchestrator commits: one commit per phase, in plan order, staging only that phase's declared `Files:`.
+5. Then `git status --porcelain` must be empty. Anything left over is a file no phase declared: hard-stop under "Ambiguity in plan".
+6. Run the full ladder once for the whole wave: static, unit, build, with commands from `detect-stack`, per `skills/_shared/verification-loop.md`.
+
+**Complex-phase review.** For a phase whose line says `review=opus`, after the phase's commit and a green ladder, dispatch `gaspol-dev:code-reviewer` with `model: "opus"`, scoped by `review-package <phase base sha> HEAD`. Critical or Important findings go through `skills/_shared/fix-loop.md`; how many fix attempts are allowed is decided there and is not restated here. The ledger tick for that phase waits until the review is clean.
+
+**Post-phase silent check.** Run the tiered auto-review classifier (from Phase F logic). If REVIEW and findings surfaced, mini-pause (see Hard Stop below if Critical).
+
+**Ledger tick (BLOCKING).** After a wave, in plan order, the orchestrating session runs `gaspol-execute`'s tick-then-append gate (Checkpoint Rule 6) for each phase: Checklist ticked, `## Phase log` row set to the status and real commit SHA (in backticks, `` `86f058d` ``; `` `<no commit>` `` until committed), one `## Log` line per phase with its `NEXT:` cursor. No ledger write, no next wave. Autonomous means no prompt between phases, never no record between phases.
+
+**Continue to the next wave** with no per-phase user prompt. That is the autonomous part.
 
 ### Hard Stop Conditions (ALWAYS pause)
 
@@ -105,6 +134,8 @@ Execution pauses and prompts user via AskUserQuestion on ANY of:
 | Git conflict | Merge conflict, unpushable state | Pause — require manual resolution |
 
 Pause state = full context visible to user + options to continue/abort/adjust.
+
+When one lane of a multi-lane wave fails: lanes already in flight finish and their results are kept uncommitted; the wave stops; nothing from the next wave starts. The pause message lists each lane as completed, failed or not started.
 
 ### Post-Run Consolidated Report
 
@@ -188,7 +219,7 @@ If execution would require any of these, hard-stop pauses and prompts.
 
 | Red Flag | Fix |
 |---|---|
-| Skipping pre-flight gate | Reject — always run all 4 checks |
+| Skipping pre-flight gate | Reject — always run all 5 checks |
 | Bypassing hard-stop condition | No override — hard-stop is absolute |
 | Silent failure (error not surfaced) | Always surface in post-run report |
 | Merging to main autonomously | Blocked — always manual |
@@ -202,6 +233,8 @@ If execution would require any of these, hard-stop pauses and prompts.
 | Skill | Interaction |
 |---|---|
 | `gaspol-plan` | Source of plan; auto verifies plan format before starting |
+| `plan-waves` (`gaspol-plan/scripts`) | Pre-flight check 5; supplies waves, lanes and per-phase model/effort/review |
+| `gaspol-worktree` | Invoked once before any multi-lane wave |
 | `gaspol-execute` | Alternative execution mode (user picks) |
 | `plan-verifier` agent | Not run here; `gaspol-finish` owns it |
 | `gaspol-verify` | Not run here; `gaspol-finish` owns it |
@@ -218,11 +251,14 @@ Pre-flight:
 - [ ] Git state clean (or stashed)
 - [ ] Baseline tests pass
 - [ ] Plan TDD gate: every phase has "Write failing test for..." step 1
+- [ ] Wave table: `plan-waves` exit 0 (or exit 4 recorded as `waves: none — legacy plan`)
 
 During execution:
 - [ ] Hard-stop conditions monitored every phase
 - [ ] TDD gate enforced per phase
 - [ ] Auto-review classifier runs per phase
+- [ ] Multi-lane waves: one `gaspol-worktree`, sub-agents do not commit, orchestrator commits per phase, `git status --porcelain` empty
+- [ ] `review=opus` phases reviewed before their ledger tick
 - [ ] No destructive ops without pause
 
 Post-run:
