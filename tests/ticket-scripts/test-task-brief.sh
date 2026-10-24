@@ -132,4 +132,129 @@ NOTICKET="$REPO/docs/plans/2026-08-21-noticket-plan.md"
 printf '## Goal\n\n### Phase A1: x\n\n1. step\n' >"$NOTICKET"
 expect_exit_2 "missing **Ticket:** header" "$TASK_BRIEF" "$NOTICKET" 1
 
+# --- 5. IDS-23: the plan header's Verification commands block rides along ---
+# The generic verification commands are written ONCE in the plan header. A dispatched
+# implementer never sees the header (it gets the brief, not the plan), so the brief
+# carries the block under a fixed heading. A plan without the block gets a brief that
+# is byte-identical to what task-brief produced before IDS-23.
+echo "test-task-brief: header Verification commands block..."
+HPLAN="$REPO/docs/plans/2026-10-24-XYZ-10-headed-plan.md"
+cat >"$HPLAN" <<'EOF'
+**Ticket:** XYZ-10
+**Format:** waves-v1
+
+**Verification commands:**
+- static: npx tsc --noEmit
+- unit: npm test
+
+## Goal
+
+Plan with a header block.
+
+### Phase A1: first thing
+
+**Verification:**
+- [ ] the first thing does its own check
+
+---
+
+### Phase A2: second thing
+
+**Verification:**
+- [ ] the second thing does its own check
+EOF
+
+HOUT="$("$TASK_BRIEF" "$HPLAN" 2)"
+grep -qxF '## Verification commands (from the plan header)' "$HOUT" \
+    || fail "brief lacks the plan-header Verification commands"
+EXPECTED_TAIL="$(printf '%s\n' '## Verification commands (from the plan header)' '' \
+    '**Verification commands:**' '- static: npx tsc --noEmit' '- unit: npm test')"
+ACTUAL_TAIL="$(tail -n 5 "$HOUT")"
+[ "$ACTUAL_TAIL" = "$EXPECTED_TAIL" ] \
+    || fail "brief lacks the plan-header Verification commands verbatim at the end; got: $ACTUAL_TAIL"
+grep -q "Phase A1" "$HOUT" && fail "header brief leaked another phase"
+
+# A fenced copy of the header line (a template quoted in a phase) is not the header.
+FPLAN="$REPO/docs/plans/2026-10-24-XYZ-11-fenced-plan.md"
+cat >"$FPLAN" <<'EOF'
+**Ticket:** XYZ-11
+
+### Phase A1: quotes a template
+
+```markdown
+**Verification commands:**
+- static: not-the-header
+```
+EOF
+FOUT="$("$TASK_BRIEF" "$FPLAN" 1)"
+grep -q "from the plan header" "$FOUT" \
+    && fail "a fenced Verification commands line was taken for the plan header"
+
+# task-brief and verification-lint must agree on whether a plan HAS the header. The lint
+# strips trailing whitespace and CR before matching; task-brief used an exact match, so a
+# plan the lint called fine produced briefs that silently lost the commands.
+echo "test-task-brief: header detection agrees with verification-lint..."
+LINT="$REPO_ROOT/skills/gaspol-plan/scripts/verification-lint"
+make_variant() {
+    # make_variant <path> <header-line-suffix> <eol>
+    local path="$1" suffix="$2" eol="$3"
+    {
+        printf '**Ticket:** XYZ-12%s' "$eol"
+        printf '\n'
+        printf '**Verification commands:**%s%s\n' "$suffix" "$eol"
+        printf -- '- static: npx tsc --noEmit%s\n' "$eol"
+        printf -- '- unit: npm test%s\n' "$eol"
+        printf '%s\n' "$eol"
+        printf '### Phase A1: only phase%s\n' "$eol"
+        printf '%s\n' "$eol"
+        printf '**Verification:**%s\n' "$eol"
+        printf -- '- [ ] the only phase does its own check%s\n' "$eol"
+    } > "$path"
+}
+CR="$(printf '\r')"
+for variant in "trailing-space| |" "trailing-tabs|$(printf '\t\t')|" "crlf||$CR"; do
+    vname="${variant%%|*}"; rest="${variant#*|}"; vsuffix="${rest%%|*}"; veol="${rest#*|}"
+    VPLAN="$REPO/docs/plans/2026-10-24-XYZ-12-$vname-plan.md"
+    make_variant "$VPLAN" "$vsuffix" "$veol"
+    set +e; "$LINT" "$VPLAN" >/dev/null 2>&1; LINT_RC=$?; set -e
+    [ "$LINT_RC" = "0" ] || fail "$vname: the lint should accept this plan, got exit $LINT_RC"
+    VOUT="$("$TASK_BRIEF" "$VPLAN" 1)"
+    grep -qxF '## Verification commands (from the plan header)' "$VOUT" \
+        || fail "$vname: the lint accepts the header but the brief lacks the plan-header Verification commands"
+    grep -q "^- static: npx tsc --noEmit$" "$VOUT" \
+        || fail "$vname: the brief lost or garbled the static command line"
+    grep -q "^- unit: npm test$" "$VOUT" \
+        || fail "$vname: the brief lost or garbled the unit command line"
+    grep -q "$CR" "$VOUT" && [ "$vname" = "crlf" ] && {
+        # phase text keeps its CRs (it is copied verbatim); the header block must not
+        sed -n '/^## Verification commands (from the plan header)/,$p' "$VOUT" | grep -q "$CR" \
+            && fail "$vname: the header block was copied with CRs still on its lines"
+    }
+    echo "  ok — $vname"
+done
+
+# Legacy plan: nothing appended, the file is exactly the pre-IDS-23 shape.
+LOUT="$("$TASK_BRIEF" "$PLAN" 2)"
+{
+    echo "# Task brief — XYZ-9, phase 2"
+    echo
+    echo "Source plan: $(basename "$PLAN")"
+    echo
+    echo "These are your requirements. Use every value in them verbatim — the"
+    echo "numbers, strings, signatures, and test cases here are exact, not"
+    echo "illustrative. Do not go looking for the plan file this came from."
+    echo
+    echo "---"
+    echo
+    echo "### Phase A2: second thing"
+    echo
+    echo "**Steps:**"
+    echo '1. Write failing test for the second thing. Expected error: `also not defined`.'
+    echo
+    echo "**Verification:**"
+    echo "- [ ] second thing verified"
+} > "$TMP_DIR/legacy-expected.md"
+cmp -s "$LOUT" "$TMP_DIR/legacy-expected.md" \
+    || fail "legacy brief changed: $(diff "$TMP_DIR/legacy-expected.md" "$LOUT" | head -5)"
+
 echo "PASS: test-task-brief"

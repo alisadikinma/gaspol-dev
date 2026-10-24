@@ -4,7 +4,7 @@
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.31.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-16-orange)](#the-16-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-55-brightgreen)](#testing)
+[![Version](https://img.shields.io/badge/version-1.32.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-16-orange)](#the-16-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-65-brightgreen)](#testing)
 
 ---
 
@@ -427,7 +427,8 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.31.0** (current) | **Parallel waves and per-phase complexity** — `gaspol-plan` writes `Deps` and `Complexity` per phase and computes the waves with `plan-waves`; `gaspol-auto` runs multi-lane waves concurrently and the orchestrator passes the plan's `model` and `effort` to each sub-agent. Still two model tiers. |
+| **1.32.0** (current) | **Skill size ceiling, builder check, phase-specific verification** — six skills trimmed under the 20,000-character compaction cut with detail moved to `references/` (gates stay in the body); `gaspol-brainstorm` Phase 6 runs one fresh Opus builder check; plans carry the verification commands once in the header, checked by `verification-lint`. |
+| 1.31.0 | **Parallel waves and per-phase complexity** — `gaspol-plan` writes `Deps` and `Complexity` per phase and computes the waves with `plan-waves`; `gaspol-auto` runs multi-lane waves concurrently and the orchestrator passes the plan's `model` and `effort` to each sub-agent. Still two model tiers. |
 | 1.30.0 | **One owner per gate, no pattern-capture skill, research via Firecrawl + `notebooklm`** — `gaspol-verify`, `plan-verifier`, review and docs sync run once, in `gaspol-finish`, and are reused only at the same `HEAD` with a clean tree; the pattern-capture skill deleted (17 → 16 skills); `gaspol-research` gathers with Firecrawl and synthesizes with `notebooklm`, stopping when either is missing. Versions 1.26-1.29 are in `CHANGELOG.md` |
 | 1.25.0 | **The design artifact became an offer** — one modal after the plan carrying the artifact and every execution mode including `gaspol-auto`, which `gaspol-plan` had never surfaced; declining writes `design-artifact: skipped — <reason>` and the reason may not be empty; the UI-vs-logic two-lane split is gone, replaced by one tabbed page whose Logic tab is always present; `ui-ux-pro-max` invoked at most once per ticket, down from three reachable call sites |
 | 1.24.0 | **Regression gate + visual geometry diff** — bug fixes now leave a checked, three-state ledger record instead of an unenforced "(if possible)"; a `data-vv`-marker geometry diff closes the wrong-layout half of the mockup-mismatch complaint (`design_audit.py` already covered wrong-colour/font), wired into `live-app-check`'s web lane; a real `git log \| grep -q` / `pipefail` SIGPIPE race found and fixed along the way |

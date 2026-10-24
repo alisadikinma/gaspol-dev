@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""verification-lint — refuse a plan phase whose Verification block is only generic (IDS-23).
+
+Usage:  verification-lint <plan-file>
+
+Exit contract (same shape as plan-waves, ledger-gate and model-gate): ONE
+`verification-lint: <verdict>` line on stdout on every path, detail on stderr.
+
+  0  verification-lint: OK — <n> phase(s)
+  1  verification-lint: BLOCKING — phase <id> has no phase-specific verification
+  3  verification-lint: UNKNOWN — <why>        unreadable / empty / non-UTF-8 / no phases
+  4  verification-lint: N/A — no Verification commands header; legacy plan, never a pass
+
+Why it exists: every phase used to repeat the same three lines (the static command, the
+unit command, "no placeholder comments"), so the part of a Verification block that said
+something about THIS phase was a few lines buried in boilerplate, and a phase could pass
+review with nothing specific in it at all. The generic lines now live ONCE, in the plan
+header's `**Verification commands:**` block, and each phase carries only what is its own.
+This script checks that each phase actually does.
+
+The rules, exactly:
+  * The header block starts at the line `**Verification commands:**` and is the following
+    consecutive lines that start with `- ` (it ends at the first blank line or any other line).
+  * Both line matches ignore trailing blanks and CR, and task-brief applies the same rule, so the
+    two cannot disagree on whether a plan has the header.
+  * A phase starts at `### Phase <id>` and ends at the next `### ` (or `## `) heading, a `---`
+    rule, or end of file. Fenced code blocks are skipped, so a template quoted in a fence is
+    not a phase. A heading that reads as a phase but is malformed (`### Phase: x`, `### phase a`)
+    is UNKNOWN, never skipped.
+  * Inside a phase, the Verification lines are the `- [ ]` / `- [x]` items after the
+    `**Verification:**` line.
+  * A Verification line is GENERIC when, with backticks removed, (i) it contains a command
+    string from the header block, or (ii) its text begins with `static:`, `lint:`, `unit:`,
+    `build:` or `detect-stack:`, or (iii) it contains `No placeholder` or `TODO comments`
+    (gaspol-verify Layer 3 owns that check), or (iv) it contains `real data from [` — a
+    bracketed source nobody filled in. Anything else is SPECIFIC.
+  * A phase with no Verification lines, or only GENERIC ones, is a violation.
+
+A command string is the text after the `<level>:` label on a header line. `detect-stack:` lines
+and `UNKNOWN` placeholders carry no runnable command, so they contribute none; letting an empty
+string match would turn every line generic.
+
+Why plan text is only ever PARSED and COMPARED, never executed or interpolated: a plan is
+written by an agent from user text and often quotes shell snippets, backticks and `$(...)`.
+Everything this script prints is a fixed string or a phase id that already passed an exact
+`[A-Za-z0-9]+` match. A heading whose id fails that match is UNKNOWN, and the id is not echoed.
+"""
+import os
+import re
+import sys
+
+PREFIX = "verification-lint: "
+
+HEADER_LINE = "**Verification commands:**"
+# The only trailing characters ignored, shared with task-brief (awk `[ \t\r]+$`). A bare
+# rstrip() would also drop NBSP and other Unicode spaces, and the two scripts would disagree.
+BLANKS = " \t\r"
+VERIF_LINE = "**Verification:**"
+GENERIC_PREFIXES = ("static:", "lint:", "unit:", "build:", "detect-stack:")
+HEADING_RE = re.compile(r"^### Phase\s+(\S+)")
+# Anything that reads as a phase heading but fails HEADING_RE is refused, not skipped: a
+# skipped heading is a phase nobody checked (`### Phase: x`, `### Phase-B`, `### phase a`).
+# No \b: it fails to match when "Phase" is glued to a letter, digit or underscore (`### Phase1`,
+# `### PhaseB`, `### Phase_B`). Only the plural word `phases` is exempted.
+LOOSE_HEADING_RE = re.compile(r"^###\s+phase(?!s\b)", re.IGNORECASE)
+ITEM_RE = re.compile(r"^\s*- \[[ xX]\]\s*(.*)$")
+LABELLED_RE = re.compile(r"^(static|lint|unit|build|detect-stack):\s*(.*)$")
+RULE_RE = re.compile(r"^---\s*$")
+ID_RE = re.compile(r"^[A-Za-z0-9]+$")
+
+
+def say(text):
+    """Write one stdout line as UTF-8 regardless of the terminal's locale."""
+    sys.stdout.buffer.write((text + "\n").encode("utf-8"))
+
+
+def warn(text):
+    sys.stderr.buffer.write((text + "\n").encode("utf-8"))
+
+
+def finish(code, verdict, detail=None):
+    say(PREFIX + verdict)
+    if detail:
+        warn(PREFIX + detail)
+    sys.exit(code)
+
+
+def unknown(why):
+    finish(3, "UNKNOWN — " + why, why)
+
+
+def read_plan(path):
+    if not path:
+        unknown("usage: verification-lint <plan-file>")
+    if os.path.isdir(path):
+        unknown("not a file: " + path)
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError as err:
+        unknown("cannot read plan: " + (err.strerror or "read error"))
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        unknown("plan is not valid UTF-8")
+    if not text.strip():
+        unknown("plan file is empty")
+    return text
+
+
+def is_fence(line):
+    stripped = line.lstrip()
+    return stripped.startswith("```") or stripped.startswith("~~~")
+
+
+def read_header(lines):
+    """Return (found, line_count, commands) for the first header block outside a fence.
+
+    line_count counts every `- ` line under the header, including ones that yield no
+    command, so an empty block can be told apart from a block of placeholders.
+    """
+    in_fence = False
+    found = False
+    count = 0
+    commands = []
+    for line in lines:
+        if is_fence(line):
+            if found:
+                break
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if not found:
+            found = line.rstrip(BLANKS) == HEADER_LINE
+            continue
+        if not line.startswith("- "):
+            break
+        count += 1
+        text = line[2:].replace("`", "").strip(BLANKS)
+        labelled = LABELLED_RE.match(text)
+        if labelled:
+            label, command = labelled.group(1), labelled.group(2).strip()
+            if label == "detect-stack" or command.startswith("UNKNOWN"):
+                command = ""
+        else:
+            command = text
+        if command:
+            commands.append(command)
+    return found, count, commands
+
+
+def parse_phases(lines):
+    """Return a list of {"id", "items"}; fenced blocks are skipped entirely."""
+    phases = []
+    current = None
+    in_verif = False
+    in_fence = False
+    for line in lines:
+        if is_fence(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if line.startswith("### ") or line.startswith("## "):
+            heading = HEADING_RE.match(line)
+            if heading:
+                pid = heading.group(1).rstrip(":")
+                if not ID_RE.match(pid):
+                    unknown("a `### Phase` heading has an id outside [A-Za-z0-9]+")
+                current = {"id": pid, "items": []}
+                phases.append(current)
+            elif LOOSE_HEADING_RE.match(line):
+                unknown("malformed phase heading")
+            else:
+                current = None
+            in_verif = False
+            continue
+        if current is None:
+            continue
+        if RULE_RE.match(line):
+            current = None
+            in_verif = False
+            continue
+        if line.strip() == VERIF_LINE:
+            in_verif = True
+            continue
+        if in_verif:
+            item = ITEM_RE.match(line)
+            if item:
+                current["items"].append(item.group(1))
+    return phases
+
+
+def is_generic(item, commands):
+    text = item.replace("`", "")
+    if text.lstrip().startswith(GENERIC_PREFIXES):
+        return True
+    if "No placeholder" in text or "TODO comments" in text:
+        return True
+    if "real data from [" in text:
+        return True
+    return any(command in text for command in commands)
+
+
+def main(argv):
+    path = argv[1] if len(argv) == 2 else ""
+    text = read_plan(path)
+    lines = [line.rstrip("\r") for line in text.split("\n")]
+
+    found, count, commands = read_header(lines)
+    if not found:
+        finish(4, "N/A — no Verification commands header; legacy plan, never a pass",
+               "no `**Verification commands:**` line found; this plan is treated as legacy")
+    if count == 0:
+        unknown("the Verification commands header has no `- ` lines under it")
+
+    phases = parse_phases(lines)
+    if not phases:
+        unknown("Verification commands header present but no `### Phase <id>` heading was parsed")
+
+    offenders = [ph["id"] for ph in phases
+                 if not any(not is_generic(item, commands) for item in ph["items"])]
+    if offenders:
+        finish(1, "BLOCKING — phase %s has no phase-specific verification" % offenders[0],
+               "; ".join("phase %s has only generic or no Verification lines" % pid
+                         for pid in offenders))
+
+    say(PREFIX + "OK — %d phase(s)" % len(phases))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

@@ -16,11 +16,11 @@ DIR="$REPO_ROOT/skills/gaspol-execute"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 has()  { grep -qi -- "$2" "$1" || fail "$3"; }
 
-# 25500, not the 24000 the plan guessed at before anyone measured. The trim took
-# SKILL.md from 32763 to 25096 bytes (-23%) without dropping a single gate; the
-# remaining sections are gates and tables, not prose fat. The limit exists to stop
-# regrowth, so it sits just above what an honest trim actually reached.
-LIMIT=29400
+# 18000 since IDS-23: Claude Code keeps only the first 20,000 characters of a SKILL.md after
+# /compact, so a gate past that cut vanishes. The ceiling leaves headroom under the cut, and
+# the detail that moved lives in skills/gaspol-execute/references/. The gate sentences stay in
+# the body; test-skill-trim-execute.sh pins them one by one.
+LIMIT=18000
 # The ceiling tracks OBLIGATIONS, not a fixed byte budget: it was 25500 after
 # IDS-6's word-trim, IDS-10 raised it by 700 for the Design Artifact Gate, and
 # IDS-17 raised it by 400 for Step 8, the finish offer -- a new decision point

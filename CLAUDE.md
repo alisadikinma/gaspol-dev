@@ -45,12 +45,18 @@ Claude Code plugin providing **16 development skills + 4 agents** for execution 
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list |
+| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list. **v1.32:** 65 scripts, including the size ceiling and the reference check below |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
 | `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 16 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
+| `tests/ticket-scripts/test-skill-size.sh` | **NEW (v1.32)** — no `skills/*/SKILL.md` may reach 20,000 bytes (bytes are stricter than the compaction cut's characters). **No exemption list**: the only parameter is the directory scanned, and a skill over the ceiling fails rather than being named in a waiver. The trimmed bodies sit near 18,000 bytes to leave margin. Controls at 20,001 and 20,000 FAIL, 19,999 PASS prove the measurement before it is trusted |
+| `tests/ticket-scripts/test-skill-references.sh` | **NEW (v1.32)** — a `references/` pointer in a SKILL.md must resolve to a file (dangling pointer FAILS), and every file in a `references/` directory must be pointed at (orphan FAILS). Both directions have a planted-defect control |
+| `tests/ticket-scripts/test-skill-trim-<skill>.sh` | **NEW (v1.32)** — one per trimmed skill (`verify`, `plan`, `parallel`, `execute`, `brainstorm`, `finish`). Each gate's condition AND consequence is pinned in the body, because a gate whose consequence moved out is a gate that stopped blocking |
+| `tests/ticket-scripts/test-builder-check.sh` | **NEW (v1.32)** — the builder-check prompt file exists and carries `model-tier: judge`, `nothing important left` and `looks unnecessary`; Phase 6 of `gaspol-brainstorm` names `builder-check-prompt.md`, `model: "opus"`, `model-tier: judge` and `one round`, and no longer says "Spec self-review"; `model-gate` is clean on this repository |
+| `tests/ticket-scripts/test-verification-lint.sh` | **NEW (v1.32)** — all four `verification-lint` exit states, malformed and glued `### Phase` headings, and `task-brief` agreeing with the lint on the header line (trailing space, CRLF, NBSP) |
 | `docs/rubric-model-switching.md` | **UPDATED (v1.29)** — the model RULE, no longer an auto-rubric to choose from. Two tiers: Opus judges, Sonnet works. Records which concrete ids the aliases mean, with a date, and states what the alias choice gives up |
-| `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment |
+| `skills/gaspol-brainstorm/SKILL.md` | Brainstorming with CLAUDE.md-first + KB query + novelty assessment. **UPDATED (v1.32)** — body 17,640 bytes (was 26,337); Phase 6 runs the builder check; detail in `references/` (`phase-detail.md`, `phase-0-5-precedent.md`, `phase-3-design.md`, `builder-check-prompt.md`) |
+| `skills/gaspol-brainstorm/references/builder-check-prompt.md` | **NEW (v1.32)** — prompt for the one fresh `general-purpose` subagent (`model: "opus"`, `model-tier: judge`) that Phase 6 dispatches against the written spec: ranked questions plus "looks unnecessary" parts, or exactly `nothing important left`. One round, architectural path only |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
 | `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
 | `skills/gaspol-parallel/scripts/task-brief` | **NEW (v1.16)** — extracts ONE phase from a plan into `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. Dispatch prompts hand over that path instead of pasting task text; the implementer writes its full report to a sibling `task-<N>-report.md` and returns four short fields |
@@ -59,14 +65,15 @@ Claude Code plugin providing **16 development skills + 4 agents** for execution 
 | `skills/gaspol-verify/scripts/design_audit.py` | **MOVED (v1.14), REWIRED (v1.17)** — offline design-compliance lint, stdlib-only. Kept when `gaspol-design` was deleted because `ui-ux-pro-max`'s audit needs Playwright + a running URL and cannot run pre-merge. v1.17: reads the `DESIGN.md` token contract, scopes to the branch diff (`--changed-files BASE`), computes real WCAG AA contrast, and finally scans `.css`/`.scss` |
 | `skills/gaspol-verify/scripts/extract-design-tokens` | **NEW (v1.17)** — prints a `DESIGN.md` contract extracted from tailwind theme colours, `--color-*`/`--brand-*` custom properties, or `theme.json`. Literal extraction only: an unrecognised config emits nothing and exits 1. **stdout only** — the write is offered by `gaspol-verify`, never taken |
 | `skills/gaspol-verify/rules/` | **MOVED (v1.14)** — anti-AI-slop tables + gaspol reasoning rules (project tokens, KB precedent). Kept for the same reason: `ui-ux-pro-max` ships no anti-slop opinion layer |
-| `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file. **UPDATED (v1.31)** — every phase carries `**Deps:**` and `**Complexity:**` (reason mandatory), the plan header carries `**Format:** waves-v1`, and the wave table comes from `plan-waves`, never by hand |
+| `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file. **UPDATED (v1.31)** — every phase carries `**Deps:**` and `**Complexity:**` (reason mandatory), the plan header carries `**Format:** waves-v1`, and the wave table comes from `plan-waves`, never by hand. **UPDATED (v1.32)** — body 17,928 bytes (was 34,218), detail in `references/` (`plan-header.md`, `plan-details.md`, `ledger-format.md`, `phase-template.md`); the header carries a `**Verification commands:**` block once, and per-phase Verification holds only phase-specific checks |
+| `skills/gaspol-plan/scripts/verification-lint` | **NEW (v1.32)** — refuses a plan phase whose Verification block is only generic: the command strings and boilerplate live once in the header `**Verification commands:**` block, and each phase must carry at least one check of its own. Four exit states on the house contract (0 ok / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan with no header block, never a pass). `task-brief` appends the header block to every brief; a legacy plan's briefs are byte-identical to before |
 | `skills/gaspol-plan/scripts/plan-waves` | **NEW (v1.31)** — validates a `waves-v1` plan (`Deps`, `Complexity` with a non-empty reason), schedules it through `dag-lanes`, and prints `wave N lane M:` and `phase X complexity=… model=… effort=… review=…` lines. The single place the complexity → effort/review mapping lives. Four exit states on the house contract (0 / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan, never a pass). Fenced code blocks are not parsed as phases. Read by `gaspol-auto` pre-flight |
-| `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking |
+| `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking. **UPDATED (v1.32)** — body 17,991 bytes (was 29,286), detail in `references/` (`execution-flow.md`, `pre-execution.md`, `offers.md`, `anti-placeholder-examples.md`) |
 | `skills/gaspol-execute/scripts/detect-stack` | **NEW (v1.13)** — reads stack marker files at a project root, prints `<level>: <command>` lines (static/lint/unit/build); prints `UNKNOWN` when a marker exists but its backing command doesn't; prints nothing when there are no markers. Feeds `gaspol-verify` Layer 1, `gaspol-parallel`'s Validation Ladder L1-L3, and `gaspol-plan`'s per-phase Verification block — no more hardcoded npm |
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
 | `skills/gaspol-execute/checkpoint-template.md` | Per-phase checkpoint with Auto-Review section |
 | `skills/gaspol-execute/implementer-prompt.md` | Subagent dispatch template with model rubric |
-| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) + Phase 0 worktree isolation + continuous execution + per-task **Validation Ladder** (v1.8, static→unit→build→integration→edge, fail-fast `DONE` gate) |
+| `skills/gaspol-parallel/SKILL.md` | Multi-agent parallel with mode field (plan-phases / independent-domains) + Phase 0 worktree isolation + continuous execution + per-task **Validation Ladder** (v1.8, static→unit→build→integration→edge, fail-fast `DONE` gate). **UPDATED (v1.32)** — body 17,967 bytes (was 30,057), detail in `references/` (`modes.md`, `process-flow.md`, `task-tracking.md`, `execution-handoff.md`) |
 | `skills/gaspol-parallel/spec-reviewer-prompt.md` | Spec compliance reviewer template |
 | `skills/gaspol-parallel/code-quality-reviewer-prompt.md` | Code quality reviewer template |
 | `skills/gaspol-worktree/SKILL.md` | **NEW (v1.3)** — Isolated git worktree (native-tool-first, Step 0 detection, gitignore safety, clean baseline) |
@@ -79,9 +86,9 @@ Claude Code plugin providing **16 development skills + 4 agents** for execution 
 | `skills/gaspol-debug/condition-based-waiting.md` | Condition-based polling patterns |
 | `skills/gaspol-review/SKILL.md` | Code review dispatch with code-reviewer subagent + **adversarial refutation pass (v1.8)** — one refuter per Critical/Important finding (default REFUTED) kills false positives before they cost a wrong fix; unverifiable = fail-safe CONFIRMED |
 | `skills/gaspol-receive-review/SKILL.md` | Receiving review feedback — verify before implementing |
-| `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance) |
+| `skills/gaspol-verify/SKILL.md` | 4-layer verification (technical, plan fidelity, placeholder, integration+design compliance). **UPDATED (v1.32)** — body 17,922 bytes (was 34,416), detail in `references/` (`layer-1-gates.md`, `layer-4-design.md`) |
 | `skills/gaspol-verify/plan-verification.md` | Plan vs code comparison process |
-| `skills/gaspol-finish/SKILL.md` | **UPDATED (v1.26)** — four mandatory steps (verify, plan-verifier, review Tier 1, sync-docs) plus one recordless offer (`/security-review`). Step 0 deleted as a duplicate of `gaspol-verify` Layer 1, with the reason kept in the file; `gaspol-verify`'s already-ran-this-session skip permission revoked, because with Step 0 gone it is the only step that runs the suite |
+| `skills/gaspol-finish/SKILL.md` | **UPDATED (v1.26)** — four mandatory steps (verify, plan-verifier, review Tier 1, sync-docs) plus one recordless offer (`/security-review`). Step 0 deleted as a duplicate of `gaspol-verify` Layer 1, with the reason kept in the file; `gaspol-verify`'s already-ran-this-session skip permission revoked, because with Step 0 gone it is the only step that runs the suite. **UPDATED (v1.32)** — body 17,448 bytes (was 21,191), one `references/` file |
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
@@ -495,7 +502,7 @@ Layer 2. What is given up: nothing forces anyone to read that line. It is not eq
   requirement will never be reported `DROPPED`. A spec is prose, and prose is not machine-parseable.
   This is a judgement gate; calling it a guarantee would overclaim.
 - **Spec quality is not graded.** The question answered is *was it dropped*, never *was the
-  requirement correct*. `gaspol-brainstorm` Phase 6's spec self-review still grades itself.
+  requirement correct*. `gaspol-brainstorm` Phase 6's builder check (v1.32) asks a fresh reader what the spec leaves open, but it does not grade whether a requirement was correct.
 - **A bug fix still passes no spec point at all** — bug reports route to `gaspol-debug`, which
   produces no spec. Unchanged here, and deliberately not ticketed: a number pointing at no spec is
   the promise-with-no-implementation shape this repository keeps having to undo.
@@ -835,7 +842,7 @@ three of its findings changed the code:
   `tests/ticket-scripts/test-execute-trim.sh` (every gate name, all three Iron Laws, the exact
   TDD step-1 phrasing). The consulted Red Flags / Rationalizations table moved into
   `anti-placeholder-rules.md` rather than being deleted. A project-specific leak in an agnostic
-  plugin ("Sparkfluence", named hooks) went with it.
+  plugin ("Sparkfluence", named hooks) went with it. (The 25.1KB figure is superseded: v1.32 trimmed it to 17,991 bytes.)
 - `gaspol-write-skill`'s three heavy references (~11.9k tokens) turned out to be **orphans** (the
   whole skill was deleted in IDS-11; this stays as the record of what the audit found) —
   SKILL.md never referenced them at all, they only referenced each other. The audit's premise
@@ -1261,6 +1268,88 @@ under-declared its files, and it stops the run.
 enforceable; the ledger `## Waves` section is described in `gaspol-plan` but is not yet in the ledger
 template block, which `test-ledger-template` extracts.
 
+### Skill Size Ceiling + Builder Check + Phase-Specific Verification (NEW in v1.32, IDS-23)
+
+Canonical sources: `tests/ticket-scripts/test-skill-size.sh`, `test-skill-references.sh`,
+`skills/gaspol-brainstorm/references/builder-check-prompt.md`,
+`skills/gaspol-plan/scripts/verification-lint`.
+
+**The defect.** After `/compact`, Claude Code re-attaches each skill cut off at 20,000 characters
+(superpowers issue #2481). A gate that sits past the cut vanishes from the re-attached skill, and
+nothing says so. Six skills were over it (bytes, measured):
+
+| Skill | Before | After |
+|---|---|---|
+| `gaspol-verify` | 34,416 | 17,922 |
+| `gaspol-plan` | 34,218 (36,819 after Phase B's template additions) | 17,928 |
+| `gaspol-parallel` | 30,057 | 17,967 |
+| `gaspol-execute` | 29,286 | 17,991 |
+| `gaspol-brainstorm` | 26,337 (27,076 after Phase A) | 17,640 |
+| `gaspol-finish` | 21,191 | 17,448 |
+
+In the old `gaspol-brainstorm` file, Phase 6 (ticket minting, the spec file, the builder check)
+sat around bytes 24,000 to 26,000, past the cut.
+
+**What changed.** Each gate stays in the SKILL.md body with its condition and its consequence;
+the surrounding detail moved to 18 `references/` files across the six skills, each pointed at from
+the body. `test-skill-size.sh` enforces the ceiling with no exemption list. `test-skill-references.sh`
+fails on a dangling pointer or an orphan file. Each trimmed skill has a `test-skill-trim-<skill>.sh`
+pinning every gate. The suite went from 55 to 65 scripts.
+
+**Part B, the builder check.** Phase 6 of `gaspol-brainstorm` dispatches one fresh
+`general-purpose` subagent with `model: "opus"`, with `model-tier: judge` written beside it
+because `model-gate` accepts only `judge` or `exec`, never a model name. It reads the written
+spec and returns ranked questions plus parts that look unnecessary, or exactly
+`nothing important left`. One round, architectural path only. It ran once on this ticket's own
+spec and found that the planned `model-tier: opus` would have made `model-gate` return exit 3.
+
+**Part C, phase-specific verification.** A plan carries a `**Verification commands:**` block once
+in its header; per-phase Verification holds only checks specific to that phase.
+`skills/gaspol-plan/scripts/verification-lint` exits 0 ok / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan
+(no header block, never counted as a pass). `task-brief` appends the header block to every brief.
+A legacy plan's briefs are byte-identical to before.
+
+**Review record.** Opus reviewed the complex phases. Phase B (`verification-lint`, `task-brief`)
+took 2 fix rounds: malformed or glued `### Phase` headings were skipped silently, and the lint and
+`task-brief` disagreed on the header line for trailing space, CRLF and NBSP. Phase C
+(`gaspol-verify`) took 2 rounds: the font-gate consequence had left the body, an invented
+"SKILL.md wins" precedence clause had been added to the references, a merged bash block hid exit
+codes, and "Not a dry run. Not from cache." had been dropped. Phase D (`gaspol-plan`) took 1 round:
+the Artifact omit/never-"n/a" rule, the external-executor obligations and the Reuse rule had left
+the body; the implementer's claim that the 18,000 ceiling needed a gate moved was wrong, because
+the header template is a format contract. Phases E to H were medium and got no Opus review; they
+were checked mechanically, every original non-blank line over 25 characters being verbatim in the
+body or a reference (E 351 of 356, F complete apart from condensed steps, G 316 of 317, H 259 of 260).
+
+**What each part gives up, stated rather than discovered later:**
+
+- **Detail is one file read away.** An agent that skips a `references/` pointer works without that
+  detail. The gates stay in the body, so the gates survive; the detail may not be read.
+- **The scope-creep check is weaker.** It is one prompt line in the builder check, where it used
+  to be a longer self-review.
+- **The builder check is model judgement.** It is not a guarantee, and a hole the reader does not
+  see stays open.
+- **`task-brief` covers the subagent path only.** A phase run inline in the main session reads the
+  plan header itself.
+- **Body plus references is larger than the original** (pointers, headings). The saving is in what
+  survives the compaction cut, not in total bytes.
+- **Headroom under 18,000 bytes is as low as 9 to 126 bytes in some skills**, so any addition
+  needs an equal cut.
+
+**What this does NOT close:**
+
+- **An agent that skips a `references/` pointer** is not detected. No test reads what the agent read.
+- **Skills already under 20,000 bytes were not trimmed.**
+- **No `tests/pressure` or `tests/skill-triggering` run was made**, so "agent behaviour is
+  unchanged" is not measured.
+- **Superpowers ideas not adopted:** Review Focus and Interfaces blocks in plans, `Ruling:` ledger
+  entries, and a session-diagnosis skill.
+- **Open debt:** `task-brief` cuts a phase at the first `---` line even inside a fenced code block
+  (found at Phase A); `verification-lint` Minor findings 3 to 6; `gaspol-plan` Phase D Minor
+  findings (a stale "into the header below" in step 6, weak pins); the REAL/PLACEHOLDER table rows
+  now live only in `skills/gaspol-execute/references/execution-flow.md`; the stale
+  "`gaspol-execute` calls this skill" line in `gaspol-verify`'s Integration section.
+
 ### Single-Owner Gates (NEW in v1.30, IDS-21) — the same check ran three times on the same commit
 
 Canonical sources: `skills/gaspol-finish/SKILL.md` Steps 1-3, `skills/gaspol-research/SKILL.md`
@@ -1351,7 +1440,7 @@ When user wants to create, add, or modify anything:
 8. **Phase 4**: Implementation feasibility check (REAL data paths, existing backend)
 9. **Phase 5**: Present design in 200-300 word sections, AskUserQuestion confirm per section, include Data Integration Map
 10. **Phase 6**: Mint ticket, write to `docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-spec.md`;
-    **spec self-review (v1.5)** (scan for placeholder/contradiction/ambiguity/scope) + **user
+    **builder check (v1.32)** (one fresh Opus subagent reads the spec and returns ranked open questions, or `nothing important left`) + **user
     reviews the written spec** before offering to proceed to `gaspol-plan`, which writes a
     separate dated `-plan.md` file (same ticket, reused — not re-minted)
 
@@ -1694,9 +1783,9 @@ Post-run: consolidated report, then the finish offer. The verify chain and plan-
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-22
+Last ticket: IDS-23
 
 ---
 
-**Version:** 1.31.0
+**Version:** 1.32.0
 **Last Updated:** October 2026

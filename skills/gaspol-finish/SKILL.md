@@ -36,11 +36,8 @@ steps. None of the four is optional or conditional on the diff's contents.
 One further check — the built-in `/security-review` — is **offered** after
 step 4 rather than run automatically. See *The Offers* below.
 
-**Where Step 0 went (IDS-17).** This chain used to open with a Step 0 that ran `detect-stack`
-and `regression-gate` before any agent was dispatched. `gaspol-verify` Layer 1 runs both of
-those already, and `gaspol-verify` is step 1 — so cheap-checks-first is **preserved by position**
-rather than by repetition. Nothing about the ordering rule changed; only the duplicate went. If a
-future edit makes step 1 conditional, that ordering is lost and Step 0 has to come back.
+Read `references/offers.md` when you need the rationale or command detail this file omits: Step 0 history, what Steps 1 and 4 ensure, why `/security-review` left the chain, why Step 4 is evidence-gated, the mutation-harness rule, Option 2-4 commands, and the Post-Finish Summary format.
+
 
 ### Step 1: Run gaspol-verify (all 4 layers)
 
@@ -58,14 +55,6 @@ ledger, a different SHA, a dirty tree, or a line whose SHA is unbackticked or ga
 no line: run it again. A reuse writes `verified: reused @ \`<sha>\`` to the Log, so nothing is
 skipped silently.
 
-This ensures:
-- All tests pass
-- No lint errors or warnings
-- Build succeeds
-- No unintended changes
-- The deterministic checks Step 0 used to duplicate: `detect-stack`'s commands and
-  `regression-gate` (Layer 1)
-
 ### Step 2: Run plan-verifier agent BLOCKING (step-level, evidence-based, spot-check 3 random FOUND items)
 
 **The one conditional gate in this chain.** `plan-verifier` audits the implementation against
@@ -76,13 +65,6 @@ touched by the diff. Provably absent, not "looks like it doesn't need one".
 
 When you skip it, record `plan-verifier: skipped — no plan referenced by this branch` in the
 ledger and continue. A silent omission is indistinguishable from a gate that ran and passed.
-
-Every other **mandatory** step in this chain is unconditional. `/security-review` is no longer
-one of them — it is offered after step 4 (IDS-17). The argument for keeping it unconditional was
-real and is preserved rather than deleted: security defects hide in diffs that look boring, and
-in a skills repository markdown **is** the executed surface, so "docs only" never means "cannot
-introduce a vulnerability". It now lives as a divergence note in the knowledge store, and
-`gaspol-execute` Step 3.6 still runs the review unconditionally on its own triggers.
 
 After a CLEAN verdict, append `plan-verifier: CLEAN @ \`<sha>\`` to the ledger `## Log`. The reuse
 rule is Step 1's, unchanged: reuse a recorded verdict only when its `<sha>` equals
@@ -150,11 +132,6 @@ finding STOPS the chain here.
 
 Update CLAUDE.md and any other documentation with changes from this work.
 
-**Evidence required — this step used to be a self-reported checkbox.** Nothing verified
-that CLAUDE.md had actually changed, so `[x] COMPLETED` could be written over a
-branch that never touched it. That is a completion claim without evidence, which Iron
-Law 3 forbids everywhere else in this plugin.
-
 If the branch made a **structural change** — added, removed, or renamed anything under
 `skills/`, `agents/`, `hooks/`, or `scripts/`, or altered a routing table, a chain step,
 or a documented command — then **CLAUDE.md must appear in the branch diff**:
@@ -166,12 +143,6 @@ git diff --name-only <BASE>..HEAD | grep -q '^CLAUDE.md$'
 If that check fails on a structural change, Step 4 is NOT complete: run `gaspol-sync-docs`
 for real, then re-check. Only a branch with no structural change may record Step 4 as
 "no doc-visible change", and it must say which — never a bare COMPLETED.
-
-This ensures:
-- New tables, functions, routes, or components are documented
-- Changed configurations are reflected
-- Removed features are cleaned up from docs
-- The next session has accurate context
 
 ## The Offers — presented after step 4, in ONE AskUserQuestion
 
@@ -186,13 +157,6 @@ with options:
 reduction — a skipped review leaves no trace anywhere — and it is recorded here rather than
 discovered later.
 
-### `/security-review` (built-in)
-
-**Why it is an offer.** Not every ticket changes anything security-related, so running it on
-every branch spends time on branches where there is nothing to find. This overrides the earlier
-rule that it must run unconditionally; the reason that rule existed — in a skills repository
-markdown IS the executed surface — is recorded in the ADR, not deleted.
-
 **Unchanged when it IS run:** a finding still BLOCKS. Resolve via AskUserQuestion —
 `[Fix now]` / `[Accept risk with documented reason]` — before any merge option is offered.
 Never present merge options with an unresolved security finding.
@@ -200,10 +164,6 @@ If the command is unavailable, say so
 and walk the same ground by hand (secrets in source, unparameterized queries, missing server-side
 authz, XSS sinks, CSRF); **never record it as passed when it did not run.**
 
-**Not affected by this change:** `gaspol-execute` Step 3.6 still runs `/security-review`
-automatically on its own triggers — a phase touching auth, secrets, user input, a new endpoint,
-payment, or sensitive data. Making the finish-time pass an offer did not turn the check off; it
-removed the second, unconditional run.
 
 ### The Fix Loop — every BLOCKING gate in this chain is bounded
 
@@ -226,19 +186,14 @@ What it means at each of the gates above:
   reached roughly eleven agent dispatches.
 - **Cheap before expensive, every round.** `gaspol-verify` Layer 1's deterministic checks run
   again before each fix round's dispatch — before dispatching any agent. Adding an exemption to a gate means adding its attack row to the mutation harness
-  **first**, and watching it fail — five separate times in IDS-8, closing one finding loosened
-  the gate beside it, and every one of those was found by an expensive audit rather than by the
-  harness that existed to catch it. In THIS repository that harness is
+  **first**, and watching it fail. In THIS repository that harness is
   `tests/ticket-scripts/test-gate-mutations.sh`. **Never go looking for a checker to run** — a
   repository's extra checks belong in the plan's declared verification commands or named
   literally in its own `CLAUDE.md`, where a human wrote them down; discovering and executing an
   arbitrary script out of the working repository is not a check, it is running someone else's
   code on their say-so.
 
-**The bound shortens rounds, never the chain.** All four mandatory steps stay. In IDS-8 each of
-the then-six found a real defect, including a skill that had silently stopped loading and a first
-capture that aborted on any fresh machine — a chain that feels slow argues for scoping its
-re-runs, not for dropping a gate that audits the diff.
+**The bound shortens rounds, never the chain.** All four mandatory steps stay.
 
 ### Verify Chain Complete
 
@@ -339,27 +294,11 @@ while the repo claims it shipped.
 
 Push the branch to remote and create a pull request.
 
-```bash
-# Push branch to remote
-git push -u origin feature/my-feature
-
-# Create PR (using gh CLI)
-gh pr create --title "feat: description" --body "## Summary\n..."
-```
-
-**Use when:** Team review needed, CI/CD pipeline should run, documentation trail desired.
 
 ### Option 3: Keep As-Is
 
 Leave the branch and worktree in place. Continue work later.
 
-No git commands needed. Simply inform the user:
-- Current branch name
-- Worktree location (if applicable)
-- What's been completed so far
-- What remains to be done
-
-**Use when:** Work is paused, not complete, or waiting on external dependency.
 
 ### Option 4: Discard
 
@@ -367,18 +306,6 @@ Delete all work on this branch. This is destructive and irreversible.
 
 **Requires explicit confirmation:** The user must type "discard" to confirm.
 
-```bash
-# Switch to base branch
-git checkout main
-
-# Delete the branch (force, since it's not merged)
-git branch -D feature/my-feature
-
-# Remove worktree if exists
-git worktree remove .worktrees/my-feature --force
-```
-
-**Use when:** Approach was wrong, work is obsolete, starting over.
 
 ---
 
@@ -412,23 +339,8 @@ skills/gaspol-execute/scripts/scan-active-ledgers .gaspol/progress
 
 ## Post-Finish Summary
 
-After executing the chosen option, provide a summary:
+After executing the chosen option, provide a summary.
 
-```
-## Finish Summary
-
-Branch: feature/my-feature
-Base: main
-Option: [Merged locally / PR created / Kept / Discarded]
-Verification: All passed
-
-Changes:
-- [List of key changes]
-
-[If PR]: PR URL: https://github.com/...
-[If kept]: Resume with: cd .worktrees/feature-name
-[If discarded]: Branch and worktree deleted
-```
 
 ---
 

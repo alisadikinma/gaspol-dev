@@ -77,7 +77,7 @@ grep -qi "WCAG AA contrast ratios" "$VERIFY" \
 echo "test-wig-lane: brainstorm authoring path..."
 has "$BRAINSTORM" "DESIGN.md" \
     "expected gaspol-brainstorm Phase 3 to offer freezing the approved palette into DESIGN.md"
-has "$BRAINSTORM" "awesome-design-md" \
+has "$REPO_ROOT/skills/gaspol-brainstorm/references/phase-3-design.md" "awesome-design-md" \
     "expected the DESIGN.md format origin to be referenced"
 
 echo "PASS: test-wig-lane"

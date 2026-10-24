@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.32.0] - 2026-10-24
+
+### Changed — skills trimmed under the compaction cut, builder check, phase-specific verification (IDS-23)
+
+- After `/compact`, Claude Code re-attaches each skill cut off at 20,000 characters (superpowers
+  issue #2481), so a gate past the cut vanishes. Six skills were over it (bytes before, after):
+  `gaspol-verify` 34,416 to 17,922; `gaspol-plan` 34,218 to 17,928; `gaspol-parallel` 30,057 to
+  17,967; `gaspol-execute` 29,286 to 17,991; `gaspol-brainstorm` 26,337 to 17,640; `gaspol-finish`
+  21,191 to 17,448. Gates stay in the body; detail moved to 18 `references/` files.
+- `gaspol-brainstorm` Phase 6 dispatches one fresh `general-purpose` subagent on `opus` (the
+  builder check, prompt in `references/builder-check-prompt.md`), one round, architectural path only.
+- `gaspol-plan` writes a `**Verification commands:**` block once in the header; per-phase
+  Verification holds only phase-specific checks. New `skills/gaspol-plan/scripts/verification-lint`
+  (0 / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan); `task-brief` appends the header block to every brief.
+- New tests: `test-skill-size.sh`, `test-skill-references.sh`, one `test-skill-trim-<skill>.sh` per
+  trimmed skill, `test-builder-check.sh`, `test-verification-lint.sh`. `test-release-1-31.sh` became
+  `test-release-1-32.sh`.
+
 ## [1.31.0] - 2026-10-24
 
 ### Added — parallel waves and per-phase complexity, decided at plan time (IDS-22)

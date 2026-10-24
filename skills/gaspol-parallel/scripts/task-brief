@@ -41,6 +41,26 @@ BLOCK="$(awk -v want="$N" '
 
 [ -n "$BLOCK" ] || { err "no phase $N in $PLAN (fewer than $N '### Phase ' headings)"; exit 2; }
 
+# IDS-23: the plan header's `**Verification commands:**` block (that line plus the
+# consecutive `- ` lines under it) is written once per plan and applies to every
+# phase. The implementer is handed this brief and never the plan, so the block
+# travels in the brief. Fenced code is skipped, so a template quoted inside a
+# phase is not mistaken for the header. A plan without the block yields nothing,
+# and the brief is exactly what it was before.
+# The same rule as skills/gaspol-plan/scripts/verification-lint, which strips trailing
+# whitespace and CR before matching the header line: the two must agree on whether a plan
+# HAS the header, or the lint passes a plan whose briefs silently lose the commands. The
+# copied lines lose their trailing CR/blanks too. POSIX awk only (BSD-safe).
+HEADER_BLOCK="$(awk '
+    BEGIN { strip = "[ \t" sprintf("%c", 13) "]+$" }
+    { line = $0; sub(strip, "", line) }
+    line ~ /^[[:space:]]*(```|~~~)/ { if (inblock) exit; infence = !infence; next }
+    infence { next }
+    !inblock && line == "**Verification commands:**" { inblock = 1; print line; next }
+    inblock && line ~ /^- / { print line; next }
+    inblock { exit }
+' "$PLAN")"
+
 PLAN_DIR="$(cd "$(dirname "$PLAN")" && pwd)"
 ROOT="$(git -C "$PLAN_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PLAN_DIR")"
 
@@ -60,6 +80,12 @@ OUT="$DIR/task-$N-brief.md"
     echo "---"
     echo
     echo "$BLOCK"
+    if [ -n "$HEADER_BLOCK" ]; then
+        echo
+        echo "## Verification commands (from the plan header)"
+        echo
+        echo "$HEADER_BLOCK"
+    fi
 } > "$OUT"
 
 echo "$OUT"

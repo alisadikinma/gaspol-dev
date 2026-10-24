@@ -23,6 +23,9 @@ PLAN="$REPO_ROOT/skills/gaspol-plan/SKILL.md"
 BRAIN="$REPO_ROOT/skills/gaspol-brainstorm/SKILL.md"
 EXEC="$REPO_ROOT/skills/gaspol-execute/SKILL.md"
 CONTRACT="$REPO_ROOT/skills/gaspol-plan/logic-design-artifact.md"
+# IDS-23: the artifact notes (contract pointer, approved/pending ledger states) moved out of
+# SKILL.md into references/execution-handoff.md, because they sat past the compaction cut.
+HANDOFF="$REPO_ROOT/skills/gaspol-plan/references/execution-handoff.md"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 has()  { grep -qi -- "$2" "$1" || fail "$3"; }
@@ -30,6 +33,7 @@ has()  { grep -qi -- "$2" "$1" || fail "$3"; }
 echo "test-logic-design-artifact: the contract file exists..."
 
 [ -f "$CONTRACT" ] || fail "skills/gaspol-plan/logic-design-artifact.md is missing"
+[ -f "$HANDOFF" ] || fail "skills/gaspol-plan/references/execution-handoff.md is missing"
 
 echo "test-logic-design-artifact: all five mandatory sections are specified..."
 
@@ -98,9 +102,9 @@ echo "test-logic-design-artifact: gaspol-plan OFFERS the artifact, it does not b
 # are here to prevent.
 grep -q "Design Artifact (BLOCKING)" "$PLAN" \
     && fail "gaspol-plan still presents Step 0 as a BLOCKING gate instead of an offer (IDS-16)"
-has "$PLAN" "logic-design-artifact.md" \
-    "gaspol-plan must reference the contract file"
-has "$PLAN" "design-artifact: approved" \
+has "$HANDOFF" "logic-design-artifact.md" \
+    "gaspol-plan's execution-handoff reference must reference the contract file"
+has "$HANDOFF" "design-artifact: approved" \
     "gaspol-plan must record the verdict in the ledger as a machine-checkable line"
 
 echo "test-logic-design-artifact: the offer names every execution mode, gaspol-auto included..."
@@ -137,8 +141,8 @@ has "$PLAN" "at most once\|invoked once\|only once" \
 
 echo "test-logic-design-artifact: three states, and 'not applicable' is not one of them..."
 
-has "$PLAN" "design-artifact: pending" "the pending state must be defined"
-grep -qiE 'design-artifact: (n/?a|not applicable)' "$PLAN" \
+has "$HANDOFF" "design-artifact: pending" "the pending state must be defined"
+grep -qiE 'design-artifact: (n/?a|not applicable)' "$PLAN" "$HANDOFF" \
     && fail "'not applicable' reintroduced as an artifact state — that state WAS the bug"
 
 echo "test-logic-design-artifact: brainstorm no longer offers 'no design at all'..."
@@ -157,7 +161,7 @@ has "$BRAIN" "will OFFER\|will offer" \
 
 echo "test-logic-design-artifact: Phase 3 produces decisions, not the mockup file..."
 
-has "$BRAIN" "design DECISIONS\|design decisions as text\|decisions as text" \
+has "$REPO_ROOT/skills/gaspol-brainstorm/references/phase-detail.md" "design DECISIONS\|design decisions as text\|decisions as text" \
     "Phase 3 must state it produces design decisions as text; the mockup file is rendered once, later, at the offer"
 
 echo "test-logic-design-artifact: gaspol-execute reads four artifact states (IDS-16)..."

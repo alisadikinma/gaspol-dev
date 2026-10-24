@@ -18,10 +18,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SKILL="$REPO_ROOT/skills/gaspol-plan/SKILL.md"
 REL="skills/gaspol-plan/SKILL.md"
+# IDS-23: the header template and the phase template are format contracts, moved out of SKILL.md
+# (they sat past the compaction cut) into references/. The rules stay in the body.
+HDR="$REPO_ROOT/skills/gaspol-plan/references/plan-header.md"
+PHASE="$REPO_ROOT/skills/gaspol-plan/references/phase-template.md"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 [ -f "$SKILL" ] || fail "$REL is missing"
+[ -f "$HDR" ] || fail "skills/gaspol-plan/references/plan-header.md is missing"
+[ -f "$PHASE" ] || fail "skills/gaspol-plan/references/phase-template.md is missing"
 
 # has <fixed string> <label>
 has() {
@@ -36,7 +42,7 @@ lacks() {
 }
 
 # line_of <fixed string> — first line number, or empty
-line_of() { grep -nF -- "$1" "$SKILL" | head -n 1 | cut -d: -f1 || true; }
+line_of() { grep -nF -- "$1" "${2:-$SKILL}" | head -n 1 | cut -d: -f1 || true; }
 
 echo "test-plan-waves-wiring: the fields"
 has '**Complexity:**' "Complexity line is in the skill"
@@ -45,17 +51,17 @@ has '**Format:** waves-v1' "Format header is in the skill"
 
 # Template placement: Format after Spec/Artifact in the plan header; Deps and Complexity
 # between a phase heading and its Files block.
-L_SPEC="$(line_of '**Spec:** docs/plans/')"
-L_ART="$(line_of '**Artifact:** https://')"
-L_FMT="$(line_of '**Format:** waves-v1')"
+L_SPEC="$(line_of '**Spec:** docs/plans/' "$HDR")"
+L_ART="$(line_of '**Artifact:** https://' "$HDR")"
+L_FMT="$(line_of '**Format:** waves-v1' "$HDR")"
 [ -n "$L_SPEC" ] && [ -n "$L_ART" ] && [ -n "$L_FMT" ] || fail "header template lines not found"
 [ "$L_FMT" -gt "$L_SPEC" ] && [ "$L_FMT" -gt "$L_ART" ] \
     || fail "$REL: **Format:** waves-v1 must come after the **Spec:** and **Artifact:** lines in the header template"
 echo "  ok — Format sits after Spec and Artifact"
 
-PHASE_TEMPLATE_START="$(line_of '### Phase A: [Phase Name]')"
+PHASE_TEMPLATE_START="$(line_of '### Phase A: [Phase Name]' "$PHASE")"
 [ -n "$PHASE_TEMPLATE_START" ] || fail "phase template heading not found"
-TEMPLATE="$(sed -n "${PHASE_TEMPLATE_START},\$p" "$SKILL" | sed -n '1,/^\*\*Steps:\*\*/p')"
+TEMPLATE="$(sed -n "${PHASE_TEMPLATE_START},\$p" "$PHASE" | sed -n '1,/^\*\*Steps:\*\*/p')"
 for need in '**Deps:**' '**Complexity:**' '**Files:**'; do
     printf '%s\n' "$TEMPLATE" | grep -qF -- "$need" || fail "$REL: phase template lacks $need before **Steps:**"
 done

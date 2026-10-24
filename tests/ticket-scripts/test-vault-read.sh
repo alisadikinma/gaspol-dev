@@ -55,10 +55,10 @@ grep -qiE 'not a failure|never .{0,20}fail|continue' "$B" \
 
 # --- coherence with Phase C -------------------------------------------------
 echo "test-vault-read: proposed captures are visible to the lookup..."
-if grep -qiE 'only .{0,15}status: accepted|default show only .{0,10}`?status: accepted' "$B"; then
+if grep -qiE 'only .{0,15}status: accepted|default show only .{0,10}`?status: accepted' "$B" "$(dirname "$B")/references/phase-0-5-precedent.md"; then
     fail "Phase 0.5 still filters to status: accepted only — gaspol now writes 'proposed' exclusively, so its own captures would be invisible to the query built to find them"
 fi
-grep -qF 'proposed' "$B" \
+grep -qF 'proposed' "$B" "$(dirname "$B")/references/phase-0-5-precedent.md" \
     || fail "Phase 0.5 never mentions 'proposed', the only status gaspol writes"
 
 echo "test-vault-read: no git init into a store gaspol does not own..."
