@@ -1,7 +1,7 @@
 {
   "name": "gaspol-dev",
   "displayName": "Gaspol Dev",
-  "version": "1.30.0",
+  "version": "1.31.0",
   "description": "Battle-tested execution fidelity: anti-placeholder enforcement, per-phase checkpoints, plan verification, TDD, debugging, worktree isolation, and the Completeness Ladder.",
   "author": {
     "name": "Ali Sadikin",

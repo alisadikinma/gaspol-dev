@@ -60,6 +60,7 @@ Claude Code plugin providing **16 development skills + 4 agents** for execution 
 | `skills/gaspol-verify/scripts/extract-design-tokens` | **NEW (v1.17)** — prints a `DESIGN.md` contract extracted from tailwind theme colours, `--color-*`/`--brand-*` custom properties, or `theme.json`. Literal extraction only: an unrecognised config emits nothing and exits 1. **stdout only** — the write is offered by `gaspol-verify`, never taken |
 | `skills/gaspol-verify/rules/` | **MOVED (v1.14)** — anti-AI-slop tables + gaspol reasoning rules (project tokens, KB precedent). Kept for the same reason: `ui-ux-pro-max` ships no anti-slop opinion layer |
 | `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file |
+| `skills/gaspol-plan/scripts/plan-waves` | **NEW (v1.31)** — validates a `waves-v1` plan (`Deps`, `Complexity` with a non-empty reason), schedules it through `dag-lanes`, and prints `wave N lane M:` and `phase X complexity=… model=… effort=… review=…` lines. The single place the complexity → effort/review mapping lives. Four exit states on the house contract (0 / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan, never a pass). Fenced code blocks are not parsed as phases. Read by `gaspol-auto` pre-flight |
 | `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking |
 | `skills/gaspol-execute/scripts/detect-stack` | **NEW (v1.13)** — reads stack marker files at a project root, prints `<level>: <command>` lines (static/lint/unit/build); prints `UNKNOWN` when a marker exists but its backing command doesn't; prints nothing when there are no markers. Feeds `gaspol-verify` Layer 1, `gaspol-parallel`'s Validation Ladder L1-L3, and `gaspol-plan`'s per-phase Verification block — no more hardcoded npm |
 | `skills/gaspol-execute/anti-placeholder-rules.md` | Authoritative placeholder detection reference |
@@ -1219,6 +1220,47 @@ Anti-AI-slop enforcement rules:
 
 Output format: Aesthetic Direction → Color Palette (hex codes) → Typography (font pairings) → Component Examples (code in detected stack) → Layout Blueprint (ASCII) → Component States → Motion Plan → Accessibility → Anti-AI-Slop Self-Check
 
+### Parallel Waves + Complexity (NEW in v1.31, IDS-22) — nothing decided it, so nothing ran it
+
+Canonical sources: `skills/gaspol-plan/scripts/plan-waves`, `skills/gaspol-plan/SKILL.md`
+"Execution Waves", `skills/gaspol-auto/SKILL.md` Execution Loop, `docs/rubric-model-switching.md`.
+Spec: `docs/plans/2026-10-24-IDS-22-parallel-waves-and-complexity-spec.md`.
+
+Two assumptions the owner made, checked by reading the skills: that `gaspol-plan` decides which
+phases can run in parallel, and that sub-agents get a model matched to how hard the phase is.
+Neither was true. The plan carried `**Files:**` and one offer ("only when the plan has independent
+phases") with nothing deciding it; `gaspol-auto` was `For each phase in plan (sequential)`; every
+implementer was hardcoded `sonnet`. Same defect shape as the other ledger-and-gate tickets: a rule in
+prose, nothing producing or reading the record it needs.
+
+**What changed.** A `waves-v1` plan carries `**Deps:**` and `**Complexity:**` per phase.
+`plan-waves` schedules them through the existing `dag-lanes` and prints each phase's assignment.
+`gaspol-auto` runs a multi-lane wave concurrently in one worktree. The model stays two-tier:
+
+| complexity | model | effort | review |
+|---|---|---|---|
+| light | sonnet | low | none |
+| medium | sonnet | medium | none |
+| complex | sonnet | high | opus |
+
+**Commit ownership.** Concurrent `git commit` in one tree collides on the index, so sub-agents in a
+multi-lane wave do not commit. The orchestrator commits one commit per phase by its declared
+`Files:`, then requires `git status --porcelain` empty. A leftover file is a phase that
+under-declared its files, and it stops the run.
+
+**Accepted costs, stated rather than discovered later:**
+
+- A wrong `Deps` is found at the commit step, not before. `dag-lanes` catches file collisions; a
+  semantic dependency (phase B calls what phase A changes) is caught only if `Deps` is right.
+- Each `complex` phase pays an Opus review. Chosen over "review only on failure" by the owner.
+- Complexity is the planner's judgement, not a measurement.
+- The full static/build ladder runs once per wave, because lanes share one tree.
+
+**What this does NOT close:** no check that a declared complexity matches the real diff size;
+`gaspol-execute` still runs one phase at a time; the main session's own model is still not
+enforceable; the ledger `## Waves` section is described in `gaspol-plan` but is not yet in the ledger
+template block, which `test-ledger-template` extracts.
+
 ### Single-Owner Gates (NEW in v1.30, IDS-21) — the same check ran three times on the same commit
 
 Canonical sources: `skills/gaspol-finish/SKILL.md` Steps 1-3, `skills/gaspol-research/SKILL.md`
@@ -1656,5 +1698,5 @@ Last ticket: IDS-22
 
 ---
 
-**Version:** 1.30.0
+**Version:** 1.31.0
 **Last Updated:** October 2026

@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.31.0] - 2026-10-24
+
+### Added — parallel waves and per-phase complexity, decided at plan time (IDS-22)
+
+- `gaspol-plan` writes `**Format:** waves-v1` and, per phase, `**Deps:**` and `**Complexity:**`
+  (`light` / `medium` / `complex`, with a one-sentence reason; a bare label is refused). New script
+  `skills/gaspol-plan/scripts/plan-waves` validates them, schedules the waves through `dag-lanes`,
+  and prints each phase's `model`, `effort` and `review`. Four exit states: 0 / 1 BLOCKING /
+  3 UNKNOWN / 4 not applicable (legacy plan, treated as sequential and `medium`).
+- `gaspol-auto` reads that output in pre-flight (now five checks). A wave with two or more lanes runs
+  concurrently in one worktree; the orchestrator, not the sub-agents, commits each phase by its
+  declared `Files:`; a leftover file means a phase under-declared its files and stops the run.
+- The tier stays two (IDS-20 unchanged): complexity sets `effort` and review, not the model. A
+  `complex` phase runs on Sonnet at high effort and gets an Opus review each.
+- Found while planning: `gaspol-auto` was strictly sequential and `gaspol-plan` never decided which
+  phases were independent; the "scale the model to task class" sentence in `gaspol-parallel` named
+  a class nothing ever wrote.
+
 ## [1.30.0] - 2026-10-24
 
 ### Changed — one owner per end-of-ticket gate (IDS-21)
