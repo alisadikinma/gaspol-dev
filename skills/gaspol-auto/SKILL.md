@@ -206,7 +206,7 @@ If execution would require any of these, hard-stop pauses and prompts.
 | `plan-verifier` agent | Not run here; `gaspol-finish` owns it |
 | `gaspol-verify` | Not run here; `gaspol-finish` owns it |
 | `gaspol-review` | Code review invoked tiered per complexity (from Phase F) |
-| `gaspol-finish` | Next step after CLEAN verdict |
+| `gaspol-finish` | Next step: runs the end-of-ticket gates once |
 | `gaspol-adr` | Captures decisions at hard-stop "ambiguity" pauses |
 
 ---

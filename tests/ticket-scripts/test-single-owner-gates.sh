@@ -138,5 +138,17 @@ set +e; gout=$(cd "$W" && "$GATE" "$BASE" 2>&1); grc=$?; set -e
 echo "ledger-gate: exit $grc: $gout"
 [ "$grc" = 0 ] || fail "ledger-gate rejects the new finish lines (exit $grc: $gout)"
 
+# IDS-21 audit round: per-phase auto-review fires only on the big triggers.
+# The classifier used to REVIEW every non-docs diff ("REVIEW otherwise"); the owner approved
+# "only big phases", and plan-verifier reported the decision DROPPED when no step carried it.
+classifier="$(awk '/^### Step 3: Phase Checkpoint Report/{f=1} /^On REVIEW:/{f=0} f' "$EXEC")"
+[ -n "$classifier" ] || fail "could not capture the Step 3 classifier text (positive control)"
+case "$classifier" in *"REVIEW** otherwise"*) fail "classifier still reviews every non-docs diff ('REVIEW otherwise')" ;; esac
+for trigger in "more than 3 files" "more than 100 lines" "new work"; do
+  case "$classifier" in *"$trigger"*) : ;; *) fail "classifier no longer names the trigger: $trigger" ;; esac
+done
+case "$classifier" in *"REVIEW** only when"*) : ;; *) fail "classifier does not say REVIEW only when a trigger fires" ;; esac
+case "$classifier" in *"below the review triggers"*) : ;; *) fail "classifier does not record a skip reason for a small phase" ;; esac
+
 if [ "$fails" -ne 0 ]; then echo "$fails failure(s)"; exit 1; fi
 echo "PASS: single-owner gates"

@@ -379,9 +379,10 @@ Before generating the checkpoint, run the **complexity classifier** over this ph
   config (`*.json`, `*.yaml`, `*.yml`, `*.toml`, `.env*`), or the diff is purely a rename,
   import reorder, or whitespace — regardless of size. Note it in the checkpoint:
   "Auto-review skipped — [reason]".
-- **REVIEW** otherwise, and always when more than 3 files changed, more than 100 lines
+- **REVIEW** only when a trigger fires: more than 3 files changed, more than 100 lines
   changed, or the phase describes new work ("implement", "create", "add feature", "new
-  component", "introduce", "build").
+  component", "introduce", "build"). Anything else is SKIP, noted in the checkpoint as
+  "Auto-review skipped — below the review triggers"; `gaspol-finish` reads the whole branch later.
 
 On REVIEW: dispatch the `code-reviewer` agent (Sonnet per rubric) scoped to this phase's
 changes only, and put 3-5 bullets plus criticality counts in the checkpoint. The findings

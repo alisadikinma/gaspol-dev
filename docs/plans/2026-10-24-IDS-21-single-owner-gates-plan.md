@@ -50,6 +50,7 @@ Nothing here is a placeholder: every row is an existing tool or file.
 ## Decisions recorded for the ledger (`## Keputusan saat jalan`)
 
 - Owner approved in brainstorm (2026-10-24): scope "one gate, one place"; owner of full verify + `plan-verifier` is `gaspol-finish`; Tier 1 review skipped when `plan-verifier` CLEAN at HEAD (mandatory with no plan); per-phase auto-review only on big triggers; delete `gaspol-learn`; research STOPs and asks when `notebooklm`/Firecrawl is unavailable.
+- Amendment after audit (2026-10-24, owner-approved): Phase B also changes the `gaspol-execute` Step 3 classifier so REVIEW fires only on a big trigger; test lines added to `test-single-owner-gates.sh`. The original plan carried decision 3 in this list but no step, which `plan-verifier` reported DROPPED.
 - Planner extension (needs no new approval, flagged for the owner): `gaspol-execute` Step 7 also ran `gaspol-verify`, `gaspol-sync-docs` and `gaspol-review`, all of which `gaspol-finish` owns too. "One owner" means all four leave Step 7, not only `plan-verifier`.
 
 ## Out of scope

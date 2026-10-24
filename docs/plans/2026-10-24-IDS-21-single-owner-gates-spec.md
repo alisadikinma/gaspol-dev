@@ -38,7 +38,7 @@ Batch Gate ruling: three items, **one ticket** — same subsystem (`skills/`), o
 - Fix rounds: `plan-verifier` re-run after a fix reads `<SHA>..HEAD` only (`skills/_shared/fix-loop.md` already says it;
   `gaspol-finish` states it).
 - Step 3: skip with `gaspol-review: skipped — plan-verifier CLEAN @ <sha>`; mandatory when Step 2 was skipped for no plan, or the user asks.
-- `gaspol-execute` Step 3 auto-review: unchanged classifier; no second review of the same diff at finish.
+- `gaspol-execute` Step 3 auto-review (amended after the plan-verifier audit, owner-approved): the classifier now REVIEWs only when a big trigger fires (files>3, LoC>100, new work); a smaller non-docs phase is SKIPped with the reason `below the review triggers`. No second review of the same diff at finish.
 
 ### B. Delete `gaspol-learn`
 
