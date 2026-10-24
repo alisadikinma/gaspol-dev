@@ -441,19 +441,12 @@ Then:
 - Scan for unused functions, orphaned imports, console.log statements
 - Report findings — do NOT claim complete if issues exist
 
-### Step 7: Auto-Invoke Verification Chain (Plan-Verifier BLOCKING)
+### Step 7: Hand Off to gaspol-finish
 
-Once all phases pass the completion gate, in order:
-
-1. **plan-verifier** agent — **BLOCKING**, step-level and evidence-based (see
-   `agents/plan-verifier.md`). It parses the plan into granular items and returns FOUND (with a
-   code quote) / PARTIAL / MISSING / DIVERGED per item; you spot-check 3 random FOUND items for
-   quote accuracy. Verdict `BLOCKING` (any MISSING, any unapproved PARTIAL, any placeholder) →
-   STOP, do not claim completion, present each finding via AskUserQuestion, fix or defer with an
-   ADR, then re-run it. Verdict `CLEAN` → continue.
-2. **gaspol-verify** — type check, lint, build.
-3. **gaspol-sync-docs** — update CLAUDE.md with new routes, hooks, tables.
-4. **gaspol-review** — code quality and consistency.
+Once all phases pass the completion gate, stop gating here. `gaspol-finish` owns the
+end-of-ticket gates and runs each once: the full `gaspol-verify`, `plan-verifier`,
+`gaspol-review` and `gaspol-sync-docs`. This skill keeps the per-phase ladder and the Completion
+Gate; it does not repeat the owner's gates. Until `gaspol-finish` runs, the work is not verified.
 
 ### Step 8: Present the Finish Offer
 
@@ -518,9 +511,9 @@ finish. The four that catch most of them:
 **Upstream:** `gaspol-plan` provides the plan in `docs/plans/`; `gaspol-brainstorm` provides
 the design decisions behind it.
 
-**Downstream, in order:** `gaspol-verify` (once the completion gate passes) → `gaspol-sync-docs`
-→ `gaspol-review` → the finish offer ([_shared/finish-offer.md](../_shared/finish-offer.md)),
-which the user may decline.
+**Downstream:** the finish offer ([_shared/finish-offer.md](../_shared/finish-offer.md)), which
+the user may decline. `gaspol-finish` owns `gaspol-verify`, `plan-verifier`, `gaspol-review` and
+`gaspol-sync-docs`.
 
 **With `gaspol-parallel`:** implementer subagents are dispatched using
 [implementer-prompt.md](implementer-prompt.md) — each gets its task-scoped brief path, the

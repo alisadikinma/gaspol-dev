@@ -110,10 +110,7 @@ Pause state = full context visible to user + options to continue/abort/adjust.
 
 After ALL phases complete (or aborted):
 
-1. **Auto-invoke verification chain**:
-   - `gaspol-verify` (all 4 layers)
-   - `plan-verifier` agent (BLOCKING — if not CLEAN, report but don't present "success")
-2. **Compile report**:
+1. **Compile report**:
    ```markdown
    ## Autonomous Run Report
 
@@ -132,21 +129,15 @@ After ALL phases complete (or aborted):
    - Phase C @ 14:23: test failure → user fixed → resumed
    - Phase F @ 15:01: placeholder detected → user approved real integration → resumed
 
-   ### Plan Verifier Verdict
-   Summary: FOUND=N PARTIAL=M MISSING=X DIVERGED=Y
-   Verdict: CLEAN / BLOCKING
-
-   ### gaspol-verify Results
-   - Technical: PASS
-   - Plan fidelity: PASS (from plan-verifier)
-   - Placeholder scan: PASS
-   - Integration: PASS
+   ### Verification Status
+   The end-of-ticket gates (`gaspol-verify`, `plan-verifier`, review, docs sync) run once, in
+   `gaspol-finish`. Nothing is verified yet beyond each phase's own ladder.
 
    ### Next Step
    <the finish offer — see below>
    ```
-3. **Surface report to user** — autonomous doesn't mean invisible.
-4. **Present the finish offer** per [_shared/finish-offer.md](../_shared/finish-offer.md). It
+2. **Surface report to user** — autonomous doesn't mean invisible.
+3. **Present the finish offer** per [_shared/finish-offer.md](../_shared/finish-offer.md). It
    holds the three options and their outcomes; do not restate them here. Where the run left
    issues open, offer `[Fix remaining issues]` alongside them.
 
@@ -186,7 +177,7 @@ If execution would require any of these, hard-stop pauses and prompts.
 | Checkpoint per phase | Yes (user approves each) | No (user approves plan once) |
 | Prompts during execution | Many | Only on hard-stop |
 | Hard-stop conditions | Same | Same |
-| Plan-verifier at end | BLOCKING | BLOCKING |
+| End-of-ticket gates (`gaspol-verify`, `plan-verifier`) | Run in `gaspol-finish` | Run in `gaspol-finish` |
 | Auto-review tiered | Yes (per phase) | Yes (per phase, but no checkpoint prompt unless Critical) |
 | TDD hard gate | Yes | Yes |
 | Best for | Unfamiliar codebase, first-time feature | Familiar codebase, verified plan |
@@ -202,7 +193,7 @@ If execution would require any of these, hard-stop pauses and prompts.
 | Silent failure (error not surfaced) | Always surface in post-run report |
 | Merging to main autonomously | Blocked — always manual |
 | Autonomous mode without prior `gaspol-execute` experience in same codebase | Warn user — recommend execute-mode first time |
-| Plan-verifier verdict ignored post-run | Never — verdict must be presented |
+| Report claims the run is verified | Never — gates have not run until `gaspol-finish` |
 
 ---
 
@@ -212,8 +203,8 @@ If execution would require any of these, hard-stop pauses and prompts.
 |---|---|
 | `gaspol-plan` | Source of plan; auto verifies plan format before starting |
 | `gaspol-execute` | Alternative execution mode (user picks) |
-| `plan-verifier` agent | Same BLOCKING post-run audit |
-| `gaspol-verify` | Auto-invoked at end, all 4 layers |
+| `plan-verifier` agent | Not run here; `gaspol-finish` owns it |
+| `gaspol-verify` | Not run here; `gaspol-finish` owns it |
 | `gaspol-review` | Code review invoked tiered per complexity (from Phase F) |
 | `gaspol-finish` | Next step after CLEAN verdict |
 | `gaspol-adr` | Captures decisions at hard-stop "ambiguity" pauses |
@@ -235,8 +226,6 @@ During execution:
 - [ ] No destructive ops without pause
 
 Post-run:
-- [ ] gaspol-verify all 4 layers executed
-- [ ] plan-verifier BLOCKING audit executed
-- [ ] Consolidated report presented to user
+- [ ] Consolidated report presented to user, stating the gates run in `gaspol-finish`
 - [ ] Hard-stops logged in report
-- [ ] Next-step options offered (finish / fix / review)
+- [ ] Finish offer presented (`_shared/finish-offer.md`)

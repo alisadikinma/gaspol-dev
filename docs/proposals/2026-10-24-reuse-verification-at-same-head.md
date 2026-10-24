@@ -1,6 +1,6 @@
 # Proposal: do not repeat verification at an unchanged HEAD
 
-**Status:** proposed, not released. The edits are in the working tree (`git diff`), uncommitted, untested.
+**Status:** superseded by IDS-21 (docs/plans/2026-10-24-IDS-21-single-owner-gates-spec.md)
 **Touches:** `skills/gaspol-finish/SKILL.md`, `skills/gaspol-auto/SKILL.md`
 
 ## What the owner saw

@@ -44,13 +44,19 @@ future edit makes step 1 conditional, that ordering is lost and Step 0 has to co
 
 ### Step 1: Run gaspol-verify (all 4 layers)
 
-Invoke `gaspol-verify` now, **unless the ledger holds a `verified: PASS @ <sha>` line whose
-`<sha>` equals `git rev-parse HEAD` and the working tree is clean.** `gaspol-verify` and
-`gaspol-auto` write that line when their run passes. The same SHA means the code is byte-identical
-to what was verified, so a second run proves nothing new and costs a full suite. The permission to
-skip on a repeat was removed in IDS-17 because "it passed earlier" had no anchor; the SHA is that
-anchor. A different SHA, a missing line, or any uncommitted change means run it again. Read the
-line from the ledger; never accept it from memory.
+Invoke `gaspol-verify` now. This step is the only owner of the full suite: `gaspol-execute` and
+`gaspol-auto` hand off here and run no end-of-ticket gate of their own (IDS-21).
+
+After a pass, append `verified: PASS @ \`<sha>\`` to the ledger `## Log` (SHA from
+`git rev-parse HEAD`, always backticked, per the v1.29.2 convention).
+
+**Reuse on a later entry** (for example after `[Nanti]`): a recorded line is reused ONLY when its
+`<sha>` equals `git rev-parse HEAD` AND `git status --porcelain` prints nothing. Same SHA means
+the code is byte-identical to what was verified, so a second run proves nothing new and costs a
+full suite. Read the line from the ledger; never accept it from memory. A missing or unreadable
+ledger, a different SHA, a dirty tree, or a line whose SHA is unbackticked or garbled all count as
+no line: run it again. A reuse writes `verified: reused @ \`<sha>\`` to the Log, so nothing is
+skipped silently.
 
 This ensures:
 - All tests pass
@@ -78,10 +84,18 @@ in a skills repository markdown **is** the executed surface, so "docs only" neve
 introduce a vulnerability". It now lives as a divergence note in the knowledge store, and
 `gaspol-execute` Step 3.6 still runs the review unconditionally on its own triggers.
 
-If the ledger holds a `plan-verifier: CLEAN @ <sha>` line whose `<sha>` equals the current HEAD,
-reuse that verdict (still do the 3-item spot-check below). In every other case, dispatch the
-upgraded `plan-verifier` agent (step-level, evidence-based) to audit the implementation against
-the plan. See `agents/plan-verifier.md`.
+After a CLEAN verdict, append `plan-verifier: CLEAN @ \`<sha>\`` to the ledger `## Log`. The reuse
+rule is Step 1's, unchanged: reuse a recorded verdict only when its `<sha>` equals
+`git rev-parse HEAD` and `git status --porcelain` is empty, read from the ledger and never from
+memory; anything else dispatches the agent again. A reused verdict still gets the 3-item
+spot-check below. Dispatch the upgraded `plan-verifier` agent (step-level, evidence-based) to
+audit the implementation against the plan. See `agents/plan-verifier.md`.
+
+A `plan-verifier` re-run after a fix reads `<SHA>..HEAD` only, where `<SHA>` is the HEAD the
+previous verdict audited — see The Fix Loop and `skills/_shared/fix-loop.md`.
+
+**What this gives up:** a deferred (`[Nanti]`) ticket has no `plan-verifier` pass until this step
+runs, because `gaspol-execute` and `gaspol-auto` no longer run one.
 
 **This step is BLOCKING.** You CANNOT present merge/PR options until the verdict is `CLEAN`.
 
@@ -112,8 +126,8 @@ change. **The re-run is bounded and scoped — see The Fix Loop below.**
 **Skip this step when Step 2 returned CLEAN for the current HEAD and the user did not ask for a
 review.** `plan-verifier` has already read the whole diff against the spec and the plan; a second
 reader of the same diff spends a full agent pass on overlap. Record
-`gaspol-review: skipped — plan-verifier CLEAN @ <sha>` in the ledger. This step stays mandatory
-when Step 2 was skipped (no plan, so nothing else read the diff) or when the user asks.
+`gaspol-review: skipped — plan-verifier CLEAN @ \`<sha>\`` in the ledger. This step is mandatory
+when Step 2 was skipped because there is no plan (nothing else read the diff) or when the user asks.
 
 Otherwise run `gaspol-review`, dispatched at **Tier 1** per its own Step 2 tiered-dispatch table
 (`skills/gaspol-review/SKILL.md`): Tier 0 (`agents/code-reviewer.md`, 1 call) plus the
@@ -234,7 +248,7 @@ that needs justifying.
 
 ```
 Verification Chain Status:
-[x] Step 1 gaspol-verify: PASSED (run this pass — a pass from earlier in the session does not count)
+[x] Step 1 gaspol-verify: PASSED (run this pass, or reused: ledger line at this HEAD, clean tree)
 [x] Step 2 Plan verifier: CLEAN (BLOCKING gate passed) (or: no plan exists, documented skip)
 [x] Step 3 gaspol-review (Tier 1): CLEAN (BLOCKING gate passed, 0 surviving Critical findings)
 [x] Step 4 gaspol-sync-docs: COMPLETED (or: no structural change, named)
