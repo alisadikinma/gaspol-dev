@@ -63,9 +63,9 @@ assert_grep "plan STOPs on more than one glob match instead of picking one" \
   'STOP and ask the user which spec' \
   skills/gaspol-plan/SKILL.md
 
-assert_grep "plan documents the 7-file pre-ticket migration note" \
+assert_grep "plan documents the 7-file pre-ticket migration note (IDS-23: moved to references/plan-details.md)" \
   '2026-04-17-gaspol-improvements.md' \
-  skills/gaspol-plan/SKILL.md
+  skills/gaspol-plan/references/plan-details.md
 
 assert_grep "plan-verifier references the dated plan path" \
   'YYYY-MM-DD-<TICKET>-<topic>-plan.md' \

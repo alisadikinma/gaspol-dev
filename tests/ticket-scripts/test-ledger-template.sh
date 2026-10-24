@@ -17,10 +17,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PLAN_SKILL="$REPO_ROOT/skills/gaspol-plan/SKILL.md"
+# IDS-23: the template block moved out of SKILL.md (it sat past the compaction cut) into
+# references/ledger-format.md. The rules asserted in sections 3-7 below still live in the body.
+LEDGER_FORMAT="$REPO_ROOT/skills/gaspol-plan/references/ledger-format.md"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 [ -f "$PLAN_SKILL" ] || fail "skills/gaspol-plan/SKILL.md not found"
+[ -f "$LEDGER_FORMAT" ] || fail "skills/gaspol-plan/references/ledger-format.md not found"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -29,7 +33,7 @@ echo "test-ledger-template: extracting the ledger template block..."
 # Extracted, never duplicated. A copy of the template inside this test would keep
 # passing after the real one drifted — the exact failure this file exists to
 # prevent, and the reason test-spec-pointer-branches-run.sh extracts too.
-python3 - "$PLAN_SKILL" "$TMP/template.md" <<'PYEOF' || fail "could not extract the ledger template from skills/gaspol-plan/SKILL.md"
+python3 - "$LEDGER_FORMAT" "$TMP/template.md" <<'PYEOF' || fail "could not extract the ledger template from skills/gaspol-plan/references/ledger-format.md"
 import re, sys, pathlib
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 blocks = [b for b in re.findall(r"```markdown\n(.*?)```", text, re.S)

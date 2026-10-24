@@ -13,11 +13,11 @@ Write comprehensive implementation plans assuming the executor has **zero contex
 - **Per-phase verification criteria** (no phase ships without passing checks)
 - **TDD-first steps** (write test, see fail, implement, see pass, commit)
 
-Plans follow: DRY, YAGNI, TDD-first, frequent commits.
+Plans follow: DRY, YAGNI, TDD-first, frequent commits. Read `references/plan-details.md` when a gate below needs its reasoning.
 
 ## Completeness Gate (coverage is decided HERE)
 
-Coverage is born in the plan. A phase that never enumerated its error paths ships without them, and no downstream gate can recover what the plan never asked for. For each phase, before you write it, walk the ladder from `skills/_shared/completeness-ladder.md` and answer what this phase **owes**:
+For each phase, before you write it, walk the ladder from `skills/_shared/completeness-ladder.md` and answer what this phase **owes**:
 
 1. **Happy path** — which real integration does it deliver? (It must appear in the Data Integration Map.)
 2. **Error paths** — which failures can actually happen here? Name them. Each becomes a step, not a footnote.
@@ -25,15 +25,12 @@ Coverage is born in the plan. A phase that never enumerated its error paths ship
 4. **Tests** — step 1 of the phase is still the failing test; rungs 2 and 3 each need a covering case.
 5. **Observability** — what does a 3am debugger need to see?
 
-Every phase carries the answers as steps. A rung that genuinely does not apply is written down as **not applicable, with the reason** — never left blank, because a blank reads as "covered" to the executor.
+Every phase carries the answers as steps. A rung that genuinely does not apply is written down as **not applicable, with the reason** — never left blank.
 
 **Repo gates go in the phase that triggers them.** Before writing phases, list the project's
 own checks that fire on a NEW file — a registry or index that must name every tool, a docs table
 generated from code, a coverage gate refusing an unused module. Any phase that creates such a file
-also registers it, in the same phase. Scheduling "register everything" for the last phase leaves
-every phase before it red, and the run burns a fix round on a failure the plan itself caused.
-
-**Reuse, not volume:** prefer stdlib → native platform feature → already-installed dependency over new code, and plan no interface with one implementation. Reuse cuts cleverness, never coverage.
+also registers it, in the same phase.
 
 **Boundary:** completeness is depth on what the spec asked for. It is not licence to plan features the spec does not contain — work outside the spec is listed under "Out of scope" in one line, never absorbed silently. And it never softens FIDELITY: the Data Integration Map stays the contract, and no phase turns a real data source into a placeholder.
 
@@ -50,8 +47,6 @@ Before writing a single line of the plan, you MUST:
 3. **CHECK if similar features already exist** (avoid duplicating work)
 4. **REFERENCE existing code in the plan** with full file paths (e.g., `src/contexts/WorkspaceContext.tsx`)
 
-If you skip this step, the plan will inevitably reinvent existing abstractions.
-
 ## Save Plans To (Ticket-Prefixed, Spec/Plan Split)
 
 Every plan is its own file, always separate from the spec:
@@ -59,12 +54,6 @@ Every plan is its own file, always separate from the spec:
 ```
 docs/plans/YYYY-MM-DD-<TICKET>-<kebab-topic>-plan.md
 ```
-
-`YYYY-MM-DD` is the date this file is created — not the date the ticket was minted; a plan
-can be written days after its spec. Date + `<TICKET>` prefix + `-plan.md` suffix make the
-file self-identifying at a glance — when it was written, which ticket, and that this is the
-plan stage (not `-spec.md`, brainstorm's output). No hybrid append, no line-count split
-logic — one plan, one file, always.
 
 **Ticket resolution (before writing anything) — find the spec by GLOB, never by
 reconstructing a filename from a date:**
@@ -75,14 +64,7 @@ reconstructing a filename from a date:**
 - **More than one match → STOP and ask the user which spec this plan continues. Never pick
   one silently** — a wrong guess ties the plan to the wrong ticket/spec permanently.
 
-**Migration note:** seven files in `docs/plans/` predate ticket-minting and are NOT
-renamed to this convention — `2026-04-17-gaspol-improvements.md`,
-`2026-06-09-ecc-adoption-p0-security-eval.md`, `2026-06-30-superpowers-adoption.md`,
-`2026-06-30-v1.6-sdd-review-harness.md`, `2026-06-30-v1.7-visual-companion.md`,
-`2026-08-16-gaspol-workflow-hardening.md`, `2026-08-16-gaspol-workflow-hardening-plan.md`.
-They have no ticket to insert into the new form; inventing one would put false data in a
-filename. The `*-<TICKET>-*-spec.md` glob above is automatically safe against them — no
-ticket in the name means it never matches.
+Read `references/plan-details.md` when you need why the date is the creation date, or the seven pre-ticket files that keep their names.
 
 ## Plan Document Header (MANDATORY)
 
@@ -117,11 +99,7 @@ resolution above — reuse the spec file's ticket if one exists):
    **Copy, do not summarise.** Both blocks already exist in the plan you just wrote, and
    `**Verification:**` is already `- [ ]` checkboxes — so the richer ledger costs nothing to
    produce and cannot drift from the plan it came from. A phase with **no** `**Verification:**`
-   block means the plan is incomplete: **STOP and ask**, never invent one to fill the gap. Rationale: at plan-write time the phase names are already known,
-   so the executor only has to tick boxes rather than re-derive the phase list. Accepted side
-   effect: a plan that is written but never executed shows up as active work in
-   `scan-active-ledgers` — that is honest, and `gaspol-execute` Step 0 already has a 4-option
-   modal for it.
+   block means the plan is incomplete: **STOP and ask**, never invent one to fill the gap.
 
 Every plan document MUST start with this header:
 
@@ -136,7 +114,7 @@ Every plan document MUST start with this header:
 **Ticket:** IND-81
 **Ledger:** .gaspol/progress/PROGRESS-IND-81.md
 **Spec:** docs/plans/2026-08-20-IND-81-<topic>-spec.md <!-- omit entirely if this plan is standalone (no preceding brainstorm spec file) -->
-**Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx <!-- present ONLY when the post-plan offer's [Render design artifact dulu] option was taken and the artifact was approved; omit the whole line otherwise, and never write "n/a" -- a declined artifact is recorded in the LEDGER as `design-artifact: skipped — <reason>`, not here -->
+**Artifact:** https://claude.ai/public/artifacts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 **Format:** waves-v1 <!-- always present in a new plan: it is what tells `plan-waves` and the executors that every phase below carries `**Deps:**` and `**Complexity:**` -->
 
 **Verification commands:**
@@ -156,121 +134,23 @@ Every plan document MUST start with this header:
 [Frameworks, libraries, patterns to use — reference existing choices from CLAUDE.md]
 ```
 
-**Verification commands — written ONCE per plan, never per phase.** The block is the plan's one
-statement of the generic checks (compile, lint, unit, build) that apply to every phase. Run
+**Verification commands — written ONCE per plan, never per phase.** Run
 `skills/gaspol-execute/scripts/detect-stack <project-root>` once and copy its `static:`/`lint:`/
 `unit:`/`build:` lines **verbatim** as `- ` lines directly under the `**Verification commands:**`
-line (no comments on those lines, no blank line inside the block). The example above is what
-`detect-stack` prints for a Node/TypeScript project; on a Laravel repo it reads `php artisan test`,
-on a Python repo `pytest`. Three variants, no others:
+line (no comments on those lines, no blank line inside the block). Three variants, no others:
 
 - `detect-stack` prints commands → the `static:`/`unit:` list, copied verbatim.
 - `detect-stack` prints `<level>: UNKNOWN` → write `- <level>: UNKNOWN — ask user before Verification can run`
   for that level and resolve it with AskUserQuestion before the plan is presented as final.
 - `detect-stack` prints nothing → write `- detect-stack: no stack markers for this project — verification is plan-declared only`.
 
-`task-brief` copies this block into every phase brief, because a dispatched implementer is handed
-the brief and never the plan. `gaspol-verify` and `gaspol-execute` keep reading "plan-declared
-commands": this block IS the plan-declared commands.
-
 ## Progress Ledger Format
 
 The ledger `gaspol-plan` creates at `.gaspol/progress/PROGRESS-<TICKET>.md` (step 7 above) MUST
-use exactly this template:
-
-```markdown
-# PROGRESS — IDS-1: gaspol output naming standard
-
-**Ticket:** IDS-1
-**Plan:** docs/plans/2026-08-20-IDS-1-gaspol-output-naming-standard-plan.md
-**Spec:** docs/plans/2026-08-20-IDS-1-gaspol-output-naming-standard-spec.md
-
-## Pre-flight
-
-| Gate | Result |
-|---|---|
-| Git clean | PASS — baseline `331fbca` |
-| Baseline suite | PASS — `<command from detect-stack>`, 44 lulus / 0 gagal |
-| detect-stack | `unit: npm test` (atau "no stack markers") |
-
-## Keputusan saat jalan
-
-(kosong sampai ada keputusan; tiap butir: apa, siapa yang memutuskan, tanggal)
-
-## Checklist
-
-### [x] Phase A: script detect-stack
-- [x] Write failing test for detect-stack on a Node project. Expected error: `command not found`
-- [x] Run test, confirm it fails for the expected reason
-- [x] Implement the marker-file reader
-- [x] a Node project prints one `static:` and one `unit:` line
-- [x] a directory with no marker files prints nothing and exits 0
-
-### [>] Phase B: glob ledger case-insensitive
-- [ ] Write failing test for a lowercase-prefixed ledger being found. Expected error: `not found`
-- [ ] ...
-
-### [ ] Phase C: konvensi nama file spec & plan
-
-### [~] Phase D: contoh fase dibatalkan — DIBATALKAN (YAGNI, alasan di Log)
-
-## Phase log
-
-| Phase | Status | Commit |
-|---|---|---|
-| A — script detect-stack | DONE | `4f2a1c9` |
-| B — glob ledger | DOING | `<no commit>` |
-| C — konvensi nama file spec & plan | TODO | `<no commit>` |
-| D — contoh fase dibatalkan | DIBATALKAN | `<no commit>` |
-
-## Utang terbuka
-
-(kosong sampai ada yang sengaja ditinggal; tiap butir bernama)
-
-## Log
-- 2026-08-20 Phase A done — `bash tests/ticket-scripts/test-detect-stack.sh` exit 0 — NEXT: Phase B
-```
-
-**The generic commands are recorded once, in `## Pre-flight`** (the `detect-stack` row), not copied
-into every phase. A phase's checklist holds that phase's own checks only; the compile and unit
-commands come from the plan's `**Verification commands:**` header block.
-
-**The Checklist body is COPIED from the plan, never summarised.** Each phase's `**Steps:**` become
-checkboxes and its `**Verification:**` block is appended verbatim — it is already `- [ ]`. Nothing
-is authored twice, so the ledger cannot drift from the plan it came from.
-
-**The accepted consequence, stated rather than discovered later:** ledger quality is now bound to
-plan quality. A plan whose Steps are lazy produces a lazy ledger. That coupling is the point. The
-alternative — a fixed generic checkbox set — can never produce a box like *"RED seen: `'   '` plus
-a signature stores `''`, expected `null`"*, because that box is specific to one phase of one
-ticket, and boxes like that are the entire reason this format is worth copying.
+use exactly the template in `references/ledger-format.md`. Read it when you write the ledger in step 7; it also holds the section table and the older-ledger rule.
 
 **Four mandatory sections, all ABOVE `## Log`:** `## Pre-flight`, `## Keputusan saat jalan`,
 `## Phase log`, `## Utang terbuka`.
-
-| Section | What it holds | Why it is mandatory |
-|---|---|---|
-| `## Pre-flight` | git state, the baseline suite run and its counts, `detect-stack` output | a red baseline nobody recorded gets blamed on the new phase, and the fix loop burns its rounds on somebody else's failure |
-| `## Keputusan saat jalan` | each mid-run choice, who decided it, the date | the only record of what is neither in the plan nor in the code |
-| `## Phase log` | phase → status → **real commit SHA, always in backticks** (`<no commit>` until committed) | a SHA can be re-checked; the word "DONE" cannot |
-| `## Utang terbuka` | what was deliberately left undone, each item named | what is not written down becomes a *"nanti"* that never arrives |
-
-**Every other section is added when it has content, never as an empty heading.** IND-117's ledger
-grew nine — evidence-quality notes, open items for a later phase, the plan-verifier round table,
-post-run gates, deploy steps, leftovers found after close. Mandating all nine would fill most
-ledgers with "N/A", and an empty label reads as *checked and clear*, which is worse than a section
-that is simply absent.
-
-**Backward compatibility — READ the old shape, WRITE the new one.** An **older flat** ledger —
-one `## Checklist` line per phase, no sub-blocks, none of the four sections — is still read
-exactly as it is: tick its line, append to its `## Log`, and leave its shape alone. Rewriting a
-ledger mid-ticket destroys the record of what was actually observed and replaces it with what
-somebody infers now, which is the opposite of what a ledger is for. Only a ledger you CREATE uses
-the new shape. `scan-active-ledgers` reads both, because both end with `## Log`.
-
-The state markers apply to a **phase heading** and to an individual **checkbox** alike: a single
-step that was genuinely not done gets `[~]` with its reason on the line, rather than a tick it
-did not earn or a blank that reads as forgotten.
 
 Four checklist states:
 
@@ -307,10 +187,6 @@ Every plan MUST include a Data Integration Map table:
 
 | Feature | Data Source | Hook/API | Exists? | Action |
 |---------|-----------|----------|---------|--------|
-| SegmentCard | WorkspaceContext.segments | useWorkspace() | Yes | Use existing |
-| RetentionScore | scoringEngine | import from lib/knowledge | Yes | Import directly |
-| VoicePreview | generate-tts edge fn | needs useVoicePreview | No | Create new hook |
-| UserAvatar | Supabase auth | useAuth() | Yes | Use existing |
 ```
 
 This table is the **CONTRACT** between planner and executor:
@@ -349,23 +225,17 @@ Each phase MUST follow this exact structure:
 - [ ] SegmentCard shows the empty state when the workspace has no segments
 ```
 
-The block holds only checks specific to this phase. The compile and unit commands are not
-repeated here: they live once in the plan header's `**Verification commands:**` block.
-
 **Deps and Complexity (MANDATORY, `waves-v1`):** every phase declares what it waits for and how
 hard it is, between the heading and `**Files:**`.
 
 - `**Deps:**` is `none` or the ids of the phases that must finish first. Declare a dependency
-  when a phase calls, imports or tests something another phase creates or changes. Files are
-  checked by the scheduler, but a semantic dependency is caught only if you declare it.
+  when a phase calls, imports or tests something another phase creates or changes.
 - `**Complexity:**` is `light`, `medium` or `complex`, then an em dash `—` (a spaced hyphen ` - `
   is also accepted) and a one-sentence reason. Rubric:
   - light = one file, no design decision
   - medium = several files, pattern already in the repo
   - complex = new logic; money, auth or security; many interlinked files; an interface other phases consume
-- Rule: a bare label with no reason is refused. `plan-waves` exits 1 on it, the same way a state
-  label with nothing after the dash is `(if possible)` wearing a new name. The label decides how much
-  effort and review the phase gets, so the reason is the part a human can check.
+- Rule: a bare label with no reason is refused. `plan-waves` exits 1 on it.
 - Complexity is a judgement by the planner, not a measurement. At dispatch time the orchestrator reads the `phase …` lines
   that `plan-waves` prints and passes each phase's assignment on; this skill does not restate
   what each label maps to, so there is one place to change it.
@@ -381,36 +251,19 @@ hard it is, between the heading and `**Files:**`.
 `^1\. Write failing test for .+ Expected error: ` must equal the number of `### Phase` headings.
 Count both; also count the `**Deps:**` lines and the `**Complexity:**` lines, which must each
 equal the number of `### Phase` headings too. Fix any phase whose step 1 drifted ("Write failing check", "Write failing consistency
-test ...") before the offer. Catching it at execution pre-flight costs a plan edit mid-run.
+test ...") before the offer.
 
-**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column:
-
-```markdown
-| Phase | Code Deliverable | Design Deliverable | Verification |
-|-------|-----------------|-------------------|--------------|
-| 1 | useAuth hook | n/a (backend) | Tests + types |
-| 2 | LoginForm component | Design spec (tokens, layout, motion, states) | Design system compliance |
-```
-
-The Design Deliverable cell **cites** the design decisions `gaspol-brainstorm` Phase 3 already
-produced — palette, font pairing, layout blueprint, motion, accessibility — rather than invoking
-`ui-ux-pro-max` again here. That skill is called **at most once per ticket**: at Phase 3 where a
-brainstorm ran, or at the post-plan offer where none did. It was previously reachable from three
-separate places for one feature, which is three answers to the same question and no rule for which
-one wins.
+**Design Deliverable Column (for UI-related phases):** When phase involves UI work (detected via file ext `.tsx/.jsx/.vue/.svelte/.astro/.css/.scss/.sass`), the Phase table MUST include a Design Deliverable column. Read `references/plan-details.md` when a phase involves UI work: it holds the table and the rule that `ui-ux-pro-max` is called at most once per ticket.
 
 **Security-Sensitive Phases:** When a phase touches **auth/authorization, secrets,
 user input or file uploads, a new API endpoint, payment, or sensitive data**, the
 phase's Verification block MUST include a security line (e.g. "inputs validated,
-queries parameterized, authz server-side, no secrets in source"). `gaspol-execute`
-auto-runs the built-in `/security-review` for these phases (Step 3.6), and
-`gaspol-finish` runs it again on the whole branch before merge.
+queries parameterized, authz server-side, no secrets in source").
 
 **Non-Deterministic / LLM Phases:** When a phase implements LLM/prompt/agent behavior
 (classification, extraction, generation, RAG, routing), define evals at plan time via
 **evals, not unit tests** — write `docs/evals/<feature>.md` (capability + regression + real
-fixtures) as the phase's success contract. Deterministic unit tests alone do not
-verify non-deterministic output; `gaspol-verify` runs these evals and reports pass@k.
+fixtures) as the phase's success contract.
 
 ## Verification Criteria per Phase (MANDATORY)
 
@@ -423,32 +276,10 @@ that phase** — at least one:
 - [ ] [specific functional check for this phase]
 ```
 
-What counts as specific, and what does not:
+What counts as specific, and what does not, is in `references/plan-details.md`; read it when you write a phase's Verification block or fill the `**Verification commands:**` block:
 
-- **Generic, so it does not belong here:** the compile/lint/unit/build commands (they are in the
-  header's `**Verification commands:**` block), `static:`/`unit:` lines, and any "no placeholder
-  or TODO comments" line — `gaspol-verify` Layer 3 owns that check.
-- **Specific:** a behaviour, an exit code, a value, or an edge case only this phase introduces.
-  "real data from [source]" counts only when it names a concrete source (`useWorkspace()`, the
-  `segments` table). An unfilled `real data from [specific source]` is generic and is refused.
 - A phase with no Verification lines, or only generic ones, is **INCOMPLETE**: the executor will
   not know when the phase is done. `verification-lint` (see Execution Waves) enforces this.
-
-**Fill the header block from `detect-stack`, not a guessed command.** Run
-`skills/gaspol-execute/scripts/detect-stack <project-root>` once per plan (the stack doesn't change
-phase to phase) and write its lines into the `**Verification commands:**` header block, verbatim.
-Rationale: the plan must be self-contained for an executor with **no other context** — a fresh
-post-`/compact` session or an external executor in a separate process can't run `detect-stack`
-itself or read this skill file, so the resolved commands have to live in the plan text, not only
-in the script.
-- `detect-stack` prints `<level>: UNKNOWN` for a level → do not write that command into the
-  plan. Write `- <level>: UNKNOWN — ask user before Verification can run` in the header block,
-  and resolve it with AskUserQuestion before the plan is presented as final.
-- `detect-stack` prints zero lines (no stack markers, e.g. a docs-only or pure-markdown
-  project) → there is no automated technical check to derive; write
-  `- detect-stack: no stack markers for this project — verification is plan-declared only` in the
-  header block so the executor doesn't go looking for a script that will never fire. Each phase's
-  own functional/manual checks still go in that phase's Verification block.
 
 ## Execution Waves (MANDATORY)
 
@@ -459,9 +290,7 @@ waves, so the table cannot disagree with the plan.
 "${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT is unset}/skills/gaspol-plan/scripts/plan-waves" <plan-file>
 ```
 
-The path goes through `${CLAUDE_PLUGIN_ROOT:?…}`, never a relative path: a skill runs with the
-target project as its working directory, and a project that ships its own `plan-waves` would
-otherwise answer in place of ours. Read the exit code (on exit 3, STOP and ask):
+The path goes through `${CLAUDE_PLUGIN_ROOT:?…}`, never a relative path. Read the exit code (on exit 3, STOP and ask):
 
 | Exit | Stdout line 1 | Do this |
 |---|---|---|
@@ -504,20 +333,7 @@ execution modal, which is two questions for one decision:
 [Serahkan ke executor luar]     → only when an executor resolves (see below)
 ```
 
-`gaspol-auto` is offered on **every** plan. It is a documented execution mode that this skill
-previously never surfaced, so the only way to reach it was to already know it existed. Its own
-pre-flight gate — plan approval, clean git state, a passing baseline, the per-phase TDD check — is
-unchanged and still refuses to start when any of those fail. Those are `gaspol-auto`'s refusals to
-run, not reasons to hide the door.
-
-**What the artifact contains** is the tab-count rule in
-`skills/gaspol-plan/logic-design-artifact.md`: the Logic tab always, plus a Design tab holding the
-mockup when the plan touches UI files. That file also carries the page skeleton to copy, the
-`srcdoc` escaping rule, and the requirement that the prose is plain Indonesian.
-
-**`ui-ux-pro-max` is invoked at most once per ticket.** Where `gaspol-brainstorm` Phase 3 already
-ran, its design decisions are reused here and the skill is not called again. Where brainstorm never
-ran and the plan touches UI, this is the single point it is called.
+Read `references/execution-handoff.md` when you present this offer: it holds why `gaspol-auto` is always offered, the artifact contents, how an approved artifact is recorded and the external executor.
 
 ### Declining costs a reason, and the reason may not be empty
 
@@ -529,76 +345,16 @@ off:
 design-artifact: skipped — <reason>
 ```
 
-An empty reason is refused: ask again. A bare label with nothing after the dash documents the wish
-to skip without documenting why skipping was acceptable, which is the escape hatch this repository
-has already had to close once elsewhere.
+An empty reason is refused: ask again.
 
-`[Simpan buat sesi lain]` writes **NO line at all**. Nothing was skipped, because nothing executed,
-and demanding a justification for a decision the user has not yet made teaches people to type
-anything to get past the prompt.
-
-**The cost of that, stated rather than glossed:** this offer exists only here. A later session that
-resumes the plan through `gaspol-execute` will not be asked again — it reads a ledger with no line,
-proceeds, and records `design-artifact: none — no offer was made`. Re-entering `gaspol-plan` for
-that plan is the only way to reach the offer a second time.
-
-### Recording an approved artifact
-
-When `[Render design artifact dulu]` is chosen and the artifact is approved, record it in **two**
-places:
-
-- `**Artifact:** <url>` in this plan file's header, beside `**Ticket:**` / `**Ledger:**`
-- `design-artifact: approved — <url>` in the ledger, above `## Log`
-
-| Ledger line | What `gaspol-execute` does |
-|---|---|
-| `design-artifact: approved — <url>` | proceed |
-| `design-artifact: pending — <url>` | **STOP and ask** — published, never approved |
-| `design-artifact: skipped — <reason>` | proceed |
-| no line | proceed, recording `design-artifact: none — no offer was made` |
-
-
-### `[Serahkan ke executor luar]` — shown only when an executor is configured
-> "Hand off to your external executor? I'll run `<resolved command>` — it implements **blind** from this self-contained plan and its per-plan ledger, then you return here for review + commit."
-
-This is the two-lane, token-saving path: planning + review stay in this session; the heavy codegen runs in a separate, cheaper executor process. **gaspol-dev ships no executor of its own** — this option surfaces a command *you* wired up, and never invents one.
-
-**Resolving the executor command (in order, first hit wins):**
-1. `$GASPOL_EXECUTOR` environment variable.
-2. First line of a `.gaspol/executor` file in the project root (lets a repo commit its own executor).
-3. **Neither set → leave this option out of the modal entirely.** The plugin works fully with the
-   in-session options above; there is nothing to configure to use it.
-
-The value is a **command template** with `{plan}` and `{ledger}` placeholders, e.g. `aider --file {plan}`, `opencode run {plan}`, `cursor-agent {plan}`. Substitute the plan path and the resolved per-plan ledger path, then present the concrete command for approval before running.
-
-**Invariants regardless of executor:** the external tool implements + runs tests to green but **NEVER commits/pushes** — the finished diff returns to this session (or the human) for review + commit. Review is never skipped.
+`[Simpan buat sesi lain]` writes **NO line at all**. Nothing was skipped, because nothing executed
 
 ## Red Flags (Self-Check Before Finishing)
 
 Before presenting the plan, verify none of these red flags are present:
 
-| Red Flag | Problem | Fix |
-|----------|---------|-----|
-| No Data Integration Map | Executor will guess at data sources | Add the map table |
-| Phase without Verification | Executor won't know when phase is done | Add verification block |
-| No reference to CLAUDE.md | Planner didn't read existing architecture | Re-read CLAUDE.md, update plan |
-| Vague data sources ("connect to backend") | Executor will create placeholders | Specify which hook, API, context, table |
-| No test steps | No TDD cycle, bugs ship silently | Add write-test/run-test steps |
-| Phase too large (>15 min estimated) | Executor loses focus, skips verification | Break into smaller phases |
-| Placeholder language ("TODO: wire up later") | Violates anti-placeholder contract | Specify the real integration now |
-| Plan only makes sense with the chat context | A fresh-session or external executor runs blind and will guess | Inline every contract/convention verbatim — the plan alone must suffice |
-| No `Progress ledger:` line in the header | Executor writes the shared global ledger, colliding with concurrent plans | Add `Progress ledger: .gaspol/progress/PROGRESS-<TICKET>.md` to the header |
-| A phase lacks `**Deps:**` or `**Complexity:**`, or the complexity has no reason | `plan-waves` refuses the plan, and executors get no assignment | Add both lines; give the reason after the dash |
-| The same compile/unit/placeholder lines repeated in every phase's Verification block | The phase-specific checks drown in boilerplate and a phase can pass with nothing of its own | Write the commands once in the header's `**Verification commands:**` block; keep only phase-specific lines per phase, then run `verification-lint` |
-| Waves written by hand, or `plan-waves` never run | The table can disagree with the phases and nothing notices | Run `plan-waves`, paste its lines |
-| Ledger not created at plan-write time | Executor has to re-derive the phase list instead of ticking boxes | Create `.gaspol/progress/PROGRESS-<TICKET>.md` with the full `## Checklist` before presenting the plan |
+Read `references/plan-details.md` when you run this self-check: it holds the table.
 
 ## Integration with Other Skills
 
-| Trigger | Skill | Relationship |
-|---------|-------|-------------|
-| Before this skill | `gaspol-brainstorm` | Brainstorm produces the design section in same file; plan appends |
-| During this skill | `ui-ux-pro-max` (plugin) | At most ONCE per ticket, and only where no brainstorm ran — otherwise Phase 3's decisions are cited |
-| During this skill | `gaspol-adr` | Capture architectural decisions at fork points in the plan |
-| After this skill | `gaspol-execute` | Execute the plan with per-phase checkpoints + TDD hard gate |
-| After this skill | `gaspol-parallel` | Execute independent phases in parallel (mode: plan-phases) |
+Read `references/plan-details.md` when you need how this skill relates to the others.
