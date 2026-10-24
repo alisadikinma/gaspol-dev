@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.30.0] - 2026-10-24
+
+### Changed — one owner per end-of-ticket gate (IDS-21)
+
+- `gaspol-finish` is the only place `gaspol-verify` (full), `plan-verifier`, Tier 1 review and
+  `gaspol-sync-docs` run. `gaspol-execute` Step 7 and the `gaspol-auto` post-run no longer repeat
+  them; both hand off to the finish offer. Found on one large `gaspol-auto` ticket: the same checks
+  ran up to three times on the same commit, at roughly 80-180k tokens per `plan-verifier` pass and
+  about six minutes per full suite.
+- Finish records `verified: PASS @ <sha>` and `plan-verifier: CLEAN @ <sha>` in the ledger and
+  reuses them only at the same `HEAD` with a clean tree, read from the ledger and never from memory.
+  A `plan-verifier` re-run after a fix reads `<SHA>..HEAD` only.
+- Tier 1 review is skipped, with a logged reason, when `plan-verifier` is CLEAN at `HEAD` and the
+  user did not ask. It stays mandatory when there is no plan.
+- What this gives up: a second reader of the diff; a deferred (`[Nanti]`) ticket has no
+  `plan-verifier` pass until finish runs. Savings are an estimate, not measured.
+
+### Changed — `gaspol-research` uses Firecrawl and `notebooklm`
+
+- Sources are found and read with `firecrawl_search` / `firecrawl_scrape` (`maxAge: 0` for pages
+  that must be current); synthesis is `notebooklm ask`. The Sonnet gather subagents are gone.
+  A missing or unauthenticated tool stops and asks. There is no fallback to `WebSearch`.
+- Only public URLs become sources, because NotebookLM is an external service.
+- `gaspol-brainstorm` Phase 1.5 light research uses `firecrawl_search`.
+
+### Removed — `gaspol-learn`
+
+- The skill and every live reference are deleted (17 → 16 skills). KB writes remain via
+  `gaspol-adr` and `gaspol-research`. The finish modal now offers `/security-review` only.
+
+### Fixed
+
+- `CLAUDE.md` footer said 1.29.1 while `plugin.json` said 1.29.2; five tests were red at baseline.
+
 ## [1.29.2] - 2026-10-18
 
 ### Fixed — commit SHAs in the ledger are always backticked

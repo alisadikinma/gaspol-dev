@@ -1141,7 +1141,7 @@ Anti-hallucination: WebFetch actual pages, orchestrator spot-check cache for quo
 - Anti-hallucination spot-check: orchestrator samples 3 random FOUND items, verifies quotes
 
 Invoked BLOCKING from:
-- `gaspol-execute` Step 7 (after completion gate) — cannot claim done until CLEAN
+- `gaspol-execute` Step 7 — **no longer** (IDS-21): it hands off to finish
 - `gaspol-finish` Step 2 (pre-chain) — cannot present merge/PR options until CLEAN
 
 ### Prior-Art Gate (NEW in v1.15)
@@ -1218,6 +1218,43 @@ Anti-AI-slop enforcement rules:
 **ALWAYS choose**: Distinctive display fonts, sharp accent contrast, asymmetric/grid-breaking layouts, intentional motion (150-300ms), layered backgrounds
 
 Output format: Aesthetic Direction → Color Palette (hex codes) → Typography (font pairings) → Component Examples (code in detected stack) → Layout Blueprint (ASCII) → Component States → Motion Plan → Accessibility → Anti-AI-Slop Self-Check
+
+### Single-Owner Gates (NEW in v1.30, IDS-21) — the same check ran three times on the same commit
+
+Canonical sources: `skills/gaspol-finish/SKILL.md` Steps 1-3, `skills/gaspol-research/SKILL.md`
+Phase 3. Spec: `docs/plans/2026-10-24-IDS-21-single-owner-gates-spec.md`.
+
+One large `gaspol-auto` ticket ran `gaspol-verify` and `plan-verifier` in its post-run, again in
+`gaspol-finish` Steps 1-2, then a Tier 1 review over the same diff, and re-ran `plan-verifier` three
+more times after fixes, each over the whole branch. A `plan-verifier` pass costs roughly 80-180k
+tokens and a full suite about six minutes.
+
+**One owner.** `gaspol-finish` alone runs `gaspol-verify` (full), `plan-verifier`, Tier 1 review and
+`gaspol-sync-docs`. `gaspol-execute` Step 7 and the `gaspol-auto` post-run hand off to the finish
+offer and run none of them. Finish writes `verified: PASS @ <sha>` and `plan-verifier: CLEAN @ <sha>`
+to the ledger and reuses a line only when its sha equals `git rev-parse HEAD` and
+`git status --porcelain` prints nothing. The sha is the anchor IDS-17 said "passed earlier" lacked.
+A `plan-verifier` re-run after a fix reads `<SHA>..HEAD` only (`skills/_shared/fix-loop.md`). Tier 1
+review is skipped with `gaspol-review: skipped — plan-verifier CLEAN @ <sha>`, and stays mandatory
+with no plan or when the user asks.
+
+**What this gives up, stated rather than discovered later:**
+
+- **A second reader of the diff.** `plan-verifier` checks spec and plan fit, not general bugs. If
+  bugs a Tier 1 review would have caught start appearing after merge, revisit the skip rule.
+- **A `[Nanti]` ticket has no `plan-verifier` pass** until finish runs.
+- **A ledger line can be written wrongly.** The gate trusts the ledger the way `ledger-gate` and
+  `regression-gate` already do.
+- **The savings are an estimate, not measured.** No test measures skill-text token cost; prove it
+  on the next `gaspol-auto` to `gaspol-finish` ticket.
+
+**`gaspol-learn` deleted** (17 → 16 skills): the owner judged it had no function. KB writes remain
+via `gaspol-adr` and `gaspol-research`; the finish modal offers `/security-review` only.
+
+**Research uses Firecrawl and `notebooklm`.** Sources are found with `firecrawl_search` and read with
+`firecrawl_scrape` (`maxAge: 0` where freshness matters); `notebooklm ask` synthesizes with
+citations. A missing or unauthenticated tool is state UNKNOWN: stop and ask, never fall back to
+`WebSearch`. Only public URLs become sources, because NotebookLM is an external service.
 
 ### Knowledge-store maintenance is NOT gaspol's job (CHANGED in v1.21, IDS-11)
 
@@ -1536,7 +1573,7 @@ Execution: phase-by-phase without per-phase checkpoint. Hard-stop conditions:
 
 NEVER autonomous: merge-to-main, force-push, PR creation, external messaging, plan modifications.
 
-Post-run: auto-invoke verify chain + plan-verifier BLOCKING + consolidated report.
+Post-run: consolidated report, then the finish offer. The verify chain and plan-verifier run once, in `gaspol-finish` (IDS-21).
 
 ## Red Flags: Rationalizations for NOT Invoking Skills
 
@@ -1619,5 +1656,5 @@ Last ticket: IDS-21
 
 ---
 
-**Version:** 1.29.2
-**Last Updated:** August 2026
+**Version:** 1.30.0
+**Last Updated:** October 2026
