@@ -45,8 +45,8 @@ IDS-20 stands: execution is Sonnet, Opus judges. Complexity changes **effort and
 
 | complexity | model | effort | review |
 |---|---|---|---|
-| light | sonnet | low | normal |
-| medium | sonnet | medium | normal |
+| light | sonnet | low | none |
+| medium | sonnet | medium | none |
 | complex | sonnet | high | Opus review per phase, mandatory |
 
 The orchestrator reads the plan's `complexity` and passes `model` and `effort` on each dispatch.
@@ -72,7 +72,7 @@ A plan with no `deps` / `complexity` is treated as fully sequential, all `medium
 | DAG scheduling | `skills/gaspol-parallel/scripts/dag-lanes` | yes | call from `gaspol-plan` |
 | Worktree isolation | `gaspol-worktree` | yes | call from `gaspol-auto` |
 | Model/effort per dispatch | plan `complexity` column | no | add to plan template, read in auto/parallel/execute |
-| Complexity check | `model-gate` | yes | extend |
+| Complexity check | `plan-waves` (new, `skills/gaspol-plan/scripts/`) | no | create |
 
 ## Accepted costs
 
@@ -93,4 +93,4 @@ A plan with no `deps` / `complexity` is treated as fully sequential, all `medium
 
 Deterministic bash tests under `tests/ticket-scripts/`: plan template carries the three fields;
 `gaspol-auto` reads the wave table; a plan without `complexity` is handled as sequential/medium;
-`model-gate` rejects a `complexity` label with no reason.
+`plan-waves` rejects a `complexity` label with no reason.
