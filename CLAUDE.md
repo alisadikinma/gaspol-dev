@@ -21,7 +21,8 @@ Claude Code plugin providing **16 development skills + 4 agents** for execution 
 | Path | Purpose |
 |------|---------|
 | `.claude-plugin/plugin.json` | Plugin metadata (name, version, author) |
-| `hooks/hooks.json` | SessionStart hook definition |
+| `hooks/hooks.json` | SessionStart and Stop hook definitions |
+| `hooks/stop-done-gate.sh` | Stop hook — blocks a "done" claim while work is uncommitted or `.gaspol/progress/PROGRESS-*.md` is older than HEAD (at most 2 blocks per session + HEAD; any internal error exits 0). Test: `tests/ticket-scripts/test-stop-done-gate.sh`. Not the same as `skills/gaspol-verify/scripts/ledger-gate` (that checks a ledger exists) |
 | `hooks/session-start.sh` | Session-start bootstrap — injects the 1% rule + routing directive + always-on Completeness Ladder into every session (loads `using-gaspol`) |
 | `skills/_shared/completeness-ladder.md` | **NEW (v1.20)** — the default coding stance: happy path → every error path → every edge case → the tests that prove them → observability → the comment explaining why, walked DOWN in full. Carries the Reuse Rule (stdlib → native → installed dep) and the scope-cut Red Flags. **Replaced `laziness-ladder.md`**, whose first rung asked whether the work needed to exist at all. Single source referenced by plan/execute/parallel + the session-start hook |
 | `skills/_shared/batch-gate.md` | **NEW (v1.20)** — one report, one ticket. States the default, the three split reasons, the never-split list, and the hard ceiling of two. Read by `gaspol-brainstorm` and `gaspol-debug`; the threshold is deliberately not repeated in either, for the reason `fix-loop.md` was extracted |
@@ -1787,5 +1788,5 @@ Last ticket: IDS-23
 
 ---
 
-**Version:** 1.32.0
+**Version:** 1.32.1
 **Last Updated:** October 2026

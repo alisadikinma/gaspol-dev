@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.32.1] - 2026-10-25
+
+### Added — Stop hook `stop-done-gate`
+
+- Ali had to ask "kok gak ada commit dan update ledger?" on 2026-10-18, 2026-10-21 and 2026-10-23.
+  A rule in prose did not stop it. `hooks/stop-done-gate.sh` now runs on Stop: when the last
+  assistant message claims completion (selesai, beres, done, completed, ...) in a repository with
+  `.gaspol/progress/PROGRESS-*.md`, and there are uncommitted changes outside `.gaspol/` and
+  `.claude/` or the newest ledger is older than HEAD, it exits 2 with the reason.
+- Never blocks a question mid-work, a repository without a gaspol ledger, or a cwd outside git.
+  At most 2 blocks per session and HEAD, so a commit Ali forbade cannot loop. Any internal error
+  exits 0.
+- Test: `tests/ticket-scripts/test-stop-done-gate.sh` (10 cases). Release pin moves to
+  `tests/ticket-scripts/test-release-1-32-1.sh`.
+
 ## [1.32.0] - 2026-10-24
 
 ### Changed — skills trimmed under the compaction cut, builder check, phase-specific verification (IDS-23)
