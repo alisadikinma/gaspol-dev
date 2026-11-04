@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.32.2] - 2026-11-04
+
+### Fixed — `stop-done-gate` never ran
+
+- `hooks/stop-done-gate.sh` shipped in 1.32.1 as git mode `100644`. Claude Code runs the hook as
+  `${CLAUDE_PLUGIN_ROOT}/hooks/stop-done-gate.sh`, so every Stop printed
+  `stop-done-gate.sh: Permission denied` and the gate never fired, on every machine. Seen in a
+  headless session transcript on a VPS. The file is now `100755`.
+- New `tests/ticket-scripts/test-hooks-executable.sh`: every script `hooks/hooks.json` runs must be
+  tracked as `100755`.
+
 ## [1.32.1] - 2026-10-25
 
 ### Added — Stop hook `stop-done-gate`
