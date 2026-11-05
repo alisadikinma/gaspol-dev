@@ -4,7 +4,7 @@
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.32.2-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-16-orange)](#the-16-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-65-brightgreen)](#testing)
+[![Version](https://img.shields.io/badge/version-1.33.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-65-brightgreen)](#testing)
 
 ---
 
@@ -22,7 +22,7 @@ You plan a feature carefully. Claude executes it. And then you find:
 - A backend change with nothing to review until the diff lands — too late to say "that's the wrong flow"
 - Green tests, and an app that does not start
 
-**gaspol-dev fixes this.** 16 skills + 4 agents that enforce process discipline, catch placeholders,
+**gaspol-dev fixes this.** 17 skills + 4 agents that enforce process discipline, catch placeholders,
 **run** the checks instead of reading the code, demand a reviewable design before any code, and gate
 completion with evidence — a screenshot and an exit code, never an adjective.
 
@@ -255,7 +255,7 @@ than a pass/fail verdict.
 
 ---
 
-## The 16 skills (organized by workflow)
+## The 17 skills (organized by workflow)
 
 ### Planning
 - **gaspol-brainstorm** — CLAUDE.md-first + KB precedent query (Phase 0.5) + novelty assessment (Phase 1.5) + three-path classification (spike / bounded / architectural)
@@ -276,6 +276,9 @@ than a pass/fail verdict.
 - **gaspol-review** — Tiered review lanes + adversarial refutation + 0–100 confidence rubric with an 80 threshold and an explicit false-positive catalogue
 - **gaspol-receive-review** — Verify feedback before implementing it; no performative agreement, and push back when the reviewer is wrong
 - **gaspol-finish** — The four-step chain above plus two offers, ledger close, and the publication gate — and reaching it at all is the user's choice
+
+### Data
+- **gaspol-dbpatch** — Fix data already stored in a database: investigate read-only, report-mode patch script, backup, rehearse on a copy, same-query before/after proof; production only on explicit instruction
 
 ### Learning & Maintenance
 - **gaspol-sync-docs** — CLAUDE.md sync (3 modes: post-implementation / audit / session learning)
@@ -427,7 +430,8 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.32.2** (current) | **Fix: `stop-done-gate` never ran** — the hook shipped non-executable (`100644`), so every Stop hit `Permission denied`; now `100755`, locked by `test-hooks-executable.sh`. |
+| **1.33.0** (current) | **New skill `gaspol-dbpatch`** — fixing data already stored in a database: read-only investigation, one report-by-default patch script (`--apply` writes, one transaction, idempotent, explicit timeout), backup, rehearsal on a copy, before/after evidence with the same query, cause fixed via `gaspol-debug`, production only on explicit instruction (16 → 17 skills) |
+| 1.32.2 | **Fix: `stop-done-gate` never ran** — the hook shipped non-executable (`100644`), so every Stop hit `Permission denied`; now `100755`, locked by `test-hooks-executable.sh`. |
 | **1.32.1** | **Stop hook `stop-done-gate`** — a "done" claim with uncommitted work or a gaspol ledger older than the last commit is blocked (exit 2) and sent back with the reason; questions mid-work and repos without a ledger pass. |
 | **1.32.0** | **Skill size ceiling, builder check, phase-specific verification** — six skills trimmed under the 20,000-character compaction cut with detail moved to `references/` (gates stay in the body); `gaspol-brainstorm` Phase 6 runs one fresh Opus builder check; plans carry the verification commands once in the header, checked by `verification-lint`. |
 | 1.31.0 | **Parallel waves and per-phase complexity** — `gaspol-plan` writes `Deps` and `Complexity` per phase and computes the waves with `plan-waves`; `gaspol-auto` runs multi-lane waves concurrently and the orchestrator passes the plan's `model` and `effort` to each sub-agent. Still two model tiers. |

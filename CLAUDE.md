@@ -14,7 +14,7 @@ JANGAN hardcode project-specific values. Pakai `{{placeholder}}` syntax di SKILL
 
 ## Plugin Overview
 
-Claude Code plugin providing **16 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
+Claude Code plugin providing **17 development skills + 4 agents** for execution fidelity, anti-placeholder enforcement, per-phase checkpoints, plan verification, cross-project knowledge base, and compounding self-maintenance. Born from building real AI-powered SaaS platforms and evolved through v1.2 (model rubric switching, step-level closure gates, industry research grounding, KB lifecycle) and v1.3 (git-worktree isolation, the `using-gaspol` auto-trigger bootstrap, continuous parallel execution, and a `tests/` skill-triggering + pressure harness — superpowers-parity hardening), and v1.20 (the always-on **Completeness Ladder** — a COVERAGE governor that pairs with the fidelity Iron Laws so code is both real and whole; it replaced the v1.9 Laziness Ladder, which had made scope-cutting the default stance).
 
 ## Architecture
 
@@ -93,6 +93,7 @@ Claude Code plugin providing **16 development skills + 4 agents** for execution 
 | `skills/gaspol-sync-docs/SKILL.md` | CLAUDE.md sync after code changes (3 modes) |
 | `skills/using-gaspol/SKILL.md` | **NEW (v1.3)** — Bootstrap meta-skill: 1% rule, routing table, instruction priority, rationalization Red Flags (the auto-trigger backbone) |
 | `skills/gaspol-research/SKILL.md` | **NEW** — Industry research with freshness-aware cache + quality gates |
+| `skills/gaspol-dbpatch/SKILL.md` | **NEW (v1.33)** — fixing data already stored in a database: read-only investigation, report-by-default patch script (`--apply` writes, one transaction, idempotent, timeout), backup, rehearsal on a copy, same-query before/after, cause fixed via `gaspol-debug`, production only on explicit instruction. Generic: public plugin, no project names (`tests/ticket-scripts/test-release-1-33-0.sh` greps for them) |
 | `skills/gaspol-adr/SKILL.md` | **NEW** — Auto-capture Architecture Decision Records (MADR format) |
 | `skills/gaspol-auto/SKILL.md` | **NEW** — Autonomous execution with hard-stop guardrails. **UPDATED (v1.31)** — pre-flight has five checks (adds `plan-waves`); a multi-lane wave runs concurrently in one worktree, the orchestrator commits each phase, and `model` and `effort` come from the plan's `phase …` lines |
 | `agents/code-reviewer.md` | Code review between commits (model: sonnet) |
@@ -151,6 +152,7 @@ When a user message arrives, match it against this table and invoke the skill BE
 | Update CLAUDE.md after code changes | `gaspol-sync-docs` |
 | Research external library/API/pattern | `gaspol-research` |
 | Architectural decision at fork point | `gaspol-adr` (usually auto-triggered) |
+| Fix data already stored in a database | `gaspol-dbpatch` |
 
 ### Implicit Routing (Users say WHAT, skills say HOW)
 
@@ -1788,5 +1790,5 @@ Last ticket: IDS-23
 
 ---
 
-**Version:** 1.32.2
+**Version:** 1.33.0
 **Last Updated:** October 2026

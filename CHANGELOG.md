@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.33.0] - 2026-11-05
+
+### Added — `gaspol-dbpatch`
+
+- New skill `gaspol-dbpatch` for fixing data already stored in a database: investigate with
+  read-only queries (root cause + affected row count), one patch script that defaults to report
+  mode (`--apply` writes, one transaction, idempotent, explicit timeout), back up the rows first,
+  rehearse on a copy and compare report vs result, before/after evidence with the same query,
+  fix the producing code through `gaspol-debug`, production only on explicit owner instruction,
+  and the common traps (empty id matching every row, date time zones, boot-time caches).
+- Registered in the `using-gaspol` routing table and the session-start routing block (16 → 17 skills).
+- Release pin moves to `tests/ticket-scripts/test-release-1-33-0.sh`.
+
 ## [1.32.2] - 2026-11-04
 
 ### Fixed — `stop-done-gate` never ran
