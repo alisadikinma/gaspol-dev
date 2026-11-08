@@ -257,4 +257,307 @@ LOUT="$("$TASK_BRIEF" "$PLAN" 2)"
 cmp -s "$LOUT" "$TMP_DIR/legacy-expected.md" \
     || fail "legacy brief changed: $(diff "$TMP_DIR/legacy-expected.md" "$LOUT" | head -5)"
 
+# --- 6. IDS-24: fences. A quoted template inside a phase is text, not structure ---
+# The phase extractor used to end a brief at any `---` line and count any `### Phase`
+# line, so a phase that QUOTES a plan template (a fenced block holding a rule and a
+# heading) was cut short and every later phase number resolved to the wrong block. It
+# now applies the same fence rule as verification-lint: an opener is three or more
+# backticks or tildes after at most three spaces; the closer is the same character, a
+# run at least as long, and nothing after it but blanks or CR.
+echo "test-task-brief: fence-aware extraction..."
+
+run_tb() {
+    # run_tb <plan> <n> — sets TB_OUT (stdout), TB_ERR (stderr), TB_RC (exit code)
+    set +e
+    TB_OUT="$("$TASK_BRIEF" "$1" "$2" 2>"$TMP_DIR/stderr")"
+    TB_RC=$?
+    set -e
+    TB_ERR="$(cat "$TMP_DIR/stderr")"
+}
+
+QPLAN="$REPO/docs/plans/2026-11-09-XYZ-20-quote-plan.md"
+cat >"$QPLAN" <<'EOF'
+**Ticket:** XYZ-20
+
+### Phase A1: quotes a template
+
+**Steps:**
+1. Quote this template:
+
+```markdown
+### Phase Z: quoted
+---
+**Verification:**
+```
+
+2. After the fence this is still phase A1: magic 7777.
+
+---
+
+### Phase A2: second
+
+1. Second text 5151.
+EOF
+
+run_tb "$QPLAN" 1
+[ "$TB_RC" = "0" ] || fail "quote plan phase 1: expected exit 0, got $TB_RC ($TB_ERR)"
+[ "$TB_OUT" = "$REPO/.gaspol/tasks/XYZ-20/task-1-brief.md" ] \
+    || fail "quote plan phase 1: stdout must be exactly the written path, got: $TB_OUT"
+grep -q "7777" "$TB_OUT" || fail "brief stops at a --- inside a fence"
+grep -q "^### Phase Z: quoted$" "$TB_OUT" || fail "the quoted heading inside the fence was dropped from the brief"
+grep -q "Phase A2" "$TB_OUT" && fail "phase 1 brief leaked phase 2"
+[ -z "$TB_ERR" ] || fail "a well-formed fenced plan must not write to stderr, got: $TB_ERR"
+
+run_tb "$QPLAN" 2
+[ "$TB_RC" = "0" ] || fail "quote plan phase 2: expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "5151" "$TB_OUT" || fail "phase 2 resolved to the wrong block: the quoted ### Phase Z was counted"
+grep -q "Phase Z" "$TB_OUT" && fail "phase 2 brief contains the quoted block"
+
+run_tb "$QPLAN" 3
+[ "$TB_RC" = "2" ] || fail "quote plan phase 3: a quoted heading must not count as a phase, expected exit 2, got $TB_RC"
+[ -z "$TB_OUT" ] || fail "quote plan phase 3: stdout must be empty on exit 2, got: $TB_OUT"
+
+# (a) nested fence: three backticks inside four are text; a tilde fence holds backticks
+NPLAN="$REPO/docs/plans/2026-11-09-XYZ-21-nested-plan.md"
+cat >"$NPLAN" <<'EOF'
+**Ticket:** XYZ-21
+
+### Phase A1: nested quotes
+
+````markdown
+```
+---
+### Phase Q: not a phase
+```
+---
+````
+
+~~~
+```
+---
+~~~
+
+tail text 8888.
+
+---
+
+### Phase A2: second
+
+1. Second text 6262.
+EOF
+
+run_tb "$NPLAN" 1
+[ "$TB_RC" = "0" ] || fail "nested plan phase 1: expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "8888" "$TB_OUT" || fail "brief stops inside a nested fence (--- or ### seen as structure)"
+grep -q "Phase A2" "$TB_OUT" && fail "nested plan phase 1 leaked phase 2"
+run_tb "$NPLAN" 2
+grep -q "6262" "$TB_OUT" || fail "nested plan phase 2 resolved to the wrong block"
+
+# A fence indented four spaces is not a fence: the --- after it still ends the block.
+IPLAN="$REPO/docs/plans/2026-11-09-XYZ-27-indented-plan.md"
+cat >"$IPLAN" <<'EOF'
+**Ticket:** XYZ-27
+
+### Phase A1: indented backticks
+
+    ```
+body 3131
+
+---
+
+### Phase A2: second
+
+1. Second text 3232.
+EOF
+run_tb "$IPLAN" 1
+[ "$TB_RC" = "0" ] || fail "indented plan phase 1: expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "3131" "$TB_OUT" || fail "indented plan phase 1 lost its body"
+grep -q "Phase A2" "$TB_OUT" && fail "four-space-indented backticks were taken for a fence; the --- did not end the block"
+run_tb "$IPLAN" 2
+grep -q "3232" "$TB_OUT" || fail "indented plan phase 2 resolved to the wrong block"
+
+# (b) an unclosed fence opening INSIDE the requested phase hides a later phase heading
+UPLAN="$REPO/docs/plans/2026-11-09-XYZ-22-unclosed-plan.md"
+cat >"$UPLAN" <<'EOF'
+**Ticket:** XYZ-22
+
+### Phase A1: opens a fence it never closes
+
+```markdown
+sample text
+
+### Phase A2: hidden by the fence
+
+1. never visible
+EOF
+run_tb "$UPLAN" 1
+[ "$TB_RC" = "1" ] || fail "unclosed fence in the requested phase: expected exit 1, got $TB_RC"
+[ -z "$TB_OUT" ] || fail "refusal must print nothing on stdout, got: $TB_OUT"
+case "$TB_ERR" in
+    *"the code fence opened at line 5 of 2026-11-09-XYZ-22-unclosed-plan.md never closes"*) ;;
+    *) fail "stderr must name the fence's opening line and the plan basename, got: $TB_ERR" ;;
+esac
+[ ! -e "$REPO/.gaspol/tasks/XYZ-22" ] || fail "refusal wrote into .gaspol/tasks/XYZ-22"
+case "$TB_ERR" in *"$REPO"*) fail "stderr leaked the plan's directory: $TB_ERR" ;; esac
+
+# (c) the same refusal when a LATER phase is requested and the fence opened in an earlier one
+EPLAN="$REPO/docs/plans/2026-11-09-XYZ-23-earlier-plan.md"
+cat >"$EPLAN" <<'EOF'
+**Ticket:** XYZ-23
+
+### Phase A1: first
+
+```
+unclosed sample
+
+### Phase A2: hidden second
+EOF
+run_tb "$EPLAN" 2
+[ "$TB_RC" = "1" ] || fail "fence opened in an earlier phase: expected exit 1 (not the misleading exit 2), got $TB_RC"
+[ -z "$TB_OUT" ] || fail "refusal must print nothing on stdout, got: $TB_OUT"
+case "$TB_ERR" in
+    *"opened at line 5 of 2026-11-09-XYZ-23-earlier-plan.md never closes"*) ;;
+    *) fail "stderr must name line 5, got: $TB_ERR" ;;
+esac
+[ ! -e "$REPO/.gaspol/tasks/XYZ-23" ] || fail "refusal wrote into .gaspol/tasks/XYZ-23"
+
+# (d) a stray unclosed fence at the very end that hides no phase heading: warn, write, exit 0
+SPLAN="$REPO/docs/plans/2026-11-09-XYZ-24-stray-plan.md"
+cat >"$SPLAN" <<'EOF'
+**Ticket:** XYZ-24
+
+### Phase A1: first
+
+1. First text 1111.
+
+---
+
+### Phase A2: last
+
+1. Last text 2222.
+
+```
+stray tail line
+EOF
+run_tb "$SPLAN" 2
+[ "$TB_RC" = "0" ] || fail "stray fence: expected exit 0, got $TB_RC ($TB_ERR)"
+[ "$TB_OUT" = "$REPO/.gaspol/tasks/XYZ-24/task-2-brief.md" ] || fail "stray fence: stdout must be the written path, got: $TB_OUT"
+grep -q "2222" "$TB_OUT" || fail "stray fence: brief lost its phase text"
+case "$TB_ERR" in
+    "task-brief: warning: the code fence opened at line 13 never closes; it hides no phase heading, so this brief is complete") ;;
+    *) fail "stray fence: expected the one-line warning naming line 13, got: $TB_ERR" ;;
+esac
+run_tb "$SPLAN" 1
+[ "$TB_RC" = "0" ] || fail "stray fence, earlier phase: expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "1111" "$TB_OUT" || fail "stray fence, earlier phase: brief lost its phase text"
+case "$TB_ERR" in "task-brief: warning:"*) ;; *) fail "stray fence, earlier phase: expected a warning, got: $TB_ERR" ;; esac
+
+# (d2) an unclosed fence that hides a plain ### heading (not a phase) still refuses:
+# it hid the end of the captured block, so the brief would run on into the fence.
+HPLAN2="$REPO/docs/plans/2026-11-09-XYZ-28-hidesend-plan.md"
+cat >"$HPLAN2" <<'EOF'
+**Ticket:** XYZ-28
+
+### Phase A1: first
+
+```
+sample
+
+### Notes
+
+more
+EOF
+run_tb "$HPLAN2" 1
+[ "$TB_RC" = "1" ] || fail "fence hiding the end of the block: expected exit 1, got $TB_RC ($TB_ERR)"
+[ ! -e "$REPO/.gaspol/tasks/XYZ-28" ] || fail "refusal wrote into .gaspol/tasks/XYZ-28"
+
+# (e) a plan with no fences: the brief is byte-identical to what the pre-change script
+# wrote. The expected bytes are fixed here (generated with the pre-change script), so
+# the test keeps meaning something after the script changes. CRLF phase text, a
+# whitespace-only line and blank lines before the rule are all copied verbatim.
+BPLAN="$REPO/docs/plans/2026-11-09-XYZ-25-bytes-plan.md"
+printf '%s\r\n' '**Ticket:** XYZ-25' '**Format:** waves-v1' '' '**Verification commands:**' '- unit: npm test' '' \
+    '### Phase A1: first' '' '1. First 1.' '' '---' '' \
+    '### Phase A2: second' '' '1. Second line.' '   ' '2. Next line, then blanks.' '' '' '---' '' \
+    '### Phase A3: third' '1. Third.' >"$BPLAN"
+run_tb "$BPLAN" 2
+[ "$TB_RC" = "0" ] || fail "byte plan: expected exit 0, got $TB_RC ($TB_ERR)"
+[ -z "$TB_ERR" ] || fail "byte plan: stderr must be empty, got: $TB_ERR"
+{
+    echo "# Task brief — XYZ-25, phase 2"
+    echo
+    echo "Source plan: 2026-11-09-XYZ-25-bytes-plan.md"
+    echo
+    echo "These are your requirements. Use every value in them verbatim — the"
+    echo "numbers, strings, signatures, and test cases here are exact, not"
+    echo "illustrative. Do not go looking for the plan file this came from."
+    echo
+    echo "---"
+    echo
+    printf '%s\r\n' '### Phase A2: second' '' '1. Second line.' '   ' '2. Next line, then blanks.' '' ''
+    echo
+    echo "## Verification commands (from the plan header)"
+    echo
+    echo "**Verification commands:**"
+    echo "- unit: npm test"
+} > "$TMP_DIR/bytes-expected.md"
+# Command substitution strips only trailing LFs, so the block keeps its final CRs (the two
+# blank CR lines) and `echo` then supplies the blank line before the header section.
+cmp -s "$TB_OUT" "$TMP_DIR/bytes-expected.md" \
+    || fail "no-fence brief is not byte-identical to the pre-change output: $(diff "$TMP_DIR/bytes-expected.md" "$TB_OUT" | head -8 | cat -A)"
+
+# (f) usage errors still exit 2
+expect_exit_2 "N is zero" "$TASK_BRIEF" "$PLAN" 0
+expect_exit_2 "N is negative" "$TASK_BRIEF" "$PLAN" -1
+expect_exit_2 "empty N" "$TASK_BRIEF" "$PLAN" ""
+expect_exit_2 "fenced plan, nonexistent phase" "$TASK_BRIEF" "$QPLAN" 99
+
+# --- 7. IDS-24: task-brief and verification-lint agree on which lines are fenced ---
+# Same fixture through both scripts: the lint reports N phases and task-brief resolves
+# exactly N phase numbers. If the two fence rules drifted apart, one would count the
+# quoted heading and the other would not.
+echo "test-task-brief: agrees with verification-lint on fenced lines..."
+APLAN="$REPO/docs/plans/2026-11-09-XYZ-26-agree-plan.md"
+cat >"$APLAN" <<'EOF'
+**Ticket:** XYZ-26
+
+**Verification commands:**
+- unit: npm test
+
+### Phase A1: quotes a template
+
+**Verification:**
+- [ ] the quoted template survives intact
+
+````markdown
+### Phase Z: quoted
+---
+```
+**Verification:**
+- [ ] a quoted item
+```
+---
+````
+
+---
+
+### Phase A2: second
+
+**Verification:**
+- [ ] the second phase does its own check
+EOF
+LINT_OUT="$("$LINT" "$APLAN")" || fail "the lint rejected the agreement fixture: $LINT_OUT"
+case "$LINT_OUT" in
+    "verification-lint: OK — 2 phase(s)") ;;
+    *) fail "the lint should report 2 phases, got: $LINT_OUT" ;;
+esac
+run_tb "$APLAN" 1
+[ "$TB_RC" = "0" ] || fail "agreement fixture phase 1: expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "a quoted item" "$TB_OUT" || fail "agreement fixture phase 1: the quoted block was cut short"
+run_tb "$APLAN" 2
+[ "$TB_RC" = "0" ] || fail "agreement fixture phase 2: expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "the second phase does its own check" "$TB_OUT" || fail "agreement fixture phase 2 resolved to the wrong block"
+run_tb "$APLAN" 3
+[ "$TB_RC" = "2" ] || fail "the lint saw 2 phases but task-brief resolved a third: expected exit 2, got $TB_RC"
+
 echo "PASS: test-task-brief"
