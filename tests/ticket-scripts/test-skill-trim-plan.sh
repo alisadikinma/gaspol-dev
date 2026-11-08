@@ -44,7 +44,7 @@ GATES=(
   'detect-stack-nothing|`detect-stack` prints nothing → write'
   'ledger-copy-not-summarise|**Copy, do not summarise.** Both blocks already exist in the plan you just wrote, and'
   'ledger-four-sections|**Four mandatory sections, all ABOVE `## Log`:**'
-  'ledger-step7-sections|the four mandatory sections, a `### [ ] Phase <N>: <name>` **sub-block per phase**'
+  'ledger-step7-sections|the four mandatory sections, a `#### [ ] Phase <N>: <name>` **sub-block per phase**'
   'ledger-log-last|**Structural rule — `## Log` is ALWAYS the last block in the file.**'
   'ledger-never-append|never append a section after `## Log`.'
   'ledger-reason-mandatory|a short reason is MANDATORY on the line + detail in the Log'

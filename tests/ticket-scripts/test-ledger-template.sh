@@ -118,9 +118,24 @@ echo "  ok — step 7 names both **Steps:** and **Verification:**"
 
 # 8 — the template demonstrates the per-phase sub-heading.
 echo "test-ledger-template: 8. per-phase sub-block..."
-grep -qE '^### \[[ x>~]\] Phase ' "$TEMPLATE" \
-    || fail "the template shows no '### [ ] Phase <N>: <name>' sub-heading"
+grep -qE '^#### \[[ x>~]\] Phase ' "$TEMPLATE" \
+    || fail "the template shows no '#### [ ] Phase <N>: <name>' sub-heading"
 echo "  ok — the template shows a per-phase sub-block"
+
+# 8b — phases are grouped by wave, with a summary table above the checklist.
+echo "test-ledger-template: 8b. wave grouping..."
+grep -qE '^### Gelombang [0-9]+ — ' "$TEMPLATE" \
+    || fail "the template shows no '### Gelombang <N> — <STATUS>' wave heading"
+grep -qF '## Ringkasan gelombang' "$TEMPLATE" \
+    || fail "the template has no '## Ringkasan gelombang' table"
+grep -qE '^## Checklist$' "$TEMPLATE" \
+    || fail "the checklist heading must stay exactly '## Checklist' (ledger-gate reads it)"
+grep -qE '^\| Gelombang \| Phase \| Status \| Commit \|' "$TEMPLATE" \
+    || fail "## Phase log has no leading Gelombang column"
+if grep -qE '^## Waves' "$TEMPLATE"; then
+    fail "the template still carries a separate '## Waves' section"
+fi
+echo "  ok — waves group the checklist and lead the Phase log"
 
 # 9 — IDS-23: the example Phase A checklist holds phase-specific lines only. The
 #     generic commands are written once in the plan header's `**Verification

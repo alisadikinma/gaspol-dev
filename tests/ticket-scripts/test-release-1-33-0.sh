@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Release metadata for v1.33.0 (new skill gaspol-dbpatch) agrees everywhere a reader looks,
+# Release metadata for v1.33.1 (ledger grouped by wave; gaspol-dbpatch from 1.33.0) agrees everywhere a reader looks,
 # and the skill itself is registered, generic (public plugin) and carries its eight rules.
-# Supersedes test-release-1-32-2.sh (a version pin is replaced by the next one, not stacked).
+# Supersedes test-release-1-33-0.sh (a version pin is replaced by the next one, not stacked).
 set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 FAILED=0
 fail() { echo "FAIL: $1"; FAILED=$((FAILED + 1)); }
 pass() { echo "PASS: $1"; }
-V="1.33.0"
+V="1.33.1"
 ver_of() { sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -1; }
 
 for pj in .claude-plugin/plugin.json plugin.json; do

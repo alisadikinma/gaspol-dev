@@ -6,6 +6,9 @@ Read from `skills/gaspol-execute/SKILL.md` when writing the ledger after a check
 
    - **(a) Tick the Checklist, in place:** `- [x] Phase [X]: [name] — DONE`, `- [>] … — DOING`
      at start, or `- [~] … — <short reason>` if cancelled/skipped (reason MANDATORY, detail in the Log).
+     In a wave-grouped ledger the marker is on the `#### [ ] Phase [X]` sub-block heading; also update
+     that wave's `### Gelombang <N> — <STATUS>` heading and its `## Ringkasan gelombang` row
+     (status rules: `skills/gaspol-plan/references/ledger-format.md`).
    - **(b) Set the phase's `## Phase log` row:** status (`DONE`/`DOING`/`WIP`/`DIBATALKAN`) and
      the real commit SHA **in backticks, short form** (`` `86f058d` ``), never bare, never `—`; until committed the cell reads `` `<no commit>` ``. A finished phase still at `TODO`, or with a bare or missing SHA, fails the gate.
    - **(c) Append one Log line:**

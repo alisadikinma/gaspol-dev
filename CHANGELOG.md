@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.33.1] - 2026-11-08
+
+### Changed
+- Progress ledger is grouped by wave, not by phase letter. A `## Ringkasan gelombang` table
+  (wave → phase ids → status) sits above `## Checklist`; each wave is a
+  `### Gelombang <N> — <STATUS> (<ids>)` heading holding its `#### [ ] Phase` sub-blocks in the
+  order `plan-waves` runs them; `## Phase log` gains a leading `Gelombang` column. The separate
+  `## Waves` block is gone. Reason: a letter-ordered ledger put 2B next to 2A although 2B runs two
+  waves later, so a reader could not tell what runs next.
+- `gaspol-execute` / `gaspol-auto` ledger tick also updates the wave heading and its summary row.
+- Release pin stays in `tests/ticket-scripts/test-release-1-33-0.sh`, now checking 1.33.1.
+
 ## [1.33.0] - 2026-11-05
 
 ### Added — `gaspol-dbpatch`

@@ -91,7 +91,7 @@ resolution above — reuse the spec file's ticket if one exists):
    below as `**Ticket:**`, `**Ledger:**`, and `**Spec:**` fields.
 7. **Create the ledger file now, at plan-write time** — do not defer this to the executor.
    Write `.gaspol/progress/PROGRESS-<TICKET>.md` (and its parent dir) with the header fields,
-   the four mandatory sections, a `### [ ] Phase <N>: <name>` **sub-block per phase** whose body
+   the four mandatory sections, a `#### [ ] Phase <N>: <name>` **sub-block per phase** whose body
    is that phase's `**Steps:**` rendered as checkboxes followed by its `**Verification:**` block
    verbatim, a `## Phase log` table with **one row per phase, every phase, from the start**, and a `## Log` with exactly one line:
    `- <YYYY-MM-DD> plan ditulis — NEXT: Phase A` (or whatever the first phase is named).
@@ -245,7 +245,7 @@ The path goes through `${CLAUDE_PLUGIN_ROOT:?…}`, never a relative path. Read 
 
 | Exit | Stdout line 1 | Do this |
 |---|---|---|
-| 0 | `plan-waves: OK — <n> phase(s), <m> wave(s)` | paste its `wave` / `lane` lines as an `## Execution Waves` section in the plan, and the same lines as a `## Waves` section in the ledger **above** `## Log` (`## Log` stays last) |
+| 0 | `plan-waves: OK — <n> phase(s), <m> wave(s)` | paste its `wave` / `lane` lines as an `## Execution Waves` section in the plan, then **group the ledger by wave** (`## Ringkasan gelombang` + `### Gelombang <N>` headings) per `references/ledger-format.md` (`## Log` stays last) |
 | 1 | `plan-waves: BLOCKING — <problem>` | fix the plan and re-run |
 | 3 | `plan-waves: UNKNOWN — <why>` | **STOP and ask.** The script or the plan could not be read; do not schedule by hand |
 | 4 | `plan-waves: N/A — no waves-v1 format header …` | the `**Format:** waves-v1` line is missing from a new plan: add it and re-run. Exit 4 is never a pass |

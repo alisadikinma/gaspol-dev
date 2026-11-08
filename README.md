@@ -4,7 +4,7 @@
 
 ![gaspol-dev — the seven-stage chain: brainstorm, plan, execute, verify, review, finish, learn. Verify, review, and finish are blocking gates.](assets/image/gaspol-dev-hero.png)
 
-[![Version](https://img.shields.io/badge/version-1.33.0-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-65-brightgreen)](#testing)
+[![Version](https://img.shields.io/badge/version-1.33.1-blue)](https://github.com/alisadikinma/gaspol-dev) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Skills](https://img.shields.io/badge/skills-17-orange)](#the-17-skills-organized-by-workflow) [![Agents](https://img.shields.io/badge/agents-4-orange)](#agents) [![Tests](https://img.shields.io/badge/deterministic%20tests-65-brightgreen)](#testing)
 
 ---
 
@@ -430,7 +430,8 @@ Full rules: [`skills/gaspol-verify/rules/anti-ai-slop.md`](skills/gaspol-verify/
 
 | Version | What landed |
 |---|---|
-| **1.33.0** (current) | **New skill `gaspol-dbpatch`** — fixing data already stored in a database: read-only investigation, one report-by-default patch script (`--apply` writes, one transaction, idempotent, explicit timeout), backup, rehearsal on a copy, before/after evidence with the same query, cause fixed via `gaspol-debug`, production only on explicit instruction (16 → 17 skills) |
+| **1.33.1** (current) | **Ledger grouped by wave** — `## Ringkasan gelombang` table above `## Checklist`; phases sit under `### Gelombang <N> — <STATUS>` in wave order (not phase-letter order); `## Phase log` gains a leading `Gelombang` column; the separate `## Waves` block is gone |
+| **1.33.0** | **New skill `gaspol-dbpatch`** — fixing data already stored in a database: read-only investigation, one report-by-default patch script (`--apply` writes, one transaction, idempotent, explicit timeout), backup, rehearsal on a copy, before/after evidence with the same query, cause fixed via `gaspol-debug`, production only on explicit instruction (16 → 17 skills) |
 | 1.32.2 | **Fix: `stop-done-gate` never ran** — the hook shipped non-executable (`100644`), so every Stop hit `Permission denied`; now `100755`, locked by `test-hooks-executable.sh`. |
 | **1.32.1** | **Stop hook `stop-done-gate`** — a "done" claim with uncommitted work or a gaspol ledger older than the last commit is blocked (exit 2) and sent back with the reason; questions mid-work and repos without a ledger pass. |
 | **1.32.0** | **Skill size ceiling, builder check, phase-specific verification** — six skills trimmed under the 20,000-character compaction cut with detail moved to `references/` (gates stay in the body); `gaspol-brainstorm` Phase 6 runs one fresh Opus builder check; plans carry the verification commands once in the header, checked by `verification-lint`. |
