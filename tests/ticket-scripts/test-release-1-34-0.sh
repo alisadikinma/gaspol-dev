@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Release metadata for v1.33.1 (ledger grouped by wave; gaspol-dbpatch from 1.33.0) agrees everywhere a reader looks,
-# and the skill itself is registered, generic (public plugin) and carries its eight rules.
+# Release metadata for v1.34.0 (working discipline, fence-aware task-brief and verification-lint; gaspol-dbpatch
+# from 1.33.0) agrees everywhere a reader looks, and the skill itself is registered, generic (public plugin)
+# and carries its eight rules.
 # Supersedes test-release-1-33-0.sh (a version pin is replaced by the next one, not stacked).
 set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -8,21 +9,27 @@ cd "$REPO_ROOT" || exit 1
 FAILED=0
 fail() { echo "FAIL: $1"; FAILED=$((FAILED + 1)); }
 pass() { echo "PASS: $1"; }
-V="1.33.2"
+V="1.34.0"
 ver_of() { sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -1; }
 
 for pj in .claude-plugin/plugin.json plugin.json; do
-  v="$(ver_of "$pj")"; [ "$v" = "$V" ] && pass "$pj version is $V" || fail "$pj version is $v"
+  v="$(ver_of "$pj")"; [ "$v" = "$V" ] && pass "$pj version is $V" || fail "$pj version is $v, expected $V"
 done
-mv="$(python3 -c 'import json;print([p["version"] for p in json.load(open("../gaspol-one/.claude-plugin/marketplace.json"))["plugins"] if p["name"]=="gaspol-dev"][0])' 2>/dev/null)"
-[ "$mv" = "$V" ] && pass "marketplace entry is $V" || fail "marketplace entry is '$mv'"
-grep -q "| gaspol-dev](https://github.com/alisadikinma/gaspol-dev) | $V |" ../gaspol-one/README.md 2>/dev/null \
-  || grep -qE "gaspol-dev\]\(https://github.com/alisadikinma/gaspol-dev\) \| $V \|" ../gaspol-one/README.md \
-  && pass "gaspol-one README table is $V" || fail "gaspol-one README table version"
+# The sibling of the MAIN checkout, correct from any worktree (a worktree's own ../gaspol-one is wrong).
+GASPOL_ONE="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/../gaspol-one"
+if [ -d "$GASPOL_ONE" ]; then
+  mv="$(python3 -c 'import json,sys;print([p["version"] for p in json.load(open(sys.argv[1]+"/.claude-plugin/marketplace.json"))["plugins"] if p["name"]=="gaspol-dev"][0])' "$GASPOL_ONE" 2>/dev/null)"
+  [ "$mv" = "$V" ] && pass "marketplace entry is $V" || fail "marketplace entry is '$mv'"
+  grep -qE "gaspol-dev\]\(https://github.com/alisadikinma/gaspol-dev\) \| $V \|" "$GASPOL_ONE/README.md" 2>/dev/null \
+    && pass "gaspol-one README table is $V" || fail "gaspol-one README table version"
+else
+  echo "SKIP: gaspol-one not found at $GASPOL_ONE (marketplace and README assertions not run, not counted as passed)"
+fi
 top="$(grep -m1 '^## \[' CHANGELOG.md || true)"
 case "$top" in *"$V"*) pass "CHANGELOG top entry is $V" ;; *) fail "CHANGELOG top is '$top'" ;; esac
 body="$(awk '/^## \[1\.33\.0\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md)"
-case "$body" in *gaspol-dbpatch*) pass "CHANGELOG $V names gaspol-dbpatch" ;; *) fail "CHANGELOG $V does not name gaspol-dbpatch" ;; esac
+case "$body" in *gaspol-dbpatch*) pass "CHANGELOG 1.33.0 names gaspol-dbpatch" ;; *) fail "CHANGELOG 1.33.0 does not name gaspol-dbpatch" ;; esac
+grep -q '^## \[1\.34\.0\]' CHANGELOG.md && pass "CHANGELOG has a 1.34.0 entry" || fail "CHANGELOG has no 1.34.0 entry"
 grep -q '^## \[1\.32\.2\]' CHANGELOG.md && pass "CHANGELOG still carries 1.32.2" || fail "CHANGELOG lost 1.32.2"
 grep -q "badge/version-$V" README.md && pass "README badge $V" || fail "README badge"
 grep -q "| \*\*$V\*\* (current)" README.md && pass "README release row $V (current)" || fail "README release row"
@@ -47,5 +54,8 @@ fi
 for f in hooks/session-start.sh skills/using-gaspol/SKILL.md README.md CLAUDE.md; do
   grep -q 'gaspol-dbpatch' "$f" && pass "$f registers gaspol-dbpatch" || fail "$f does not register gaspol-dbpatch"
 done
-[ "$FAILED" -gt 0 ] && { echo "test-release-1-33-0: $FAILED failed"; exit 1; }
-echo "test-release-1-33-0: ALL PASS"
+for needle in 'IDS-24' 'skills/_shared/working-discipline.md' 'fence'; do
+  grep -q -- "$needle" CLAUDE.md && pass "CLAUDE.md mentions '$needle'" || fail "CLAUDE.md lacks '$needle'"
+done
+[ "$FAILED" -gt 0 ] && { echo "test-release-1-34-0: $FAILED failed"; exit 1; }
+echo "test-release-1-34-0: ALL PASS"
