@@ -1360,8 +1360,8 @@ body or a reference (E 351 of 356, F complete apart from condensed steps, G 316 
 Canonical sources: `skills/_shared/working-discipline.md`, `skills/gaspol-parallel/scripts/task-brief`,
 `skills/gaspol-plan/scripts/verification-lint`, `tests/ticket-scripts/test-working-discipline.sh`.
 
-**The defect, with evidence.** Part A: the plugin carried no equivalent of Surgical Changes. A grep
-for it across `skills/`, `hooks/` and `agents/` found no rule telling an agent to leave adjacent
+**The defect, with evidence.** Part A: the plugin carried no equivalent of Surgical Changes. `grep -rniE "surgical|adjacent code|drive-by|unrelated dead code" skills/ hooks/ agents/`
+found no rule telling an agent to leave adjacent
 code, comments and formatting alone, while the Completeness Ladder pushed every task toward more
 depth. Part B: the IDS-23 open debt, found at Phase A. `task-brief` cut a phase at the first `---`
 line even inside a fenced code block, so a brief could be silently truncated, and
