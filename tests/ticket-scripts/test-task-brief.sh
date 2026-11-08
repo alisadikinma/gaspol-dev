@@ -353,6 +353,20 @@ grep -q "Phase A2" "$TB_OUT" && fail "nested plan phase 1 leaked phase 2"
 run_tb "$NPLAN" 2
 grep -q "6262" "$TB_OUT" || fail "nested plan phase 2 resolved to the wrong block"
 
+# A closer followed by a run of CRs still closes the fence, as in verification-lint (which
+# strips every trailing CR). Review finding: awk stripped only one CR, so the fence stayed
+# open, the quoted `### Phase Q` was not counted by the lint but WAS skipped here, and
+# `task-brief 2` wrote the quoted heading as the brief without a warning.
+CPLAN="$REPO/docs/plans/2026-11-09-XYZ-38-crrun-plan.md"
+printf '**Ticket:** XYZ-38\n\n### Phase A1: first\n```\nx\n```\r\r\n### Phase A2: real 4141\n```\n### Phase Q: quoted\n```\n### Phase A3: third\n```\n```\n' >"$CPLAN"
+run_tb "$CPLAN" 2
+[ "$TB_RC" = "0" ] || fail "CR-run closer: phase 2 expected exit 0, got $TB_RC ($TB_ERR)"
+grep -q "4141" "$TB_OUT" || fail "CR-run closer: phase 2 resolved to the wrong block"
+run_tb "$CPLAN" 3
+grep -q "Phase A3" "$TB_OUT" || fail "CR-run closer: phase 3 is not the third real phase"
+run_tb "$CPLAN" 4
+[ "$TB_RC" = "2" ] || fail "CR-run closer: a fourth phase must not exist, expected exit 2, got $TB_RC"
+
 # A fence indented four spaces is not a fence: the --- after it still ends the block.
 IPLAN="$REPO/docs/plans/2026-11-09-XYZ-27-indented-plan.md"
 cat >"$IPLAN" <<'EOF'

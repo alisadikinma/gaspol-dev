@@ -69,7 +69,7 @@ function fence_step(l, nr,    sp, rest, ch, n) {
     while (substr(rest, n + 1, 1) == ch) n++
     if (n < 3) return
     if (fc == "") { fc = ch; fl = n; fopen = nr; delim = 1; return }
-    if (ch == fc && n >= fl && substr(rest, n + 1) ~ /^[ \t]*$/) { fc = ""; delim = 1 }
+    if (ch == fc && n >= fl && substr(rest, n + 1) ~ /^[ \t\r]*$/) { fc = ""; delim = 1 }
 }
 '
 
