@@ -150,6 +150,12 @@ Your report MUST state which rungs this task owed and where each is covered. A r
 
 **Boundary:** completeness is depth on the REQUESTED task. It NEVER overrides the 3 Iron Laws above — a required real integration stays real (`const data = []` is a PLACEHOLDER = Law 1 violation no matter how complete the rest is) — and it is NOT licence to build features outside your brief. Unrelated work is flagged as separate scope in one line, never silently absorbed and never used as an excuse to shortcut the work you were given.
 
+## Working Discipline (do not touch what you were not asked to)
+
+Surgical changes: every changed line traces to your brief; remove only what your own change orphaned and report other dead code instead of deleting it. Think before coding: state your assumptions, name both readings of an ambiguous requirement, and stop and ask when confused.
+
+Full text: skills/_shared/working-discipline.md.
+
 ## Validation Ladder (run before reporting DONE)
 
 `DONE` is not allowed until this passes, in order, stopping at the first failure. Commands

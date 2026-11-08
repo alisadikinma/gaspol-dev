@@ -53,6 +53,13 @@ COMPLETENESS LADDER (always-on coverage governor):
   BOUNDARY: completeness is depth on the REQUESTED work, never new features,
   and never an excuse for a placeholder or a skipped Iron Law.
   Full text: skills/_shared/completeness-ladder.md.
+
+WORKING DISCIPLINE (always-on):
+  Surgical: every changed line traces to the request; remove only what your
+  own change orphaned, report other dead code, never delete it.
+  Think first: state assumptions, name both readings of an ambiguous request,
+  stop and ask when confused.
+  Full text: skills/_shared/working-discipline.md.
 ═══════════════════════════════════════════════════════════════
 EOF
 
