@@ -290,6 +290,33 @@ EOF
 } > "$FENCED"
 expect "a phase heading inside a fence is ignored" 0 "verification-lint: OK — 1 phase(s)" "$FENCED"
 
+echo "test-verification-lint: one fence rule — length, character, closer text, indent..."
+# fence_case <label> <exit> <verdict> <fence-lines...>: Phase A is real, then the given lines,
+# then a quoted `### Phase Z` with only a generic line. If Z is parsed as a phase the verdict
+# is BLOCKING; if the fence is still open it is ignored.
+fence_plan() {
+    local out="$1"
+    shift
+    {
+        printf '%s\n' "$HEADER"
+        printf '### Phase A: real\n\n**Verification:**\n- [ ] a check only phase A makes\n\n'
+        printf '%s\n' "$@"
+        printf '### Phase Z: quoted\n\n**Verification:**\n- [ ] `npm test` passes\n'
+    } > "$out"
+}
+fence_plan "$TMP/nested.md" '````markdown' '```ts' 'inner'
+expect "nested fence: inner three-backtick run does not close a four-backtick fence" 0 "verification-lint: OK — 1 phase(s)" "$TMP/nested.md"
+fence_plan "$TMP/tilde.md" '~~~' '```'
+expect "a tilde fence is not closed by a backtick run" 0 "verification-lint: OK — 1 phase(s)" "$TMP/tilde.md"
+fence_plan "$TMP/trailing.md" '```' '```ts'
+expect "a closing line with trailing text does not close" 0 "verification-lint: OK — 1 phase(s)" "$TMP/trailing.md"
+fence_plan "$TMP/indent3.md" '   ```'
+expect "a fence indented three spaces is a fence" 0 "verification-lint: OK — 1 phase(s)" "$TMP/indent3.md"
+fence_plan "$TMP/indent4.md" '    ```'
+expect "four spaces of indent is not a fence" 1 "verification-lint: BLOCKING — phase Z has no phase-specific verification" "$TMP/indent4.md"
+fence_plan "$TMP/closed.md" '```' 'x' '```'
+expect "a plainly closed fence ends, so the next phase is parsed" 1 "verification-lint: BLOCKING — phase Z has no phase-specific verification" "$TMP/closed.md"
+
 # task-brief matches the header line after stripping TRAILING blanks only; the lint must
 # not be more lenient on the left, or the two disagree on whether a plan has the header.
 INDENTED="$TMP/indented-plan.md"

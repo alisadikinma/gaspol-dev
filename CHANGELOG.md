@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.34.0] - 2026-11-09
+
+### Added
+- Working discipline (`skills/_shared/working-discipline.md`): two rules, Surgical changes and
+  Think before coding, adapted from Andrej Karpathy's observations
+  (github.com/multica-ai/andrej-karpathy-skills, MIT). The session-start hook carries a summary
+  (4,357 to 4,689 bytes) and the implementer prompt points at the file.
+- `tests/ticket-scripts/test-working-discipline.sh` pins the rule file, the hook summary and the pointer.
+
+### Changed
+- `task-brief` and `verification-lint` share one fence rule: an opener is a run of 3 or more
+  backticks or tildes after at most 3 spaces; a closer uses the same character, a run at least as
+  long, and only blanks or CRs after it. `task-brief` no longer cuts a phase at a `---` line inside a
+  fenced block, and refuses (exit 1) a plan whose unclosed fence hides a phase.
+- This closes the IDS-23 open debt about `task-brief` cutting at the first `---` inside a fence.
+- A plan that passed `verification-lint` only because a stray fence flipped its state may now be
+  judged differently.
+
+### Not adopted
+- Karpathy's Simplicity First: it contradicts the Completeness Ladder.
+- Superpowers 7.0.2 brainstorming question-reduction: brainstorm keeps asking every clarifying
+  question through `AskUserQuestion`.
+- The Windows and no-bash hook fixes, and Hermes, Devin and OpenCode V2 platform support.
+- No `tests/pressure` measurement of whether agents obey the new rules.
+
 ## [1.33.2] - 2026-11-08
 
 ### Changed

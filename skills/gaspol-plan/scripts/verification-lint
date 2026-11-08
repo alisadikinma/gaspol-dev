@@ -24,9 +24,14 @@ The rules, exactly:
   * Both line matches ignore trailing blanks and CR, and task-brief applies the same rule, so the
     two cannot disagree on whether a plan has the header.
   * A phase starts at `### Phase <id>` and ends at the next `### ` (or `## `) heading, a `---`
-    rule, or end of file. Fenced code blocks are skipped, so a template quoted in a fence is
-    not a phase. A heading that reads as a phase but is malformed (`### Phase: x`, `### phase a`)
+    rule, or end of file. A heading that reads as a phase but is malformed (`### Phase: x`, `### phase a`)
     is UNKNOWN, never skipped.
+  * Fenced code blocks are skipped, so a template quoted in a fence is not a phase. A fence opens
+    on a line that, after at most three leading spaces, starts with three or more backticks or
+    three or more tildes (the character and run length are remembered). It closes on a later line
+    that, after at most three leading spaces, starts with the same character in a run at least as
+    long, followed only by spaces, tabs or CR; any other line inside is text, and an unclosed
+    fence runs to the end of the file. This is the same rule `task-brief` uses.
   * Inside a phase, the Verification lines are the `- [ ]` / `- [x]` items after the
     `**Verification:**` line.
   * A Verification line is GENERIC when, with backticks removed, (i) it contains a command
@@ -108,9 +113,27 @@ def read_plan(path):
     return text
 
 
-def is_fence(line):
-    stripped = line.lstrip()
-    return stripped.startswith("```") or stripped.startswith("~~~")
+FENCE_OPEN_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+
+
+def fence_step(line, fence):
+    """Advance the fence state over one line; return (is_delimiter, new_state).
+
+    state is None outside a fence, else (character, opener run length). A line that is
+    neither the opener nor the closer is plain text and leaves the state alone.
+    """
+    match = FENCE_OPEN_RE.match(line)
+    if fence is None:
+        if match:
+            run = match.group(1)
+            return True, (run[0], len(run))
+        return False, None
+    if match:
+        run = match.group(1)
+        rest = line[match.end():]
+        if run[0] == fence[0] and len(run) >= fence[1] and not rest.strip(BLANKS):
+            return True, None
+    return False, fence
 
 
 def read_header(lines):
@@ -119,17 +142,17 @@ def read_header(lines):
     line_count counts every `- ` line under the header, including ones that yield no
     command, so an empty block can be told apart from a block of placeholders.
     """
-    in_fence = False
+    fence = None
     found = False
     count = 0
     commands = []
     for line in lines:
-        if is_fence(line):
+        delimiter, fence = fence_step(line, fence)
+        if delimiter:
             if found:
                 break
-            in_fence = not in_fence
             continue
-        if in_fence:
+        if fence is not None:
             continue
         if not found:
             found = line.rstrip(BLANKS) == HEADER_LINE
@@ -155,12 +178,10 @@ def parse_phases(lines):
     phases = []
     current = None
     in_verif = False
-    in_fence = False
+    fence = None
     for line in lines:
-        if is_fence(line):
-            in_fence = not in_fence
-            continue
-        if in_fence:
+        delimiter, fence = fence_step(line, fence)
+        if delimiter or fence is not None:
             continue
         if line.startswith("### ") or line.startswith("## "):
             heading = HEADING_RE.match(line)

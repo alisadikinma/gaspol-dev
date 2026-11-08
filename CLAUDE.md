@@ -46,7 +46,9 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/_shared/kb-root` | **NEW (v1.18)** — executes that order. Prints the resolved path on stdout; reports `available`/`UNKNOWN`/`none` via exit codes **0/3/4**, which cannot be conflated the way an empty stdout can |
 | `tests/skill-triggering/` | Auto-trigger tests — naive intent prompts must fire the right skill (`run-all.sh`) |
 | `tests/pressure/` | Pressure tests — rigid skills must resist rationalization ("skip the test", "just hardcode it"). **Stochastic** — spawns real `claude` CLI runs; treat a single run's score as a sample, not a verdict, and compare against a baseline run before calling anything a regression |
-| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list. **v1.32:** 65 scripts, including the size ceiling and the reference check below |
+| `skills/_shared/working-discipline.md` | **NEW (v1.34)** — two rules, Surgical changes and Think before coding, adapted from github.com/multica-ai/andrej-karpathy-skills (MIT). Summarised by `hooks/session-start.sh`, pointed at by `implementer-prompt.md`. Carries the boundary with the Completeness Ladder: limit code outside the task, full depth inside it. Simplicity First is deliberately absent |
+| `tests/ticket-scripts/test-working-discipline.sh` | **NEW (v1.34)** — pins the rule file, the hook summary, the implementer pointer, and that the file does not carry Simplicity First |
+| `tests/ticket-scripts/` | Deterministic bash tests for the scripts and for the skill text itself — **30 at v1.19**, run with `for f in tests/ticket-scripts/*.sh; do bash "$f" || exit 1; done`. Fast, no API calls — run these first. **Deliberately not enumerated here:** a name list that must be edited on every new test is a drift source, and it had already gone stale through IDS-7 and IDS-8 before anyone noticed. The directory listing is the list. **v1.32:** 65 scripts, including the size ceiling and the reference check below. **v1.34:** 68 scripts |
 | `tests/ticket-scripts/test-gate-mutations.sh` | **NEW (v1.18)** — the gates are themselves under test. A table of planted lines with expected caught/allowed verdicts, run every commit, asserting a green baseline first. It exists because IDS-8's documentation gates regressed **three rounds running** — each time an exemption added to keep a gate usable became the way through it (a noun, then an unanchored substring, then an arrow). Adding an exemption means adding its attack row here first and watching it fail |
 | `tests/ticket-scripts/test-kb-state4-continues.sh` | **NEW (v1.18, review round)** — the only test that **runs** the bash inside a `SKILL.md` instead of reading it. It exists because every KB test exercised `kb-root` standalone while its three callers merged exit 3 into exit 4, so a fresh machine's first capture aborted. A text assertion cannot catch a control-flow bug |
 | `tests/ticket-scripts/test-skill-frontmatter.sh` | **NEW (v1.18, review round)** — asserts all 16 skills still parse as skills: frontmatter fence terminated, no non-YAML line inside it, `name` and `description` present. IDS-8 put an explanatory blockquote **inside** `gaspol-kb-audit`'s frontmatter, so the skill most likely stopped loading, and a 28-test suite saw nothing — every test asked what the prose said, none asked whether the file was still a skill |
@@ -60,14 +62,14 @@ Claude Code plugin providing **17 development skills + 4 agents** for execution 
 | `skills/gaspol-brainstorm/references/builder-check-prompt.md` | **NEW (v1.32)** — prompt for the one fresh `general-purpose` subagent (`model: "opus"`, `model-tier: judge`) that Phase 6 dispatches against the written spec: ranked questions plus "looks unnecessary" parts, or exactly `nothing important left`. One round, architectural path only |
 | `skills/gaspol-brainstorm/visual-companion.md` + `visual-companion/scripts/` | **NEW (v1.7)** — browser visual-companion loop (mockups/diagrams, just-in-time offer); zero-dep Node server vendored from superpowers (MIT), session-key auth, `.gaspol/brainstorm/` state |
 | `skills/gaspol-parallel/scripts/review-package` | **NEW (v1.6)** — deterministic task-diff package for the SDD review harness (rejects `HEAD~1`) |
-| `skills/gaspol-parallel/scripts/task-brief` | **NEW (v1.16)** — extracts ONE phase from a plan into `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. Dispatch prompts hand over that path instead of pasting task text; the implementer writes its full report to a sibling `task-<N>-report.md` and returns four short fields |
+| `skills/gaspol-parallel/scripts/task-brief` | **NEW (v1.16)** — extracts ONE phase from a plan into `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. Dispatch prompts hand over that path instead of pasting task text; the implementer writes its full report to a sibling `task-<N>-report.md` and returns four short fields. **v1.34 (IDS-24):** fence-aware (same rule as `verification-lint`: opener is 3+ backticks or tildes after at most 3 spaces; closer is the same character, at least as long, only blanks or CR after), so a `---` inside a fenced block no longer ends a phase; an unclosed fence that hides a phase is refused with exit 1 |
 | `skills/gaspol-parallel/re-review-prompt.md` | **NEW (v1.16)** — scoped re-review after a fix round: verdicts each open finding against the fix diff alone (`review-package <FIX_BASE> HEAD`), and opens no new review ground |
 | `skills/gaspol-parallel/scripts/dag-lanes` | **NEW (v1.8)** — deterministic DAG scheduler (stdlib `graphlib`, zero deps): task graph → dependency waves + file-isolated lanes. Replaces binary conflict-check; has `--self-test` |
 | `skills/gaspol-verify/scripts/design_audit.py` | **MOVED (v1.14), REWIRED (v1.17)** — offline design-compliance lint, stdlib-only. Kept when `gaspol-design` was deleted because `ui-ux-pro-max`'s audit needs Playwright + a running URL and cannot run pre-merge. v1.17: reads the `DESIGN.md` token contract, scopes to the branch diff (`--changed-files BASE`), computes real WCAG AA contrast, and finally scans `.css`/`.scss` |
 | `skills/gaspol-verify/scripts/extract-design-tokens` | **NEW (v1.17)** — prints a `DESIGN.md` contract extracted from tailwind theme colours, `--color-*`/`--brand-*` custom properties, or `theme.json`. Literal extraction only: an unrecognised config emits nothing and exits 1. **stdout only** — the write is offered by `gaspol-verify`, never taken |
 | `skills/gaspol-verify/rules/` | **MOVED (v1.14)** — anti-AI-slop tables + gaspol reasoning rules (project tokens, KB precedent). Kept for the same reason: `ui-ux-pro-max` ships no anti-slop opinion layer |
 | `skills/gaspol-plan/SKILL.md` | Implementation planning with Data Integration Maps + TDD gate + ticket-prefixed `-plan.md` file. **UPDATED (v1.31)** — every phase carries `**Deps:**` and `**Complexity:**` (reason mandatory), the plan header carries `**Format:** waves-v1`, and the wave table comes from `plan-waves`, never by hand. **UPDATED (v1.32)** — body 17,928 bytes (was 34,218), detail in `references/` (`plan-header.md`, `plan-details.md`, `ledger-format.md`, `phase-template.md`); the header carries a `**Verification commands:**` block once, and per-phase Verification holds only phase-specific checks |
-| `skills/gaspol-plan/scripts/verification-lint` | **NEW (v1.32)** — refuses a plan phase whose Verification block is only generic: the command strings and boilerplate live once in the header `**Verification commands:**` block, and each phase must carry at least one check of its own. Four exit states on the house contract (0 ok / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan with no header block, never a pass). `task-brief` appends the header block to every brief; a legacy plan's briefs are byte-identical to before |
+| `skills/gaspol-plan/scripts/verification-lint` | **NEW (v1.32)** — refuses a plan phase whose Verification block is only generic: the command strings and boilerplate live once in the header `**Verification commands:**` block, and each phase must carry at least one check of its own. Four exit states on the house contract (0 ok / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan with no header block, never a pass). `task-brief` appends the header block to every brief; a legacy plan's briefs are byte-identical to before. **v1.34 (IDS-24):** fence tracking matches fence length and character and handles nested fences, so a stray fence cannot flip the lint's state |
 | `skills/gaspol-plan/scripts/plan-waves` | **NEW (v1.31)** — validates a `waves-v1` plan (`Deps`, `Complexity` with a non-empty reason), schedules it through `dag-lanes`, and prints `wave N lane M:` and `phase X complexity=… model=… effort=… review=…` lines. The single place the complexity → effort/review mapping lives. Four exit states on the house contract (0 / 1 BLOCKING / 3 UNKNOWN / 4 legacy plan, never a pass). Fenced code blocks are not parsed as phases. Read by `gaspol-auto` pre-flight |
 | `skills/gaspol-execute/SKILL.md` | Plan execution with TDD hard gate + tiered auto-review + plan-verifier blocking. **UPDATED (v1.32)** — body 17,991 bytes (was 29,286), detail in `references/` (`execution-flow.md`, `pre-execution.md`, `offers.md`, `anti-placeholder-examples.md`) |
 | `skills/gaspol-execute/scripts/detect-stack` | **NEW (v1.13)** — reads stack marker files at a project root, prints `<level>: <command>` lines (static/lint/unit/build); prints `UNKNOWN` when a marker exists but its backing command doesn't; prints nothing when there are no markers. Feeds `gaspol-verify` Layer 1, `gaspol-parallel`'s Validation Ladder L1-L3, and `gaspol-plan`'s per-phase Verification block — no more hardcoded npm |
@@ -1347,11 +1349,55 @@ body or a reference (E 351 of 356, F complete apart from condensed steps, G 316 
   unchanged" is not measured.
 - **Superpowers ideas not adopted:** Review Focus and Interfaces blocks in plans, `Ruling:` ledger
   entries, and a session-diagnosis skill.
-- **Open debt:** `task-brief` cuts a phase at the first `---` line even inside a fenced code block
-  (found at Phase A); `verification-lint` Minor findings 3 to 6; `gaspol-plan` Phase D Minor
+- **Open debt:** `task-brief` cutting a phase at the first `---` line even inside a fenced code block
+  (found at Phase A) was closed by IDS-24; `verification-lint` Minor findings 3 to 6; `gaspol-plan` Phase D Minor
   findings (a stale "into the header below" in step 6, weak pins); the REAL/PLACEHOLDER table rows
   now live only in `skills/gaspol-execute/references/execution-flow.md`; the stale
   "`gaspol-execute` calls this skill" line in `gaspol-verify`'s Integration section.
+
+### Working Discipline + Fence-Aware Briefs (NEW in v1.34, IDS-24)
+
+Canonical sources: `skills/_shared/working-discipline.md`, `skills/gaspol-parallel/scripts/task-brief`,
+`skills/gaspol-plan/scripts/verification-lint`, `tests/ticket-scripts/test-working-discipline.sh`.
+
+**The defect, with evidence.** Part A: the plugin carried no equivalent of Surgical Changes. `grep -rniE "surgical|adjacent code|drive-by|unrelated dead code" skills/ hooks/ agents/`
+found no rule telling an agent to leave adjacent
+code, comments and formatting alone, while the Completeness Ladder pushed every task toward more
+depth. Part B: the IDS-23 open debt, found at Phase A. `task-brief` cut a phase at the first `---`
+line even inside a fenced code block, so a brief could be silently truncated, and
+`verification-lint` and `task-brief` each had their own idea of what a fence is.
+
+**What changed.**
+
+- **Part A.** `skills/_shared/working-discipline.md` holds two rules: Surgical changes (every changed
+  line traces to the request; no tidying; match style; remove only what your change orphaned;
+  report unrelated dead code, never delete it) and Think before coding (state assumptions, name
+  both readings, say when a simpler way exists, ask through `AskUserQuestion` when confused). It
+  states its boundary with the ladder: limit code outside the task, full depth inside it.
+  `hooks/session-start.sh` carries a summary and `implementer-prompt.md` points at the file.
+- **Part B.** `task-brief` and `verification-lint` share one fence rule: an opener is a run of 3 or
+  more backticks or tildes after at most 3 spaces; a closer uses the same character, a run at least
+  as long, and only blanks or CR after it. `task-brief` refuses a plan whose unclosed fence hides a
+  phase, with exit 1 (not 4: the plan exists and is broken, which is not "not applicable").
+  Phase B's review found one Minor, a run of CRs in a closer, and it was fixed.
+
+**What each part gives up, stated rather than discovered later:**
+
+- **Part A is model judgement**, not a machine check, and it grows the session-start hook from
+  4,357 to 4,689 bytes in every session.
+- **A plan that passed `verification-lint` only because a stray fence flipped its state may now be
+  judged differently.** That is the fix working, but it can surface as a new BLOCKING on an old plan.
+- **Brainstorm keeps asking every clarifying question.** Question-reduction was not taken.
+
+**What is NOT adopted or closed:**
+
+- **Simplicity First (Karpathy)** is not adopted: it contradicts the Completeness Ladder, which
+  demands every error path and edge case, and carrying both would give agents two opposite orders.
+- **Superpowers 7.0.2 brainstorming question-reduction** is not adopted, by owner decision to keep
+  the mandatory `AskUserQuestion` rule.
+- **The Windows and no-bash hook fixes**, and Hermes, Devin and OpenCode V2 platform support, are
+  not taken.
+- **No `tests/pressure` measurement** of whether agents obey Part A was made.
 
 ### Single-Owner Gates (NEW in v1.30, IDS-21) — the same check ran three times on the same commit
 
@@ -1786,9 +1832,9 @@ Post-run: consolidated report, then the finish offer. The verify chain and plan-
 ## gaspol Ticket Counter
 
 Prefix: IDS
-Last ticket: IDS-23
+Last ticket: IDS-24
 
 ---
 
-**Version:** 1.33.2
-**Last Updated:** October 2026
+**Version:** 1.34.0
+**Last Updated:** November 2026

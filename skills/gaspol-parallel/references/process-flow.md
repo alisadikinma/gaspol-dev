@@ -97,6 +97,8 @@ commit and `HEAD~1` silently drops all but the last.
 full text to `.gaspol/tasks/<TICKET>/task-<N>-brief.md` and prints the path. The brief is
 the single source of the implementer's requirements.
 
+If task-brief exits non-zero, do not dispatch. Stop, show its stderr, and fix the plan (an unclosed code fence is the usual cause) or ask the owner. Never dispatch with a brief you did not see written.
+
 Use the `implementer-prompt.md` template. A dispatch prompt carries exactly five things:
 
 1. One line on where this task fits in the project.

@@ -12,6 +12,26 @@
 # Output lands at <repo-root>/.gaspol/tasks/<TICKET>/task-<N>-brief.md, with the
 # repo root resolved from the plan file's own directory (same approach as
 # review-package).
+#
+# Phase boundaries: a phase starts at the Nth "### Phase " heading and ends at the
+# next "### " heading or a "---" rule, whichever comes first (else end of file) —
+# but only OUTSIDE a fenced code block. A fence opens on a line that, after at most
+# three leading spaces, starts with three or more backticks or tildes (the character
+# and the run length are remembered). It closes on a later line that, after at most
+# three leading spaces, starts with the same character in a run at least as long,
+# followed only by spaces, tabs or CR. Inside a fence a "### " line, a "---" line
+# and a "### Phase " line are text: they neither end the brief nor count as a phase.
+# This is the same rule as skills/gaspol-plan/scripts/verification-lint.
+# A fence that never closes hides everything after it. If it hid a "### Phase "
+# heading, or hid the end of the captured phase, the brief could be wrong, so the
+# script refuses. If it hid nothing relevant, the brief is complete and the script
+# only warns.
+#
+# Exit codes:
+#   0  brief written (stdout is its path); a warning on stderr is not a failure
+#   1  refused: an unclosed code fence hides a phase heading; nothing is written
+#   2  usage error, or no such phase
+# Caller rule: any non-zero exit means stop, do not dispatch, show stderr.
 set -euo pipefail
 
 err() { echo "task-brief: $*" >&2; }
@@ -31,15 +51,78 @@ esac
 TICKET="$(sed -n 's/^\*\*Ticket:\*\*[[:space:]]*\([^[:space:]]*\).*/\1/p' "$PLAN" | head -1)"
 [ -n "$TICKET" ] || { err "plan has no '**Ticket:**' header line: $PLAN"; exit 2; }
 
-# Phase boundaries: start at the Nth "### Phase " heading, stop at the next
-# "### " heading or a "---" rule, whichever comes first (else end of file).
-BLOCK="$(awk -v want="$N" '
-    /^### Phase / { seen++; if (seen == want) { inblock = 1; print; next } }
-    inblock && (/^### / || /^---[[:space:]]*$/) { exit }
-    inblock { print }
+# The fence rule is written once and prefixed to both awk programs below, so the
+# phase extraction and the header scan cannot disagree about which lines are fenced.
+# POSIX awk only (BSD-safe): no match() arrays, no interval expressions. fence_step
+# takes a line with any trailing CR already removed and its line number; it sets the
+# globals fc (open fence character, "" outside), fl (its opener run length), fopen
+# (the line it opened on) and delim (1 when this line opens or closes a fence).
+FENCE_FN='
+function fence_step(l, nr,    sp, rest, ch, n) {
+    delim = 0
+    match(l, /^ */); sp = RLENGTH
+    if (sp > 3) return
+    rest = substr(l, sp + 1)
+    ch = substr(rest, 1, 1)
+    if (ch != "`" && ch != "~") return
+    n = 1
+    while (substr(rest, n + 1, 1) == ch) n++
+    if (n < 3) return
+    if (fc == "") { fc = ch; fl = n; fopen = nr; delim = 1; return }
+    if (ch == fc && n >= fl && substr(rest, n + 1) ~ /^[ \t\r]*$/) { fc = ""; delim = 1 }
+}
+'
+
+# The awk cannot exit the shell, so it prints the phase block and then ALWAYS ends with
+# one status line the shell reads from the end: "__FENCE_STATUS__ N 0" (clean),
+# "__FENCE_STATUS__ W <L>" (stray fence opened at line L, hides nothing) or
+# "__FENCE_STATUS__ R <L>" (the unclosed fence opened at line L hid a phase heading
+# or the end of the block). A plan line cannot forge it: only the LAST line counts.
+RAW="$(awk -v want="$N" "$FENCE_FN"'
+    BEGIN { cr = sprintf("%c", 13) }
+    {
+        line = $0; sub(cr "$", "", line)
+        fence_step(line, NR)
+        if (delim) {
+            if (fc != "") { hid_phase = 0; hid_end = 0 }
+            if (inblock) print
+            next
+        }
+        if (fc != "") {
+            if (line ~ /^### Phase /) hid_phase = 1
+            if (inblock && (line ~ /^### / || line ~ /^---[[:space:]]*$/)) hid_end = 1
+            if (inblock) print
+            next
+        }
+        if (line ~ /^### Phase /) { seen++; if (seen == want) { inblock = 1; print; next } }
+        if (inblock && (line ~ /^### / || line ~ /^---[[:space:]]*$/)) { inblock = 0; next }
+        if (inblock) print
+    }
+    END {
+        if (fc != "" && (hid_phase || hid_end)) print "__FENCE_STATUS__ R " fopen
+        else if (fc != "") print "__FENCE_STATUS__ W " fopen
+        else print "__FENCE_STATUS__ N 0"
+    }
 ' "$PLAN")"
 
+STATUS="$(printf '%s\n' "$RAW" | tail -n 1)"
+BLOCK="$(printf '%s\n' "$RAW" | sed '$d')"
+FENCE_LINE="${STATUS##* }"
+case "$FENCE_LINE" in ''|*[!0-9]*) err "internal error: unreadable fence status"; exit 1 ;; esac
+
+# Refuse before anything is created: no $DIR, no $OUT, nothing on stdout.
+case "$STATUS" in
+    "__FENCE_STATUS__ R "*)
+        err "the code fence opened at line $FENCE_LINE of $(basename "$PLAN") never closes, so a later phase heading cannot be seen; close that fence in the plan and rerun"
+        exit 1 ;;
+esac
+
 [ -n "$BLOCK" ] || { err "no phase $N in $PLAN (fewer than $N '### Phase ' headings)"; exit 2; }
+
+case "$STATUS" in
+    "__FENCE_STATUS__ W "*)
+        err "warning: the code fence opened at line $FENCE_LINE never closes; it hides no phase heading, so this brief is complete" ;;
+esac
 
 # IDS-23: the plan header's `**Verification commands:**` block (that line plus the
 # consecutive `- ` lines under it) is written once per plan and applies to every
@@ -51,11 +134,11 @@ BLOCK="$(awk -v want="$N" '
 # whitespace and CR before matching the header line: the two must agree on whether a plan
 # HAS the header, or the lint passes a plan whose briefs silently lose the commands. The
 # copied lines lose their trailing CR/blanks too. POSIX awk only (BSD-safe).
-HEADER_BLOCK="$(awk '
+HEADER_BLOCK="$(awk "$FENCE_FN"'
     BEGIN { strip = "[ \t" sprintf("%c", 13) "]+$" }
-    { line = $0; sub(strip, "", line) }
-    line ~ /^[[:space:]]*(```|~~~)/ { if (inblock) exit; infence = !infence; next }
-    infence { next }
+    { line = $0; sub(strip, "", line); fence_step(line, NR) }
+    delim { if (inblock) exit; next }
+    fc != "" { next }
     !inblock && line == "**Verification commands:**" { inblock = 1; print line; next }
     inblock && line ~ /^- / { print line; next }
     inblock { exit }
