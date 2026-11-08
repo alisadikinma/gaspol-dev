@@ -1790,5 +1790,5 @@ Last ticket: IDS-23
 
 ---
 
-**Version:** 1.33.1
+**Version:** 1.33.2
 **Last Updated:** October 2026

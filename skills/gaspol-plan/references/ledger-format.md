@@ -57,12 +57,24 @@ use exactly this template:
 
 ## Phase log
 
-| Gelombang | Phase | Status | Commit |
-|---|---|---|---|
-| 1 | A — script detect-stack | DONE | `4f2a1c9` |
-| 2 | B — glob ledger | DOING | `<no commit>` |
-| 2 | C — konvensi nama file spec & plan | TODO | `<no commit>` |
-| 3 | D — contoh fase dibatalkan | DIBATALKAN | `<no commit>` |
+### Gelombang 1 — SELESAI
+
+| Phase | Status | Commit |
+|---|---|---|
+| A — script detect-stack | DONE | `4f2a1c9` |
+
+### Gelombang 2 — SEDANG JALAN
+
+| Phase | Status | Commit |
+|---|---|---|
+| B — glob ledger | DOING | `<no commit>` |
+| C — konvensi nama file spec & plan | TODO | `<no commit>` |
+
+### Gelombang 3 — DIBATALKAN
+
+| Phase | Status | Commit |
+|---|---|---|
+| D — contoh fase dibatalkan | DIBATALKAN | `<no commit>` |
 
 ## Utang terbuka
 
@@ -83,8 +95,11 @@ sits next to 2A although it runs two waves later, and nobody can tell what comes
   phases as `#### [ ] Phase <id>: <name>` sub-blocks, in the lane order `plan-waves` printed.
 - Wave status: `SELESAI` (every phase `[x]`), `SEDANG JALAN` (any phase `[>]` or `[x]`, not all),
   `BERIKUTNYA` (the first wave not started), `MENUNGGU` (later waves), `DIBATALKAN` (every phase `[~]`).
-  Update the wave heading AND its Ringkasan row whenever a phase in it changes state.
-- `## Phase log` carries a leading `Gelombang` column and lists rows in wave order.
+  Update the wave heading in `## Checklist`, the one in `## Phase log`, AND its Ringkasan row
+  whenever a phase in it changes state.
+- `## Phase log` is split the same way: one `### Gelombang <N> — <STATUS>` heading per wave, each
+  with its own `| Phase | Status | Commit |` table, in wave order. One long table with a
+  `Gelombang` column is not enough — the reader still has to scan row by row to find a wave.
 - The heading stays exactly `## Checklist` — `ledger-gate` checks that name.
 - No separate `## Waves` section: the Ringkasan table replaces it.
 - A legacy plan without `waves-v1` (`plan-waves` exit 4) gets one phase per wave, in plan order.

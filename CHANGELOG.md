@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.33.2] - 2026-11-08
+
+### Changed
+- `## Phase log` is split by wave like the checklist: one `### Gelombang <N> — <STATUS>` heading
+  per wave, each with its own `| Phase | Status | Commit |` table. One long table with a
+  `Gelombang` column (1.33.1) still made the reader scan row by row to find a wave.
+- The ledger tick updates the wave heading in both `## Checklist` and `## Phase log`.
+
 ## [1.33.1] - 2026-11-08
 
 ### Changed

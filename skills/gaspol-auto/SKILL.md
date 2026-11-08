@@ -114,7 +114,7 @@ Iterate **each wave** from the `wave <N> lane <M>: <id> <id>` lines, in wave ord
 
 **Post-phase silent check.** Run the tiered auto-review classifier (from Phase F logic). If REVIEW and findings surfaced, mini-pause (see Hard Stop below if Critical).
 
-**Ledger tick (BLOCKING).** After a wave, in plan order, the orchestrating session runs `gaspol-execute`'s tick-then-append gate (Checkpoint Rule 6) for each phase: Checklist ticked (and, in a wave-grouped ledger, that wave's `### Gelombang` heading and `## Ringkasan gelombang` row set to its new status), `## Phase log` row set to the status and real commit SHA (in backticks, `` `86f058d` ``; `` `<no commit>` `` until committed), one `## Log` line per phase with its `NEXT:` cursor. No ledger write, no next wave. Autonomous means no prompt between phases, never no record between phases.
+**Ledger tick (BLOCKING).** After a wave, in plan order, the orchestrating session runs `gaspol-execute`'s tick-then-append gate (Checkpoint Rule 6) for each phase: Checklist ticked (and, in a wave-grouped ledger, that wave's `### Gelombang` headings (Checklist + Phase log) and `## Ringkasan gelombang` row set to its new status), `## Phase log` row set to the status and real commit SHA (in backticks, `` `86f058d` ``; `` `<no commit>` `` until committed), one `## Log` line per phase with its `NEXT:` cursor. No ledger write, no next wave. Autonomous means no prompt between phases, never no record between phases.
 
 **Continue to the next wave** with no per-phase user prompt. That is the autonomous part.
 

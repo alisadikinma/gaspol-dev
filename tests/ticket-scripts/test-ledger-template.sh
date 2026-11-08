@@ -130,8 +130,14 @@ grep -qF '## Ringkasan gelombang' "$TEMPLATE" \
     || fail "the template has no '## Ringkasan gelombang' table"
 grep -qE '^## Checklist$' "$TEMPLATE" \
     || fail "the checklist heading must stay exactly '## Checklist' (ledger-gate reads it)"
-grep -qE '^\| Gelombang \| Phase \| Status \| Commit \|' "$TEMPLATE" \
-    || fail "## Phase log has no leading Gelombang column"
+PHASELOG="$(awk '/^## Phase log/ {on=1; next} /^## / {on=0} on' "$TEMPLATE")"
+printf '%s\n' "$PHASELOG" | grep -qE '^### Gelombang [0-9]+ — ' \
+    || fail "## Phase log is not split by wave ('### Gelombang <N> — <STATUS>' + one table each)"
+[ "$(printf '%s\n' "$PHASELOG" | grep -cE '^\| Phase \| Status \| Commit \|')" -ge 2 ] \
+    || fail "## Phase log must hold one '| Phase | Status | Commit |' table per wave"
+if printf '%s\n' "$PHASELOG" | grep -qE '^\| Gelombang \|'; then
+    fail "## Phase log still uses one long table with a Gelombang column"
+fi
 if grep -qE '^## Waves' "$TEMPLATE"; then
     fail "the template still carries a separate '## Waves' section"
 fi

@@ -8,7 +8,7 @@ cd "$REPO_ROOT" || exit 1
 FAILED=0
 fail() { echo "FAIL: $1"; FAILED=$((FAILED + 1)); }
 pass() { echo "PASS: $1"; }
-V="1.33.1"
+V="1.33.2"
 ver_of() { sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -1; }
 
 for pj in .claude-plugin/plugin.json plugin.json; do
